@@ -17,3 +17,4 @@ public interface BddLib<Bdd> {
 
     Bdd ifThenElse(Bdd cond, Bdd thenClause, Bdd elseClause);
 }
+
