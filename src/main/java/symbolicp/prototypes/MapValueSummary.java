@@ -95,5 +95,42 @@ public class MapValueSummary<Bdd, K, V> {
 
             return new MapValueSummary<>(newKeys, newEntries);
         }
+
+        public MapValueSummary<Bdd, K, V>
+        remove(MapValueSummary<Bdd, K, V> mapSummary, PrimitiveValueSummary<Bdd, K> keySummary) {
+            final SetValueSummary<Bdd, K> newKeys = setOps.remove(mapSummary.keys, keySummary);
+
+            final Map<K, V> newEntries = new HashMap<>(mapSummary.entries);
+            for (Map.Entry<K, Bdd> guardedKey : keySummary.guardedValues.entrySet()) {
+                V oldVal = mapSummary.entries.get(guardedKey.getKey());
+                if (oldVal == null) {
+                    continue;
+                }
+
+                final V remainingVal = valueOps.guard(oldVal, bddLib.not(guardedKey.getValue()));
+                if (valueOps.isEmpty(remainingVal)) {
+                    newEntries.remove(guardedKey.getKey());
+                } else {
+                    newEntries.put(guardedKey.getKey(), remainingVal);
+                }
+            }
+
+            return new MapValueSummary<>(newKeys, newEntries);
+        }
+
+        public OptionalValueSummary<Bdd, V>
+        get(MapValueSummary<Bdd, K, V> mapSummary, PrimitiveValueSummary<Bdd, K> keySummary) {
+            final OptionalValueSummary.Ops<Bdd, V> resultOps = new OptionalValueSummary.Ops<>(bddLib, valueOps);
+
+            final PrimitiveValueSummary<Bdd, Boolean> containsKeySummary = setOps.contains(mapSummary.keys, keySummary);
+
+            return containsKeySummary.flatMap(resultOps, (containsKey) -> {
+                if (containsKey) {
+                    return keySummary.flatMap(resultOps, (key) -> resultOps.makePresent(mapSummary.entries.get(key)));
+                } else {
+                    return resultOps.makeAbsent();
+                }
+            });
+        }
     }
 }
