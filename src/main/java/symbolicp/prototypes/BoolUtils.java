@@ -6,19 +6,19 @@ import java.util.Map;
 public class BoolUtils {
     private BoolUtils() {}
 
-    public static <Bdd> PrimitiveValueSummary<Bdd, Boolean>
+    public static <Bdd> PrimVS<Bdd, Boolean>
     fromTrueGuard(BddLib<Bdd> bddLib, Bdd guard) {
         if (bddLib.isConstFalse(guard)) {
-            return new PrimitiveValueSummary<>(bddLib, false);
+            return new PrimVS<>(bddLib, false);
         }
 
         if (bddLib.isConstTrue(guard)) {
-            return new PrimitiveValueSummary<>(bddLib, true);
+            return new PrimVS<>(bddLib, true);
         }
 
         final Map<Boolean, Bdd> entries = new HashMap<>();
         entries.put(true, guard);
         entries.put(false, bddLib.not(guard));
-        return new PrimitiveValueSummary<>(entries);
+        return new PrimVS<>(entries);
     }
 }
