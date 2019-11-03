@@ -1,5 +1,7 @@
 package symbolicp.prototypes;
 
+import java.util.Arrays;
+
 public interface ValueSummaryOps<Bdd, ValueSummary> {
     /** Informally, a value summary is "empty" if it contains no values (or, equivalently, if all of its values are
      * guarded by conditions which are identically false).
@@ -46,4 +48,8 @@ public interface ValueSummaryOps<Bdd, ValueSummary> {
      *      merge(guard(summary1, cond1), guard(summary2, cond2))
      */
     ValueSummary merge(Iterable<ValueSummary> summaries);
+
+    default ValueSummary merge2(ValueSummary summary1, ValueSummary summary2) {
+        return merge(Arrays.asList(summary1, summary2));
+    }
 }
