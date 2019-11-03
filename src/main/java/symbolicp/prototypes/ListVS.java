@@ -2,43 +2,41 @@ package symbolicp.prototypes;
 
 import java.util.*;
 
-public class ListVS<Bdd, Item> {
-    private final PrimVS<Bdd, Integer> size;
+public class ListVS<Item> {
+    private final PrimVS<Integer> size;
     private final List<Item> items;
 
-    private ListVS(PrimVS<Bdd, Integer> size, List<Item> items) {
+    private ListVS(PrimVS<Integer> size, List<Item> items) {
         this.size = size;
         this.items = items;
     }
 
-    public ListVS(BddLib<Bdd> bddLib) {
-        this(new PrimVS<>(bddLib, 0), new ArrayList<>());
+    public ListVS() {
+        this(new PrimVS<>(0), new ArrayList<>());
     }
 
-    public static class Ops<Bdd, Item> implements ValueSummaryOps<Bdd, ListVS<Bdd, Item>> {
-        private final BddLib<Bdd> bddLib;
-        private final PrimVS.Ops<Bdd, Integer> sizeOps;
-        private final ValueSummaryOps<Bdd, Item> itemOps;
+    public static class Ops<Item> implements ValueSummaryOps<ListVS<Item>> {
+        private final PrimVS.Ops<Integer> sizeOps;
+        private final ValueSummaryOps<Item> itemOps;
 
-        public Ops(BddLib<Bdd> bddLib, ValueSummaryOps<Bdd, Item> itemOps) {
-            this.bddLib = bddLib;
-            this.sizeOps = new PrimVS.Ops<>(bddLib);
+        public Ops(ValueSummaryOps<Item> itemOps) {
+            this.sizeOps = new PrimVS.Ops<>();
             this.itemOps = itemOps;
         }
 
         @Override
-        public boolean isEmpty(ListVS<Bdd, Item> summary) {
+        public boolean isEmpty(ListVS<Item> summary) {
             return sizeOps.isEmpty(summary.size);
         }
 
         @Override
-        public ListVS<Bdd, Item> empty() {
+        public ListVS<Item> empty() {
             return new ListVS<>(sizeOps.empty(), new ArrayList<>());
         }
 
         @Override
-        public ListVS<Bdd, Item> guard(ListVS<Bdd, Item> summary, Bdd guard) {
-            final PrimVS<Bdd, Integer> newSize = sizeOps.guard(summary.size, guard);
+        public ListVS<Item> guard(ListVS<Item> summary, Bdd guard) {
+            final PrimVS<Integer> newSize = sizeOps.guard(summary.size, guard);
             final List<Item> newItems = new ArrayList<>();
 
             for (Item item : summary.items) {
@@ -53,11 +51,11 @@ public class ListVS<Bdd, Item> {
         }
 
         @Override
-        public ListVS<Bdd, Item> merge(Iterable<ListVS<Bdd, Item>> summaries) {
-            final List<PrimVS<Bdd, Integer>> sizesToMerge = new ArrayList<>();
+        public ListVS<Item> merge(Iterable<ListVS<Item>> summaries) {
+            final List<PrimVS<Integer>> sizesToMerge = new ArrayList<>();
             final List<List<Item>> itemsToMergeByIndex = new ArrayList<>();
 
-            for (ListVS<Bdd, Item> summary : summaries) {
+            for (ListVS<Item> summary : summaries) {
                 sizesToMerge.add(summary.size);
 
                 for (int i = 0; i < summary.items.size(); i++) {
@@ -70,7 +68,7 @@ public class ListVS<Bdd, Item> {
                 }
             }
 
-            final PrimVS<Bdd, Integer> mergedSize = sizeOps.merge(sizesToMerge);
+            final PrimVS<Integer> mergedSize = sizeOps.merge(sizesToMerge);
 
             final List<Item> mergedItems = new ArrayList<>();
 
@@ -83,7 +81,7 @@ public class ListVS<Bdd, Item> {
         }
 
         // origList and item should be possible under the same conditions.
-        public ListVS<Bdd, Item> add(ListVS<Bdd, Item> origList, Item item) {
+        public ListVS<Item> add(ListVS<Item> origList, Item item) {
             final Map<Integer, Bdd> newSizeValues = new HashMap<>();
             final List<Item> newItems = new ArrayList<>(origList.items);
 
@@ -106,15 +104,15 @@ public class ListVS<Bdd, Item> {
         }
 
         // listSummary and indexSummary should be possible under the same conditions
-        public OptionalVS<Bdd, Item>
-        get(ListVS<Bdd, Item> listSummary, PrimVS<Bdd, Integer> indexSummary) {
-            final OptionalVS.Ops<Bdd, Item> resultOps = new OptionalVS.Ops<>(bddLib, itemOps);
+        public OptionalVS<Item>
+        get(ListVS<Item> listSummary, PrimVS<Integer> indexSummary) {
+            final OptionalVS.Ops<Item> resultOps = new OptionalVS.Ops<>(itemOps);
 
             return indexSummary.flatMap(
                 resultOps,
                 (index) -> {
-                    final PrimVS<Bdd, Boolean> inRange =
-                        listSummary.size.map(bddLib, (size) -> index < size);
+                    final PrimVS<Boolean> inRange =
+                        listSummary.size.map((size) -> index < size);
 
                     return inRange.flatMap(
                         resultOps,
@@ -129,13 +127,13 @@ public class ListVS<Bdd, Item> {
         }
 
         // all arguments should be possible under the same conditions
-        public OptionalVS<Bdd, ListVS<Bdd, Item>>
-        set(ListVS<Bdd, Item> origList, PrimVS<Bdd, Integer> indexSummary, Item itemToSet) {
-            final OptionalVS.Ops<Bdd, ListVS<Bdd, Item>> resultOps =
-                new OptionalVS.Ops<>(bddLib, this);
+        public OptionalVS<ListVS<Item>>
+        set(ListVS<Item> origList, PrimVS<Integer> indexSummary, Item itemToSet) {
+            final OptionalVS.Ops<ListVS<Item>> resultOps =
+                new OptionalVS.Ops<>(this);
 
-            final PrimVS<Bdd, Boolean> inRange =
-                origList.size.map2(indexSummary, bddLib, (size, index) -> index < size);
+            final PrimVS<Boolean> inRange =
+                origList.size.map2(indexSummary, (size, index) -> index < size);
 
             return inRange.flatMap(
                 resultOps,
@@ -149,7 +147,7 @@ public class ListVS<Bdd, Item> {
                             final int index = guardedIndex.getKey();
                             final Bdd guard = guardedIndex.getValue();
 
-                            final Item origContribution = itemOps.guard(newItems.get(index), bddLib.not(guard));
+                            final Item origContribution = itemOps.guard(newItems.get(index), guard.not());
                             final Item newContribution = itemOps.guard(itemToSet, guard);
                             newItems.set(index, itemOps.merge(Arrays.asList(origContribution, newContribution)));
                         }

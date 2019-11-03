@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class PrimVS<Bdd, T> {
+public class PrimVS<T> {
     /** The guards on these values *must* be mutually exclusive.
      *
      * In other words, for any two 'value1', 'value2' of type T, the following must be identically false:
@@ -15,8 +15,8 @@ public class PrimVS<Bdd, T> {
      */
     public final Map<T, Bdd> guardedValues;
 
-    public PrimVS(BddLib<Bdd> bddLib, T value) {
-        this.guardedValues = Collections.singletonMap(value, bddLib.constTrue());
+    public PrimVS(T value) {
+        this.guardedValues = Collections.singletonMap(value, Bdd.constTrue());
     }
 
     /** Caution: The caller must take care to ensure that the guards on the provided values are mutually exclusive.
@@ -27,30 +27,30 @@ public class PrimVS<Bdd, T> {
         this.guardedValues = guardedValues;
     }
 
-    public <U> PrimVS<Bdd, U> map(BddLib<Bdd> bddLib, Function<T, U> function) {
+    public <U> PrimVS<U> map(Function<T, U> function) {
         final Map<U, Bdd> results = new HashMap<>();
 
         for (Map.Entry<T, Bdd> guardedValue : guardedValues.entrySet()) {
             final U mapped = function.apply(guardedValue.getKey());
-            results.merge(mapped, guardedValue.getValue(), bddLib::or);
+            results.merge(mapped, guardedValue.getValue(), Bdd::or);
         }
 
         return new PrimVS<>(results);
     }
 
-    public <U, V> PrimVS<Bdd, V>
-    map2(PrimVS<Bdd, U> summary2, BddLib<Bdd> bddLib, BiFunction<T, U, V> function) {
+    public <U, V> PrimVS<V>
+    map2(PrimVS<U> summary2, BiFunction<T, U, V> function) {
         final Map<V, Bdd> results = new HashMap<>();
 
         for (Map.Entry<T, Bdd> val1 : this.guardedValues.entrySet()) {
             for (Map.Entry<U, Bdd> val2 : summary2.guardedValues.entrySet()) {
-                final Bdd combinedGuard = bddLib.and(val1.getValue(), val2.getValue());
-                if (bddLib.isConstFalse(combinedGuard)) {
+                final Bdd combinedGuard = val1.getValue().and(val2.getValue());
+                if (combinedGuard.isConstFalse()) {
                     continue;
                 }
 
                 final V mapped = function.apply(val1.getKey(), val2.getKey());
-                results.merge(mapped, combinedGuard, bddLib::or);
+                results.merge(mapped, combinedGuard, Bdd::or);
             }
         }
 
@@ -59,7 +59,7 @@ public class PrimVS<Bdd, T> {
 
     public <Target>
     Target flatMap(
-        ValueSummaryOps<Bdd, Target> ops,
+        ValueSummaryOps<Target> ops,
         Function<T, Target> function
     ) {
         final List<Target> toMerge = new ArrayList<>();
@@ -72,30 +72,26 @@ public class PrimVS<Bdd, T> {
         return ops.merge(toMerge);
     }
 
-    public static class Ops<Bdd, T> implements ValueSummaryOps<Bdd, PrimVS<Bdd, T>> {
-        final BddLib<Bdd> bddLib;
-
-        public Ops(BddLib<Bdd> bddLib) {
-            this.bddLib = bddLib;
-        }
+    public static class Ops<T> implements ValueSummaryOps<PrimVS<T>> {
+        public Ops() { }
 
         @Override
-        public boolean isEmpty(PrimVS<Bdd, T> summary) {
+        public boolean isEmpty(PrimVS<T> summary) {
             return summary.guardedValues.isEmpty();
         }
 
         @Override
-        public PrimVS<Bdd, T> empty() {
+        public PrimVS<T> empty() {
             return new PrimVS<>(new HashMap<>());
         }
 
         @Override
-        public PrimVS<Bdd, T> guard(PrimVS<Bdd, T> summary, Bdd guard) {
+        public PrimVS<T> guard(PrimVS<T> summary, Bdd guard) {
             final Map<T, Bdd> result = new HashMap<>();
 
             for (Map.Entry<T, Bdd> entry : summary.guardedValues.entrySet()) {
-                final Bdd newEntryGuard = bddLib.and(entry.getValue(), guard);
-                if (!bddLib.isConstFalse(newEntryGuard)) {
+                final Bdd newEntryGuard = entry.getValue().and(guard);
+                if (!newEntryGuard.isConstFalse()) {
                     result.put(entry.getKey(), newEntryGuard);
                 }
             }
@@ -104,12 +100,12 @@ public class PrimVS<Bdd, T> {
         }
 
         @Override
-        public PrimVS<Bdd, T> merge(Iterable<PrimVS<Bdd, T>> summaries) {
+        public PrimVS<T> merge(Iterable<PrimVS<T>> summaries) {
             final Map<T, Bdd> result = new HashMap<>();
 
-            for (PrimVS<Bdd, T> summary : summaries) {
+            for (PrimVS<T> summary : summaries) {
                 for (Map.Entry<T, Bdd> entry : summary.guardedValues.entrySet()) {
-                    result.merge(entry.getKey(), entry.getValue(), bddLib::or);
+                    result.merge(entry.getKey(), entry.getValue(), Bdd::or);
                 }
             }
 

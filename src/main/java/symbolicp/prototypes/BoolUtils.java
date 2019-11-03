@@ -3,22 +3,22 @@ package symbolicp.prototypes;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BoolUtils {
+public final class BoolUtils {
     private BoolUtils() {}
 
-    public static <Bdd> PrimVS<Bdd, Boolean>
-    fromTrueGuard(BddLib<Bdd> bddLib, Bdd guard) {
-        if (bddLib.isConstFalse(guard)) {
-            return new PrimVS<>(bddLib, false);
+    public static PrimVS<Boolean>
+    fromTrueGuard(Bdd guard) {
+        if (guard.isConstFalse()) {
+            return new PrimVS<>(false);
         }
 
-        if (bddLib.isConstTrue(guard)) {
-            return new PrimVS<>(bddLib, true);
+        if (guard.isConstTrue()) {
+            return new PrimVS<>(true);
         }
 
         final Map<Boolean, Bdd> entries = new HashMap<>();
         entries.put(true, guard);
-        entries.put(false, bddLib.not(guard));
+        entries.put(false, guard.not());
         return new PrimVS<>(entries);
     }
 }

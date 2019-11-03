@@ -2,7 +2,7 @@ package symbolicp.prototypes;
 
 import java.util.Arrays;
 
-public interface ValueSummaryOps<Bdd, ValueSummary> {
+public interface ValueSummaryOps<ValueSummary> {
     /** Informally, a value summary is "empty" if it contains no values (or, equivalently, if all of its values are
      * guarded by conditions which are identically false).
      */

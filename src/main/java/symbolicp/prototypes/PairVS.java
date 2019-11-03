@@ -32,11 +32,11 @@ public class PairVS<Left, Right> {
         this.right = right;
     }
 
-    public static class Ops<Bdd, Left, Right> implements ValueSummaryOps<Bdd, PairVS<Left, Right>> {
-        private final ValueSummaryOps<Bdd, Left> leftOps;
-        private final ValueSummaryOps<Bdd, Right> rightOps;
+    public static class Ops<Left, Right> implements ValueSummaryOps<PairVS<Left, Right>> {
+        private final ValueSummaryOps<Left> leftOps;
+        private final ValueSummaryOps<Right> rightOps;
 
-        public Ops(ValueSummaryOps<Bdd, Left> leftOps, ValueSummaryOps<Bdd, Right> rightOps) {
+        public Ops(ValueSummaryOps<Left> leftOps, ValueSummaryOps<Right> rightOps) {
             this.leftOps = leftOps;
             this.rightOps = rightOps;
         }
