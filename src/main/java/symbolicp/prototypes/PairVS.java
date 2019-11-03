@@ -11,7 +11,7 @@ import java.util.List;
  * 2. Synthesize tuples of arbitrary size during codegen in the P compiler.
  * 3. Sacrifice some type safety and create a single N-ary tuple class over dynamically typed value summaries.
  */
-public class PairValueSummary<Left, Right> {
+public class PairVS<Left, Right> {
     /* Invariant: 'left' and 'right' should be "possible under the same conditions."
      *
      * Formally, for any Bdd 'cond' we should have
@@ -27,46 +27,46 @@ public class PairValueSummary<Left, Right> {
     public final Right right;
 
     /** Caution: The caller must take care to ensure the invariants described above are upheld. */
-    public PairValueSummary(Left left, Right right) {
+    public PairVS(Left left, Right right) {
         this.left = left;
         this.right = right;
     }
 
-    public static class Ops<Bdd, Left, Right> implements ValueSummaryOps<Bdd, PairValueSummary<Left, Right>> {
-        private final ValueSummaryOps<Bdd, Left> leftOps;
-        private final ValueSummaryOps<Bdd, Right> rightOps;
+    public static class Ops<Left, Right> implements ValueSummaryOps<PairVS<Left, Right>> {
+        private final ValueSummaryOps<Left> leftOps;
+        private final ValueSummaryOps<Right> rightOps;
 
-        public Ops(ValueSummaryOps<Bdd, Left> leftOps, ValueSummaryOps<Bdd, Right> rightOps) {
+        public Ops(ValueSummaryOps<Left> leftOps, ValueSummaryOps<Right> rightOps) {
             this.leftOps = leftOps;
             this.rightOps = rightOps;
         }
 
         @Override
-        public boolean isEmpty(PairValueSummary<Left, Right> summary) {
+        public boolean isEmpty(PairVS<Left, Right> summary) {
             return leftOps.isEmpty(summary.left) || rightOps.isEmpty(summary.right);
         }
 
         @Override
-        public PairValueSummary<Left, Right> empty() {
-            return new PairValueSummary<>(leftOps.empty(), rightOps.empty());
+        public PairVS<Left, Right> empty() {
+            return new PairVS<>(leftOps.empty(), rightOps.empty());
         }
 
         @Override
-        public PairValueSummary<Left, Right> guard(PairValueSummary<Left, Right> summary, Bdd guard) {
-            return new PairValueSummary<>(leftOps.guard(summary.left, guard), rightOps.guard(summary.right, guard));
+        public PairVS<Left, Right> guard(PairVS<Left, Right> summary, Bdd guard) {
+            return new PairVS<>(leftOps.guard(summary.left, guard), rightOps.guard(summary.right, guard));
         }
 
         @Override
-        public PairValueSummary<Left, Right> merge(Iterable<PairValueSummary<Left, Right>> summaries) {
+        public PairVS<Left, Right> merge(Iterable<PairVS<Left, Right>> summaries) {
             final List<Left> lefts = new ArrayList<>();
             final List<Right> rights = new ArrayList<>();
 
-            for (PairValueSummary<Left, Right> pair : summaries) {
+            for (PairVS<Left, Right> pair : summaries) {
                 lefts.add(pair.left);
                 rights.add(pair.right);
             }
 
-            return new PairValueSummary<>(leftOps.merge(lefts), rightOps.merge(rights));
+            return new PairVS<>(leftOps.merge(lefts), rightOps.merge(rights));
         }
     }
 }

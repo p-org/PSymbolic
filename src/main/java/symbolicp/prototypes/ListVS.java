@@ -2,43 +2,41 @@ package symbolicp.prototypes;
 
 import java.util.*;
 
-public class ListValueSummary<Bdd, Item> {
-    private final PrimitiveValueSummary<Bdd, Integer> size;
+public class ListVS<Item> {
+    private final PrimVS<Integer> size;
     private final List<Item> items;
 
-    private ListValueSummary(PrimitiveValueSummary<Bdd, Integer> size, List<Item> items) {
+    private ListVS(PrimVS<Integer> size, List<Item> items) {
         this.size = size;
         this.items = items;
     }
 
-    public ListValueSummary(BddLib<Bdd> bddLib) {
-        this(new PrimitiveValueSummary<>(bddLib, 0), new ArrayList<>());
+    public ListVS() {
+        this(new PrimVS<>(0), new ArrayList<>());
     }
 
-    public static class Ops<Bdd, Item> implements ValueSummaryOps<Bdd, ListValueSummary<Bdd, Item>> {
-        private final BddLib<Bdd> bddLib;
-        private final PrimitiveValueSummary.Ops<Bdd, Integer> sizeOps;
-        private final ValueSummaryOps<Bdd, Item> itemOps;
+    public static class Ops<Item> implements ValueSummaryOps<ListVS<Item>> {
+        private final PrimVS.Ops<Integer> sizeOps;
+        private final ValueSummaryOps<Item> itemOps;
 
-        public Ops(BddLib<Bdd> bddLib, ValueSummaryOps<Bdd, Item> itemOps) {
-            this.bddLib = bddLib;
-            this.sizeOps = new PrimitiveValueSummary.Ops<>(bddLib);
+        public Ops(ValueSummaryOps<Item> itemOps) {
+            this.sizeOps = new PrimVS.Ops<>();
             this.itemOps = itemOps;
         }
 
         @Override
-        public boolean isEmpty(ListValueSummary<Bdd, Item> summary) {
+        public boolean isEmpty(ListVS<Item> summary) {
             return sizeOps.isEmpty(summary.size);
         }
 
         @Override
-        public ListValueSummary<Bdd, Item> empty() {
-            return new ListValueSummary<>(sizeOps.empty(), new ArrayList<>());
+        public ListVS<Item> empty() {
+            return new ListVS<>(sizeOps.empty(), new ArrayList<>());
         }
 
         @Override
-        public ListValueSummary<Bdd, Item> guard(ListValueSummary<Bdd, Item> summary, Bdd guard) {
-            final PrimitiveValueSummary<Bdd, Integer> newSize = sizeOps.guard(summary.size, guard);
+        public ListVS<Item> guard(ListVS<Item> summary, Bdd guard) {
+            final PrimVS<Integer> newSize = sizeOps.guard(summary.size, guard);
             final List<Item> newItems = new ArrayList<>();
 
             for (Item item : summary.items) {
@@ -49,15 +47,15 @@ public class ListValueSummary<Bdd, Item> {
                 newItems.add(newItem);
             }
 
-            return new ListValueSummary<>(newSize, newItems);
+            return new ListVS<>(newSize, newItems);
         }
 
         @Override
-        public ListValueSummary<Bdd, Item> merge(Iterable<ListValueSummary<Bdd, Item>> summaries) {
-            final List<PrimitiveValueSummary<Bdd, Integer>> sizesToMerge = new ArrayList<>();
+        public ListVS<Item> merge(Iterable<ListVS<Item>> summaries) {
+            final List<PrimVS<Integer>> sizesToMerge = new ArrayList<>();
             final List<List<Item>> itemsToMergeByIndex = new ArrayList<>();
 
-            for (ListValueSummary<Bdd, Item> summary : summaries) {
+            for (ListVS<Item> summary : summaries) {
                 sizesToMerge.add(summary.size);
 
                 for (int i = 0; i < summary.items.size(); i++) {
@@ -70,7 +68,7 @@ public class ListValueSummary<Bdd, Item> {
                 }
             }
 
-            final PrimitiveValueSummary<Bdd, Integer> mergedSize = sizeOps.merge(sizesToMerge);
+            final PrimVS<Integer> mergedSize = sizeOps.merge(sizesToMerge);
 
             final List<Item> mergedItems = new ArrayList<>();
 
@@ -79,11 +77,11 @@ public class ListValueSummary<Bdd, Item> {
                 mergedItems.add(mergedItem);
             }
 
-            return new ListValueSummary<>(mergedSize, mergedItems);
+            return new ListVS<>(mergedSize, mergedItems);
         }
 
         // origList and item should be possible under the same conditions.
-        public ListValueSummary<Bdd, Item> add(ListValueSummary<Bdd, Item> origList, Item item) {
+        public ListVS<Item> add(ListVS<Item> origList, Item item) {
             final Map<Integer, Bdd> newSizeValues = new HashMap<>();
             final List<Item> newItems = new ArrayList<>(origList.items);
 
@@ -102,19 +100,19 @@ public class ListValueSummary<Bdd, Item> {
                 }
             }
 
-            return new ListValueSummary<>(new PrimitiveValueSummary<>(newSizeValues), newItems);
+            return new ListVS<>(new PrimVS<>(newSizeValues), newItems);
         }
 
         // listSummary and indexSummary should be possible under the same conditions
-        public OptionalValueSummary<Bdd, Item>
-        get(ListValueSummary<Bdd, Item> listSummary, PrimitiveValueSummary<Bdd, Integer> indexSummary) {
-            final OptionalValueSummary.Ops<Bdd, Item> resultOps = new OptionalValueSummary.Ops<>(bddLib, itemOps);
+        public OptionalVS<Item>
+        get(ListVS<Item> listSummary, PrimVS<Integer> indexSummary) {
+            final OptionalVS.Ops<Item> resultOps = new OptionalVS.Ops<>(itemOps);
 
             return indexSummary.flatMap(
                 resultOps,
                 (index) -> {
-                    final PrimitiveValueSummary<Bdd, Boolean> inRange =
-                        listSummary.size.map(bddLib, (size) -> index < size);
+                    final PrimVS<Boolean> inRange =
+                        listSummary.size.map((size) -> index < size);
 
                     return inRange.flatMap(
                         resultOps,
@@ -129,13 +127,13 @@ public class ListValueSummary<Bdd, Item> {
         }
 
         // all arguments should be possible under the same conditions
-        public OptionalValueSummary<Bdd, ListValueSummary<Bdd, Item>>
-        set(ListValueSummary<Bdd, Item> origList, PrimitiveValueSummary<Bdd, Integer> indexSummary, Item itemToSet) {
-            final OptionalValueSummary.Ops<Bdd, ListValueSummary<Bdd, Item>> resultOps =
-                new OptionalValueSummary.Ops<>(bddLib, this);
+        public OptionalVS<ListVS<Item>>
+        set(ListVS<Item> origList, PrimVS<Integer> indexSummary, Item itemToSet) {
+            final OptionalVS.Ops<ListVS<Item>> resultOps =
+                new OptionalVS.Ops<>(this);
 
-            final PrimitiveValueSummary<Bdd, Boolean> inRange =
-                origList.size.map2(indexSummary, bddLib, (size, index) -> index < size);
+            final PrimVS<Boolean> inRange =
+                origList.size.map2(indexSummary, (size, index) -> index < size);
 
             return inRange.flatMap(
                 resultOps,
@@ -149,16 +147,18 @@ public class ListValueSummary<Bdd, Item> {
                             final int index = guardedIndex.getKey();
                             final Bdd guard = guardedIndex.getValue();
 
-                            final Item origContribution = itemOps.guard(newItems.get(index), bddLib.not(guard));
+                            final Item origContribution = itemOps.guard(newItems.get(index), guard.not());
                             final Item newContribution = itemOps.guard(itemToSet, guard);
                             newItems.set(index, itemOps.merge(Arrays.asList(origContribution, newContribution)));
                         }
 
-                        return resultOps.makePresent(new ListValueSummary<>(origList.size, newItems));
+                        return resultOps.makePresent(new ListVS<>(origList.size, newItems));
                     } else {
                         return resultOps.makeAbsent();
                     }
                 });
         }
+
+        /* TODO Implement 'insert', 'removeAt', and 'contains' */
     }
 }
