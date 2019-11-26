@@ -29,7 +29,8 @@ public class TupleVS {
 
         @Override
         public boolean isEmpty(TupleVS tupleVS) {
-            // Optimization: Tuples should always be nonempty, and all fields should exist under the same conditions
+            // Optimization: Tuples should always be nonempty,
+            // and all fields should exist under the same conditions
             return fieldOps[0].isEmpty(tupleVS.fields[0]);
         }
 
