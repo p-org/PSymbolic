@@ -94,6 +94,13 @@ public class MapVS<K, V> {
             return new MapVS<>(newKeys, newEntries);
         }
 
+        // TODO: Some parts of the non-symbolic P compiler and runtime seem to make a distinction
+        //  between 'add' and 'put'.  Should we?
+        public MapVS<K, V>
+        add(MapVS<K, V> mapSummary, PrimVS<K> keySummary, V valSummary) {
+            return put(mapSummary, keySummary, valSummary);
+        }
+
         public MapVS<K, V>
         remove(MapVS<K, V> mapSummary, PrimVS<K> keySummary) {
             final SetVS<K> newKeys = setOps.remove(mapSummary.keys, keySummary);
