@@ -159,6 +159,64 @@ public class ListVS<Item> {
                 });
         }
 
-        /* TODO Implement 'insert', 'removeAt', and 'contains' */
+        /* TODO Implement 'removeAt' and 'contains' */
+
+        public OptionalVS<ListVS<Item>>
+        insert(ListVS<Item> origList, PrimVS<Integer> indexSummary, Item itemToInsert) {
+            final OptionalVS.Ops<ListVS<Item>> resultOps =
+                new OptionalVS.Ops<>(this);
+
+            final PrimVS<Boolean> inRange =
+                origList.size.map2(indexSummary, (size, index) -> index <= size);
+
+            return inRange.flatMap(
+                resultOps,
+                (isInRange) -> {
+                    if (isInRange) {
+                        /* The actual computation happens in here, as if we had no error handling */
+
+                        final PrimVS<Integer> newSize = origList.size.map((origSize) -> origSize + 1);
+
+                        final List<Item> newItems = new ArrayList<>();
+
+                        final int maxNewSize = origList.items.size() + 1;
+                        for (int i = 0; i < maxNewSize; i++) {
+                            final int index = i; // Placate lambda mutability rule
+
+                            final PrimVS<Integer> insertionPointComparison =
+                                indexSummary.map((insertionPoint) -> {
+                                    if (index < insertionPoint) {
+                                        return -1;
+                                    } else if (index == insertionPoint) {
+                                        return 0;
+                                    } else {
+                                        return 1;
+                                    }
+                                });
+
+                            final Item newItem =
+                                insertionPointComparison.flatMap(
+                                    itemOps,
+                                    (comparision) -> {
+                                        if (comparision == -1) {
+                                            return origList.items.get(index);
+                                        } else if (comparision == 0) {
+                                            return itemToInsert;
+                                        } else {
+                                            return origList.items.get(index - 1);
+                                        }
+                                    });
+
+                            assert index == newItems.size();
+                            newItems.add(newItem);
+                        }
+
+                        return resultOps.makePresent(new ListVS<>(newSize, newItems));
+                    } else {
+                        return resultOps.makeAbsent();
+                    }
+                }
+            );
+        }
     }
 }
