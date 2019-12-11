@@ -218,5 +218,54 @@ public class ListVS<Item> {
                 }
             );
         }
+
+        public OptionalVS<ListVS<Item>>
+        removeAt(ListVS<Item> origList, PrimVS<Integer> indexSummary) {
+            final OptionalVS.Ops<ListVS<Item>> resultOps =
+                new OptionalVS.Ops<>(this);
+
+            final PrimVS<Boolean> inRange =
+                origList.size.map2(indexSummary, (size, index) -> index < size);
+
+            return inRange.flatMap(
+                resultOps,
+                (isInRange) -> {
+                    if (isInRange) {
+                        /* The actual computation happens in here, as if we had no error handling. */
+
+                        final PrimVS<Integer> newSize =
+                            origList.size.map((size) -> size + 1);
+
+                        final List<Item> newItems = new ArrayList<>();
+
+                        final int maxNewSize = origList.items.size() - 1;
+                        for (int i = 0; i < maxNewSize; i++) {
+                            final int index = i; // Placate lambda mutability rule
+
+                            final PrimVS<Boolean> afterRemovePoint =
+                                indexSummary.map((removePoint) -> index >= removePoint);
+
+                            final Item newItem =
+                                afterRemovePoint.flatMap(
+                                    itemOps,
+                                    (isAfterRemovePoint) -> {
+                                        if (isAfterRemovePoint) {
+                                            return origList.items.get(index + 1);
+                                        } else {
+                                            return origList.items.get(index);
+                                        }
+                                    });
+
+                            assert index == newItems.size();
+                            newItems.add(newItem);
+                        }
+
+                        return resultOps.makePresent(new ListVS<>(newSize, newItems));
+                    } else {
+                        return resultOps.makeAbsent();
+                    }
+                }
+            );
+        }
     }
 }
