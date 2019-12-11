@@ -159,7 +159,7 @@ public class ListVS<Item> {
                 });
         }
 
-        /* TODO Implement 'removeAt' and 'contains' */
+        /* TODO 'contains' */
 
         public OptionalVS<ListVS<Item>>
         insert(ListVS<Item> origList, PrimVS<Integer> indexSummary, Item itemToInsert) {
