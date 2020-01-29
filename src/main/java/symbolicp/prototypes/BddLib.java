@@ -16,5 +16,7 @@ public interface BddLib<Bdd> {
     Bdd not(Bdd bdd);
 
     Bdd ifThenElse(Bdd cond, Bdd thenClause, Bdd elseClause);
+
+    Bdd newVar();
 }
 

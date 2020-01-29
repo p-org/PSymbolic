@@ -57,6 +57,10 @@ public final class Bdd {
         return new Bdd(globalBddLib.ifThenElse(wrappedBdd, thenCase.wrappedBdd, elseCase.wrappedBdd));
     }
 
+    public Bdd newVar() {
+        return new Bdd(globalBddLib.newVar());
+    }
+
     @Override
     public String toString() {
         return wrappedBdd.toString();

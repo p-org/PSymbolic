@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="sylvan">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/sylvan-1.0.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

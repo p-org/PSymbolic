@@ -1,5 +1,7 @@
 package symbolicp.prototypes;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -82,5 +84,10 @@ public class SetBddLib<T> implements BddLib<Set<T>> {
     @Override
     public Set<T> ifThenElse(Set<T> cond, Set<T> thenClause, Set<T> elseClause) {
         return or(and(cond, thenClause), and(not(cond), elseClause));
+    }
+
+    @Override
+    public Set<T> newVar() {
+        throw new NotImplementedException();
     }
 }
