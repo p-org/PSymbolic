@@ -17,7 +17,6 @@ import java.util.List;
  */
 public final class Bdd {
     private static BddLib globalBddLib = new BDDSylvanImpl();
-        //new SetBddLib<String>(new HashSet<>(Arrays.asList("a", "b", "c", "d", "e", "f", "g")));
 
     private final Object wrappedBdd;
 
