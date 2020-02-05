@@ -1,5 +1,4 @@
-package symbolicp.prototypes;
-import jsylvan.JSylvan;
+package symbolicp;
 
 import java.util.*;
 

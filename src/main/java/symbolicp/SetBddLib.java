@@ -1,4 +1,4 @@
-package symbolicp.prototypes;
+package symbolicp;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 

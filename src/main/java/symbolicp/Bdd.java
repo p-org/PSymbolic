@@ -1,7 +1,8 @@
-package symbolicp.prototypes;
+package symbolicp;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 
 /**
  * This class determines the global BDD implementation used by the symbolic engine.
@@ -15,8 +16,8 @@ import java.util.HashSet;
  * Bdd inside an additional object represents a significant performance bottleneck.
  */
 public final class Bdd {
-    private static BddLib globalBddLib =
-        new SetBddLib<String>(new HashSet<>(Arrays.asList("a", "b", "c", "d", "e", "f", "g")));
+    private static BddLib globalBddLib = new BDDSylvanImpl();
+        //new SetBddLib<String>(new HashSet<>(Arrays.asList("a", "b", "c", "d", "e", "f", "g")));
 
     private final Object wrappedBdd;
 
@@ -53,11 +54,15 @@ public final class Bdd {
         return new Bdd(globalBddLib.not(wrappedBdd));
     }
 
+    public static Bdd orMany(List<Bdd> wrappedBdd) {
+        return wrappedBdd.stream().reduce(Bdd.constFalse(), Bdd::or);
+    }
+
     public Bdd ifThenElse(Bdd thenCase, Bdd elseCase) {
         return new Bdd(globalBddLib.ifThenElse(wrappedBdd, thenCase.wrappedBdd, elseCase.wrappedBdd));
     }
 
-    public Bdd newVar() {
+    public static Bdd newVar() {
         return new Bdd(globalBddLib.newVar());
     }
 

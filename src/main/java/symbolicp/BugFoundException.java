@@ -1,4 +1,4 @@
-package symbolicp.prototypes;
+package symbolicp;
 
 public class BugFoundException extends RuntimeException {
     final Object pathConstraint;

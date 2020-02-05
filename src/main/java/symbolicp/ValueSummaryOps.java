@@ -1,4 +1,4 @@
-package symbolicp.prototypes;
+package symbolicp;
 
 import java.util.Arrays;
 
