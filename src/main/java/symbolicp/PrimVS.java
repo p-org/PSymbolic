@@ -111,5 +111,16 @@ public class PrimVS<T> {
 
             return new PrimVS<>(result);
         }
+
+        @Override
+        public PrimVS<Boolean> symbolicEquals(PrimVS<T> left, PrimVS<T> right, Bdd pc) {
+            Bdd equalCond = Bdd.constFalse();
+            for (Map.Entry<T, Bdd> entry : left.guardedValues.entrySet()) {
+                if (right.guardedValues.containsKey(entry.getKey())) {
+                    equalCond = equalCond.or(entry.getValue().and(right.guardedValues.get(entry.getKey())));
+                }
+            }
+            return BoolUtils.fromTrueGuard(pc.and(equalCond));
+        }
     }
 }

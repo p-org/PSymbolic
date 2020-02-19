@@ -1,5 +1,7 @@
 package symbolicp;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +17,7 @@ public class SetVS<T> {
     /* A key with no entry in 'elements' represents an element whose guard is identically false.
      * We should always keep 'elements' in a normalized state where no element has a guard which is identically false.
      */
-    private final Map<T, Bdd> elements;
+    public final Map<T, Bdd> elements;
 
     /* Caution: Callers must take care to ensure that the above invariants are satisfied. */
     public SetVS(PrimVS<Integer> size, Map<T, Bdd> elements) {
@@ -74,6 +76,30 @@ public class SetVS<T> {
             final PrimVS<Integer> mergedSize = sizeOps.merge(sizesToMerge);
 
             return new SetVS<>(mergedSize, mergedElements);
+        }
+
+        @Override
+        public PrimVS<Boolean> symbolicEquals(SetVS<T> left, SetVS<T> right, Bdd pc) {
+            Bdd equalCond = Bdd.constTrue();
+            for (Map.Entry<T, Bdd> entry : left.elements.entrySet()) {
+                /* Check common elements */
+                if (right.elements.containsKey(entry.getKey())) {
+                    equalCond = (entry.getValue().and(right.elements.get(entry.getKey()))) //both present
+                            .or(entry.getValue().or(right.elements.get(entry.getKey())).not()) //both not present
+                            .and(equalCond);
+                }
+                /* Elements unique to left must not be present*/
+                else {
+                    equalCond = entry.getValue().not().and(equalCond);
+                }
+            }
+            for (Map.Entry<T, Bdd> entry : right.elements.entrySet()) {
+                /* Elements unique to right must not be present*/
+                if (!right.elements.containsKey(entry.getKey())) {
+                    equalCond = entry.getValue().not().and(equalCond);
+                }
+            }
+            return BoolUtils.fromTrueGuard(pc.and(equalCond));
         }
 
         public PrimVS<Boolean>

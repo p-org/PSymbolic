@@ -94,6 +94,18 @@ public class NamedTupleVS {
         }
 
         @Override
+        public PrimVS<Boolean> symbolicEquals(NamedTupleVS left, NamedTupleVS right, Bdd pc) {
+            if (left.fields.keySet().equals(right.fields.keySet())) {
+                return new PrimVS<>(false);
+            }
+            Bdd tupleEqual = left.fields.keySet().parallelStream()
+                    .map((s) -> (Bdd) fieldOps.get(s).symbolicEquals(left.fields.get(s), right.fields.get(s), pc).guardedValues.get(Boolean.TRUE))
+                    .reduce(Bdd::and)
+                    .orElse(Bdd.constTrue());
+            return BoolUtils.fromTrueGuard(pc.and(tupleEqual));
+        }
+
+        @Override
         public NamedTupleVS merge2(NamedTupleVS namedTupleVS1, NamedTupleVS namedTupleVS2) {
             final Map<String, Object> resultFields = new HashMap<>();
             for (Map.Entry<String, ValueSummaryOps> opsEntry : fieldOps.entrySet()) {

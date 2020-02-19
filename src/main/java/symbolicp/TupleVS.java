@@ -1,6 +1,8 @@
 package symbolicp;
 
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 public class TupleVS {
     private final Object[] fields;
@@ -72,6 +74,18 @@ public class TupleVS {
             }
 
             return new TupleVS(resultFields);
+        }
+
+        @Override
+        public PrimVS<Boolean> symbolicEquals(TupleVS left, TupleVS right, Bdd pc) {
+            if (left.fields.length != right.fields.length) {
+                return new PrimVS<>(false);
+            }
+            Bdd tupleEqual = IntStream.range(0, left.fields.length)
+                    .mapToObj((i) -> (Bdd) fieldOps[i].symbolicEquals(left.fields[i], right.fields[i], pc).guardedValues.get(Boolean.TRUE))
+                    .reduce(Bdd::and)
+                    .orElse(Bdd.constTrue());
+            return BoolUtils.fromTrueGuard(pc.and(tupleEqual));
         }
 
         @Override

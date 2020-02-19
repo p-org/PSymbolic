@@ -49,6 +49,13 @@ public interface ValueSummaryOps<ValueSummary> {
      */
     ValueSummary merge(Iterable<ValueSummary> summaries);
 
+    /** Computes equality of two value summaries and return
+     *
+     *
+     *
+     */
+    PrimVS<Boolean> symbolicEquals(ValueSummary left, ValueSummary right, Bdd pc);
+
     default ValueSummary merge2(ValueSummary summary1, ValueSummary summary2) {
         return merge(Arrays.asList(summary1, summary2));
     }

@@ -75,6 +75,34 @@ public class MapVS<K, V> {
             return new MapVS<>(mergedKeys, mergedValues);
         }
 
+        @Override
+        public PrimVS<Boolean> symbolicEquals(MapVS<K, V> left, MapVS<K, V> right, Bdd pc) {
+            Bdd equalCond = Bdd.constTrue();
+
+            for (Map.Entry<K, Bdd> entry : left.keys.elements.entrySet()) {
+                /* Check common k v pairs */
+                if (right.keys.elements.containsKey(entry.getKey())) {
+                    Bdd presentAndEqual = (entry.getValue().and(right.keys.elements.get(entry.getKey())))
+                            .and(valueOps.symbolicEquals(left.entries.get(entry.getKey()),
+                                    right.entries.get(entry.getKey()), pc).guardedValues.get(Boolean.TRUE));
+                    Bdd absent = entry.getValue().or(right.keys.elements.get(entry.getKey())).not();
+                    equalCond = absent.or(presentAndEqual).and(equalCond);
+                }
+                /* Keys unique to left must not be present*/
+                else {
+                    equalCond = entry.getValue().not().and(equalCond);
+                }
+            }
+
+            for (Map.Entry<K, Bdd> entry : right.keys.elements.entrySet()) {
+                /* Keys unique to right must not be present*/
+                if (!left.keys.elements.containsKey(entry.getKey())) {
+                    equalCond = entry.getValue().not().and(equalCond);
+                }
+            }
+            return BoolUtils.fromTrueGuard(pc.and(equalCond));
+        }
+
         public MapVS<K, V>
         put(MapVS<K, V> mapSummary, PrimVS<K> keySummary, V valSummary) {
             final SetVS<K> newKeys = setOps.add(mapSummary.keys, keySummary);

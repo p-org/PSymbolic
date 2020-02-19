@@ -61,6 +61,14 @@ public class OptionalVS<Item> {
             );
         }
 
+        @Override
+        public PrimVS<Boolean> symbolicEquals(OptionalVS<Item> left, OptionalVS<Item> right, Bdd pc) {
+            Bdd bothPresent = left.present.guardedValues.get(Boolean.TRUE).and(right.present.guardedValues.get(Boolean.TRUE));
+            Bdd bothAbsent = left.present.guardedValues.get(Boolean.FALSE).and(right.present.guardedValues.get(Boolean.FALSE));
+            Bdd equals = itemOps.symbolicEquals(left.item, right.item, pc).guardedValues.get(Boolean.TRUE);
+            return BoolUtils.fromTrueGuard(bothPresent.and(equals).or(bothAbsent).and(pc));
+        }
+
         public OptionalVS<Item> makePresent(Item item) {
             /* TODO: Strictly speaking, here we create an optional whose 'present' tag may violate
              *  an implicit invariant by being true under more conditions than we need it

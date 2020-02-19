@@ -1,5 +1,7 @@
 package symbolicp;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,6 +70,11 @@ public class UnionVS<Left, Right> {
                 leftOps.merge(leftsToMerge),
                 rightOps.merge(rightsToMerge)
             );
+        }
+
+        @Override
+        public PrimVS<Boolean> symbolicEquals(UnionVS<T, U> left, UnionVS<T, U> right, Bdd pc) {
+            throw new NotImplementedException();
         }
     }
 }

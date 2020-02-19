@@ -2,6 +2,8 @@ package symbolicp;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 /** This exists mainly for demonstration purposes; in most cases we would want a tuple with more than two elements.
  *
@@ -68,5 +70,13 @@ public class PairVS<Left, Right> {
 
             return new PairVS<>(leftOps.merge(lefts), rightOps.merge(rights));
         }
+
+        @Override
+        public PrimVS<Boolean> symbolicEquals(PairVS<Left, Right> left, PairVS<Left, Right> right, Bdd pc) {
+            Bdd leftEqual = leftOps.symbolicEquals(left.left, right.left, pc).guardedValues.get(Boolean.TRUE);
+            Bdd rightEqual = rightOps.symbolicEquals(left.right, right.right, pc).guardedValues.get(Boolean.TRUE);
+            return BoolUtils.fromTrueGuard(leftEqual.and(rightEqual));
+        }
+
     }
 }

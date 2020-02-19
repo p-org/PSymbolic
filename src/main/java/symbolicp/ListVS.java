@@ -1,6 +1,7 @@
 package symbolicp;
 
 import java.util.*;
+import java.util.stream.IntStream;
 
 public class ListVS<Item> {
     private final PrimVS<Integer> size;
@@ -78,6 +79,21 @@ public class ListVS<Item> {
             }
 
             return new ListVS<>(mergedSize, mergedItems);
+        }
+
+        @Override
+        public PrimVS<Boolean> symbolicEquals(ListVS<Item> left, ListVS<Item> right, Bdd pc) {
+            Bdd equalCond = Bdd.constFalse();
+            for (Map.Entry<Integer, Bdd> size : left.size.guardedValues.entrySet()) {
+                if (right.size.guardedValues.containsKey(size.getKey())) {
+                    Bdd listEqual = IntStream.range(0, size.getKey())
+                            .mapToObj((i) -> itemOps.symbolicEquals(left.items.get(i), right.items.get(i), pc).guardedValues.get(Boolean.TRUE))
+                            .reduce(Bdd::and)
+                            .orElse(Bdd.constTrue());
+                    equalCond = equalCond.or(listEqual);
+                }
+            }
+            return BoolUtils.fromTrueGuard(pc.and(equalCond));
         }
 
         // origList and item should be possible under the same conditions.
