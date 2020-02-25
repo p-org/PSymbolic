@@ -250,7 +250,7 @@ public class ListVS<Item> {
                         /* The actual computation happens in here, as if we had no error handling. */
 
                         final PrimVS<Integer> newSize =
-                            origList.size.map((size) -> size + 1);
+                            origList.size.map((size) -> size - 1);
 
                         final List<Item> newItems = new ArrayList<>();
 

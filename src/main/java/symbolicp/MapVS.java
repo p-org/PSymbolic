@@ -11,6 +11,11 @@ public class MapVS<K, V> {
         this.entries = entries;
     }
 
+    public MapVS() {
+        this.keys = new SetVS<>();
+        this.entries = new HashMap<>();
+    }
+
     public PrimVS<Integer> getSize() {
         return keys.size;
     }
@@ -19,7 +24,7 @@ public class MapVS<K, V> {
         private final SetVS.Ops<K> setOps;
         private final ValueSummaryOps<V> valueOps;
 
-        public Ops(BddLib<Bdd> bddLib, ValueSummaryOps<V> valueOps) {
+        public Ops(ValueSummaryOps<V> valueOps) {
             this.setOps = new SetVS.Ops<>();
             this.valueOps = valueOps;
         }
@@ -103,6 +108,8 @@ public class MapVS<K, V> {
             return BoolUtils.fromTrueGuard(pc.and(equalCond));
         }
 
+
+        // FIXME: putting new entries do not update keys.size
         public MapVS<K, V>
         put(MapVS<K, V> mapSummary, PrimVS<K> keySummary, V valSummary) {
             final SetVS<K> newKeys = setOps.add(mapSummary.keys, keySummary);

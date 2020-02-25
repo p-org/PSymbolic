@@ -25,6 +25,11 @@ public class SetVS<T> {
         this.elements = elements;
     }
 
+    public SetVS() {
+        this.size = new PrimVS<>(0);
+        this.elements = new HashMap<>();
+    }
+
     public static class Ops<T> implements ValueSummaryOps<SetVS<T>> {
         private final PrimVS.Ops<Integer> sizeOps;
 
