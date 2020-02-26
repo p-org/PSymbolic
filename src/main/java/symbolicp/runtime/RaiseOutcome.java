@@ -1,6 +1,8 @@
-package symbolicp;
+package symbolicp.runtime;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+import symbolicp.bdd.Bdd;
+import symbolicp.vs.EventVS;
 
 public class RaiseOutcome<EventTag> {
 

@@ -1,7 +1,10 @@
-package symbolicp;
+package symbolicp.runtime;
+
+import symbolicp.bdd.Bdd;
+import symbolicp.bdd.BugFoundException;
+import symbolicp.vs.EventVS;
 
 import java.util.Map;
-import java.util.function.Function;
 
 public abstract class State <StateTag, EventTag> {
 

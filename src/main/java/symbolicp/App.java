@@ -1,5 +1,10 @@
 package symbolicp;
 
+import symbolicp.bdd.Bdd;
+import symbolicp.vs.ListVS;
+import symbolicp.vs.OptionalVS;
+import symbolicp.vs.PrimVS;
+
 import java.util.*;
 
 public class App {

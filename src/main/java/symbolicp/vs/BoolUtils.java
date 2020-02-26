@@ -1,4 +1,6 @@
-package symbolicp;
+package symbolicp.vs;
+
+import symbolicp.bdd.Bdd;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package symbolicp;
+package symbolicp.bdd;
 
 import jsylvan.JSylvan;
 

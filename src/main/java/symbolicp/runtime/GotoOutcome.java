@@ -1,6 +1,8 @@
-package symbolicp;
+package symbolicp.runtime;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+import symbolicp.bdd.Bdd;
+import symbolicp.vs.PrimVS;
 
 public class GotoOutcome <StateTag> {
 

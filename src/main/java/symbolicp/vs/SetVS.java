@@ -1,6 +1,6 @@
-package symbolicp;
+package symbolicp.vs;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+import symbolicp.bdd.Bdd;
 
 import java.util.ArrayList;
 import java.util.HashMap;

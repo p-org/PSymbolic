@@ -1,4 +1,4 @@
-package symbolicp;
+package symbolicp.bdd;
 
 public interface BddLib<Bdd> {
     Bdd constFalse();

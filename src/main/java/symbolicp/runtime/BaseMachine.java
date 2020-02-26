@@ -1,4 +1,8 @@
-package symbolicp;
+package symbolicp.runtime;
+
+import symbolicp.bdd.Bdd;
+import symbolicp.vs.EventVS;
+import symbolicp.vs.PrimVS;
 
 import java.util.Map;
 

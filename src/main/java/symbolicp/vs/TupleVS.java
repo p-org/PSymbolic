@@ -1,7 +1,8 @@
-package symbolicp;
+package symbolicp.vs;
+
+import symbolicp.bdd.Bdd;
 
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.stream.IntStream;
 
 public class TupleVS {

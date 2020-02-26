@@ -1,6 +1,8 @@
-package symbolicp;
+package symbolicp.vs;
 
 import org.jetbrains.annotations.Nullable;
+import symbolicp.bdd.Bdd;
+import symbolicp.bdd.BugFoundException;
 
 import java.util.ArrayList;
 import java.util.List;

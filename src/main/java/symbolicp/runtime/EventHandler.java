@@ -1,4 +1,6 @@
-package symbolicp;
+package symbolicp.runtime;
+
+import symbolicp.bdd.Bdd;
 
 public abstract class EventHandler <StateTag, EventTag> {
 
