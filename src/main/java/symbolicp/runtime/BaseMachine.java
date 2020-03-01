@@ -4,20 +4,40 @@ import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
 import symbolicp.vs.PrimVS;
 
+import java.util.HashMap;
 import java.util.Map;
 
-public class BaseMachine<StateTag, EventTag> {
+public abstract class BaseMachine<StateTag, EventTag> {
+    private final StateTag startState;
+    private final Map<StateTag, State<StateTag, EventTag>> states;
 
-    private Map<StateTag, State<StateTag, EventTag>> states;
-
-    private PrimVS<StateTag> state;
     private PrimVS.Ops<StateTag> stateOps = new PrimVS.Ops<>();
     private EventVS.Ops<EventTag> eventOps;
+
+    private PrimVS<StateTag> state;
+
+    public BaseMachine(StateTag startState, State<StateTag, EventTag>... states) {
+        this.startState = startState;
+
+        this.states = new HashMap<>();
+        for (State<StateTag, EventTag> state : states) {
+            this.states.put(state.stateTag, state);
+        }
+    }
+
+    public void start(Bdd pc) {
+        GotoOutcome<StateTag> initGoto = new GotoOutcome<>();
+        initGoto.addGuardedGoto(pc, startState);
+
+        RaiseOutcome<EventTag> emptyRaise = new RaiseOutcome<>(eventOps);
+
+        runOutcomesToCompletion(initGoto, emptyRaise);
+    }
 
     void runOutcomesToCompletion(GotoOutcome<StateTag> gotoOutcome, RaiseOutcome<EventTag> raiseOutcome) {
         while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
             GotoOutcome<StateTag> nextGotoOutcome = new GotoOutcome<>();
-            RaiseOutcome<EventTag> nextRaiseOutcome = new RaiseOutcome<>();
+            RaiseOutcome<EventTag> nextRaiseOutcome = new RaiseOutcome<>(eventOps);
             if (!gotoOutcome.isEmpty()) {
                 processStateTransition(gotoOutcome.getGotoCond(), nextGotoOutcome, nextRaiseOutcome, gotoOutcome.getStateSummary());
             }

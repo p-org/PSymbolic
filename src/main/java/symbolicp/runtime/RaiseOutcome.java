@@ -1,22 +1,34 @@
 package symbolicp.runtime;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
 
 public class RaiseOutcome<EventTag> {
+    private final EventVS.Ops<EventTag> eventOps;
+
+    private Bdd cond;
+    private EventVS<EventTag> event;
+
+    public RaiseOutcome(EventVS.Ops<EventTag> eventOps) {
+        this.eventOps = eventOps;
+        cond = Bdd.constFalse();
+        event = eventOps.empty();
+    }
 
     public boolean isEmpty() {
-        throw new NotImplementedException();
+        return cond.isConstFalse();
     }
 
     public Bdd getRaiseCond() {
-        throw new NotImplementedException();
+        return cond;
     }
 
     public EventVS<EventTag> getEventSummary() {
-        throw new NotImplementedException();
+        return event;
     }
 
-
+    public void addGuardedRaise(Bdd pc, EventVS<EventTag> newEvent) {
+        cond = cond.or(pc);
+        event = eventOps.merge2(event, newEvent);
+    }
 }

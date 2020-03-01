@@ -1,20 +1,35 @@
 package symbolicp.runtime;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.PrimVS;
 
 public class GotoOutcome <StateTag> {
+    private final PrimVS.Ops<StateTag> stateOps;
+
+    private Bdd cond;
+    private PrimVS<StateTag> dest;
+
+    public GotoOutcome() {
+        stateOps = new PrimVS.Ops<>();
+
+        cond = Bdd.constFalse();
+        dest = stateOps.empty();
+    }
 
     public boolean isEmpty() {
-        throw new NotImplementedException();
+        return cond.isConstFalse();
     }
 
     public Bdd getGotoCond() {
-        throw new NotImplementedException();
+        return cond;
     }
 
     public PrimVS<StateTag> getStateSummary() {
-        throw new NotImplementedException();
+        return dest;
+    }
+
+    public void addGuardedGoto(Bdd pc, StateTag newDest) {
+        cond = cond.or(pc);
+        dest = stateOps.merge2(dest, stateOps.guard(new PrimVS<>(newDest), pc));
     }
 }
