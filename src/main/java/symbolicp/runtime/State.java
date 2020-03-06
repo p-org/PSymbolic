@@ -11,8 +11,8 @@ public abstract class State <StateTag, EventTag> {
     public final StateTag stateTag;
     private final Map<EventTag, EventHandler<StateTag, EventTag>> eventHandlers;
 
-    abstract void entry(Bdd pc, BaseMachine machine, GotoOutcome<StateTag> gotoOutcome, RaiseOutcome<EventTag> raiseOutcome);
-    abstract void exit(Bdd pc, BaseMachine machine);
+    public void entry(Bdd pc, BaseMachine machine, GotoOutcome<StateTag> gotoOutcome, RaiseOutcome<EventTag> raiseOutcome) {}
+    public void exit(Bdd pc, BaseMachine machine) {}
 
     public State(StateTag stateTag, EventHandler<StateTag, EventTag>... eventHandlers) {
         this.stateTag = stateTag;

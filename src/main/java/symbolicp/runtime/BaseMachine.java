@@ -16,7 +16,8 @@ public abstract class BaseMachine<StateTag, EventTag> {
 
     private PrimVS<StateTag> state;
 
-    public BaseMachine(StateTag startState, State<StateTag, EventTag>... states) {
+    public BaseMachine(EventVS.Ops<EventTag> eventOps, StateTag startState, State<StateTag, EventTag>... states) {
+        this.eventOps = eventOps;
         this.startState = startState;
 
         this.states = new HashMap<>();

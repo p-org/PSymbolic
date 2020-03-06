@@ -9,7 +9,7 @@ public abstract class EventHandler <StateTag, EventTag> {
         this.eventTag = eventTag;
     }
 
-    abstract void handleEvent(
+    public abstract void handleEvent(
         Bdd pc,
         Object payload,
         BaseMachine machine,

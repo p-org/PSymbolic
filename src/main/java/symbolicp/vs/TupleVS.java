@@ -26,7 +26,7 @@ public class TupleVS {
     public static class Ops implements ValueSummaryOps<TupleVS> {
         private final ValueSummaryOps[] fieldOps;
 
-        public Ops(ValueSummaryOps[] fieldOps) {
+        public Ops(ValueSummaryOps... fieldOps) {
             this.fieldOps = fieldOps;
         }
 

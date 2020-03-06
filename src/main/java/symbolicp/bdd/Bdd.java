@@ -14,7 +14,8 @@ import java.util.List;
  * Bdd inside an additional object represents a significant performance bottleneck.
  */
 public final class Bdd {
-    private static BddLib globalBddLib = new BDDSylvanImpl();
+    private static BddLib globalBddLib = null; // TODO
+//    private static BddLib globalBddLib = new BDDSylvanImpl();
 
     private final Object wrappedBdd;
 
