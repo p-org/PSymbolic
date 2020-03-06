@@ -125,4 +125,9 @@ public class PrimVS<T> {
             return BoolUtils.fromTrueGuard(pc.and(equalCond));
         }
     }
+
+    @Override
+    public String toString() {
+        return guardedValues.toString();
+    }
 }

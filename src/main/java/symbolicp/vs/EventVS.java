@@ -92,4 +92,9 @@ public class EventVS<EventTag> {
             throw new NotImplementedException();
         }
     }
+
+    @Override
+    public String toString() {
+        return tag.guardedValues.toString();
+    }
 }
