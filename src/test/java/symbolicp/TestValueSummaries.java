@@ -1,8 +1,13 @@
 package symbolicp;
 
 import org.junit.Test;
+import symbolicp.bdd.Bdd;
+import symbolicp.vs.ListVS;
+import symbolicp.vs.MapVS;
+import symbolicp.vs.PrimVS;
+import symbolicp.vs.SetVS;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 
 public class TestValueSummaries {

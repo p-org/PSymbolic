@@ -10,15 +10,25 @@ import java.util.Map;
 public abstract class BaseMachine<MachineTag, StateTag, EventTag> {
     private final StateTag startState;
     private final Map<StateTag, State<StateTag, EventTag>> states;
+    private static final RuntimeLogger LOGGER = new RuntimeLogger();
 
     private PrimVS.Ops<StateTag> stateOps = new PrimVS.Ops<>();
     private EventVS.Ops<EventTag> eventOps;
 
+    private final MachineTag machineTag;
+    private final int machineId;
+    private String name;
+
     private PrimVS<StateTag> state;
     public final EffectQueue<MachineTag, EventTag> effectQueue;
 
-    public BaseMachine(EventVS.Ops<EventTag> eventOps, StateTag startState, State<StateTag, EventTag>... states) {
+    public BaseMachine(EventVS.Ops<EventTag> eventOps, MachineTag machineTag, int machineId, StateTag startState, State<StateTag, EventTag>... states) {
         this.eventOps = eventOps;
+
+        this.machineTag = machineTag;
+        this.machineId = machineId;
+        name = String.format("Machine %s #%d", this.machineTag, this.machineId);
+
         this.startState = startState;
         this.effectQueue = new EffectQueue<>(eventOps);
 
@@ -61,6 +71,7 @@ public abstract class BaseMachine<MachineTag, StateTag, EventTag> {
             RaiseOutcome<EventTag> raiseOutcome, // 'out' parameter
             PrimVS<StateTag> newState
     ) {
+        LOGGER.onProcessStateTransition(pc, this, newState);
         if (this.state == null) {
             this.state = newState;
         } else {
@@ -75,6 +86,7 @@ public abstract class BaseMachine<MachineTag, StateTag, EventTag> {
         for (Map.Entry<StateTag, Bdd> entry : newState.guardedValues.entrySet()) {
             states.get(entry.getKey()).entry(entry.getValue(), this, gotoOutcome, raiseOutcome);
         }
+        LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);
     }
 
     void processEvent(
@@ -83,12 +95,26 @@ public abstract class BaseMachine<MachineTag, StateTag, EventTag> {
             RaiseOutcome<EventTag> raiseOutcome, // 'out' parameter
             EventVS<EventTag> event
     ) {
+        LOGGER.onProcessEvent(pc, this, event);
         PrimVS<StateTag> guardedState = stateOps.guard(this.state, pc);
         for (Map.Entry<StateTag, Bdd> entry : guardedState.guardedValues.entrySet()) {
             Bdd state_pc = entry.getValue();
             EventVS<EventTag> guardedEvent = eventOps.guard(event, state_pc);
             states.get(entry.getKey()).handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
         }
+        LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);
+    }
+
+    int getMachineId() {
+        return machineId;
+    }
+
+    void setName(String name) {
+        this.name = name;
+    }
+
+    String getName() {
+        return name;
     }
 
     void processEventToCompletion(Bdd pc, EventVS<EventTag> event) {
