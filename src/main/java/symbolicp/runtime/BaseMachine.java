@@ -7,7 +7,7 @@ import symbolicp.vs.PrimVS;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class BaseMachine<StateTag, EventTag> {
+public abstract class BaseMachine<MachineTag, StateTag, EventTag> {
     private final StateTag startState;
     private final Map<StateTag, State<StateTag, EventTag>> states;
 
@@ -15,10 +15,12 @@ public abstract class BaseMachine<StateTag, EventTag> {
     private EventVS.Ops<EventTag> eventOps;
 
     private PrimVS<StateTag> state;
+    public final EffectQueue<MachineTag, EventTag> effectQueue;
 
     public BaseMachine(EventVS.Ops<EventTag> eventOps, StateTag startState, State<StateTag, EventTag>... states) {
         this.eventOps = eventOps;
         this.startState = startState;
+        this.effectQueue = new EffectQueue<>(eventOps);
 
         this.states = new HashMap<>();
         for (State<StateTag, EventTag> state : states) {
@@ -27,12 +29,15 @@ public abstract class BaseMachine<StateTag, EventTag> {
     }
 
     public void start(Bdd pc) {
-        GotoOutcome<StateTag> initGoto = new GotoOutcome<>();
-        initGoto.addGuardedGoto(pc, startState);
+        this.state = stateOps.merge2(
+            stateOps.guard(this.state, pc.not()),
+            stateOps.guard(new PrimVS<>(startState), pc));
 
-        RaiseOutcome<EventTag> emptyRaise = new RaiseOutcome<>(eventOps);
+        GotoOutcome<StateTag> initGotoOutcome = new GotoOutcome<>();
+        RaiseOutcome<EventTag> initRaiseOutcome = new RaiseOutcome<>(eventOps);
+        states.get(startState).entry(pc, this, initGotoOutcome, initRaiseOutcome);
 
-        runOutcomesToCompletion(initGoto, emptyRaise);
+        runOutcomesToCompletion(initGotoOutcome, initRaiseOutcome);
     }
 
     void runOutcomesToCompletion(GotoOutcome<StateTag> gotoOutcome, RaiseOutcome<EventTag> raiseOutcome) {
@@ -84,5 +89,12 @@ public abstract class BaseMachine<StateTag, EventTag> {
             EventVS<EventTag> guardedEvent = eventOps.guard(event, state_pc);
             states.get(entry.getKey()).handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
         }
+    }
+
+    void processEventToCompletion(Bdd pc, EventVS<EventTag> event) {
+        final GotoOutcome<StateTag> emptyGotoOutcome = new GotoOutcome<>();
+        final RaiseOutcome<EventTag> eventRaiseOutcome = new RaiseOutcome<>(eventOps);
+        eventRaiseOutcome.addGuardedRaise(pc, event);
+        runOutcomesToCompletion(emptyGotoOutcome, eventRaiseOutcome);
     }
 }
