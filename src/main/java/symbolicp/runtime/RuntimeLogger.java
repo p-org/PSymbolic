@@ -40,6 +40,10 @@ public class RuntimeLogger {
         base.info(msg);
     }
 
+    public static void log(String ... message) {
+        base.info("<PrintLog> " + String.join(", ", message));
+    }
+
     public void setVerbose(boolean verbose) {
         isVerbose = verbose;
     }
