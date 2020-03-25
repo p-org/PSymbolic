@@ -3,7 +3,7 @@ package symbolicp.runtime;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.PrimVS;
 
-public class GotoOutcome <StateTag> {
+public class GotoOutcome {
     private final PrimVS.Ops<StateTag> stateOps;
 
     private Bdd cond;

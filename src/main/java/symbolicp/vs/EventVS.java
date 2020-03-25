@@ -2,13 +2,14 @@ package symbolicp.vs;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import symbolicp.bdd.Bdd;
+import symbolicp.runtime.EventTag;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class EventVS<EventTag> {
+public class EventVS {
     private PrimVS<EventTag> tag;
     private Map<EventTag, Object> payloads;
 
@@ -25,7 +26,7 @@ public class EventVS<EventTag> {
         return payloads.get(eventTag);
     }
 
-    public static class Ops<EventTag> implements ValueSummaryOps<EventVS<EventTag>> {
+    public static class Ops implements ValueSummaryOps<EventVS> {
         private final PrimVS.Ops<EventTag> tagOps;
         private final Map<EventTag, ValueSummaryOps> payloadOps;
 
@@ -40,17 +41,17 @@ public class EventVS<EventTag> {
         }
 
         @Override
-        public boolean isEmpty(EventVS<EventTag> eventVS) {
+        public boolean isEmpty(EventVS eventVS) {
             return tagOps.isEmpty(eventVS.tag);
         }
 
         @Override
-        public EventVS<EventTag> empty() {
-            return new EventVS<>(tagOps.empty(), new HashMap<>());
+        public EventVS empty() {
+            return new EventVS(tagOps.empty(), new HashMap<>());
         }
 
         @Override
-        public EventVS<EventTag> guard(EventVS<EventTag> eventVS, Bdd guard) {
+        public EventVS guard(EventVS eventVS, Bdd guard) {
             final PrimVS<EventTag> newTag = tagOps.guard(eventVS.tag, guard);
             final Map<EventTag, Object> newPayloads = new HashMap<>();
             for (Map.Entry<EventTag, Object> entry : eventVS.payloads.entrySet()) {
@@ -60,14 +61,14 @@ public class EventVS<EventTag> {
                     newPayloads.put(tag, payloadOps.get(tag).guard(payload, guard));
                 }
             }
-            return new EventVS<>(newTag, newPayloads);
+            return new EventVS(newTag, newPayloads);
         }
 
         @Override
-        public EventVS<EventTag> merge(Iterable<EventVS<EventTag>> events) {
+        public EventVS merge(Iterable<EventVS> events) {
             final List<PrimVS<EventTag>> tagsToMerge = new ArrayList<>();
             final Map<EventTag, List<Object>> payloadsToMerge = new HashMap<>();
-            for (EventVS<EventTag> event : events) {
+            for (EventVS event : events) {
                 tagsToMerge.add(event.tag);
                 for (Map.Entry<EventTag, Object> entry : event.payloads.entrySet()) {
                     payloadsToMerge
@@ -84,11 +85,11 @@ public class EventVS<EventTag> {
                 newPayloads.put(tag, newPayload);
             }
 
-            return new EventVS<>(newTag, newPayloads);
+            return new EventVS(newTag, newPayloads);
         }
 
         @Override
-        public PrimVS<Boolean> symbolicEquals(EventVS<EventTag> left, EventVS<EventTag> right, Bdd pc) {
+        public PrimVS<Boolean> symbolicEquals(EventVS left, EventVS right, Bdd pc) {
             throw new NotImplementedException();
         }
     }

@@ -9,32 +9,32 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 
-public class EffectQueue<MachineTag, EventTag> {
-    private final EventVS.Ops<EventTag> eventOps;
+public class EffectQueue {
+    private final EventVS.Ops eventOps;
 
-    public abstract static class Effect<MachineTag, EventTag> {
+    public abstract static class Effect {
         final Bdd cond;
-        final MachineRefVS<MachineTag> target;
+        final MachineRefVS target;
 
-        public Effect(Bdd cond, MachineRefVS<MachineTag> target) {
+        public Effect(Bdd cond, MachineRefVS target) {
             this.cond = cond;
             this.target = target;
         }
 
-        public abstract Effect<MachineTag, EventTag> withCond(EventVS.Ops<EventTag> eventOps, Bdd guard);
+        public abstract Effect withCond(EventVS.Ops eventOps, Bdd guard);
     }
 
-    public static class SendEffect<MachineTag, EventTag> extends Effect<MachineTag, EventTag> {
-        final EventVS<EventTag> event;
+    public static class SendEffect extends Effect {
+        final EventVS event;
 
-        public SendEffect(Bdd cond, MachineRefVS<MachineTag> target, EventVS<EventTag> event) {
+        public SendEffect(Bdd cond, MachineRefVS target, EventVS event) {
             super(cond, target);
             this.event = event;
         }
 
         @Override
-        public Effect<MachineTag, EventTag> withCond(EventVS.Ops<EventTag> eventOps, Bdd guard) {
-            return new SendEffect<>(
+        public Effect withCond(EventVS.Ops eventOps, Bdd guard) {
+            return new SendEffect(
                 guard,
                 new MachineRefVS.Ops<MachineTag>().guard(target, guard),
                 eventOps.guard(event, guard));
@@ -43,14 +43,14 @@ public class EffectQueue<MachineTag, EventTag> {
 
     // TODO: Determine best architecture for creation effects
 
-    private LinkedList<Effect<MachineTag, EventTag>> effects;
+    private LinkedList<Effect> effects;
 
-    public EffectQueue(EventVS.Ops<EventTag> eventOps) {
+    public EffectQueue(EventVS.Ops eventOps) {
         this.eventOps = eventOps;
         this.effects = new LinkedList<>();
     }
 
-    public void addEffect(Effect<MachineTag, EventTag> effect) {
+    public void addEffect(Effect effect) {
         // TODO: We could do some merging here in the future
         effects.addLast(effect);
     }
@@ -59,19 +59,19 @@ public class EffectQueue<MachineTag, EventTag> {
         return effects.isEmpty();
     }
 
-    public List<Effect<MachineTag, EventTag>> dequeueEffect(Bdd pc) {
-        List<Effect<MachineTag, EventTag>> result = new ArrayList<>();
+    public List<Effect> dequeueEffect(Bdd pc) {
+        List<Effect> result = new ArrayList<>();
 
-        ListIterator<Effect<MachineTag, EventTag>> candidateIter = effects.listIterator();
+        ListIterator<Effect> candidateIter = effects.listIterator();
         while (candidateIter.hasNext() && !pc.isConstFalse()) {
-            Effect<MachineTag, EventTag> effect = candidateIter.next();
+            Effect effect = candidateIter.next();
             Bdd dequeueCond = effect.cond.and(pc);
             if (!dequeueCond.isConstFalse()) {
                 Bdd remainCond = effect.cond.and(pc.not());
                 if (remainCond.isConstFalse()) {
                     candidateIter.remove();
                 } else {
-                    Effect<MachineTag, EventTag> remainingEffect = effect.withCond(eventOps, remainCond);
+                    Effect remainingEffect = effect.withCond(eventOps, remainCond);
                     candidateIter.set(remainingEffect);
                 }
                 result.add(effect.withCond(eventOps, dequeueCond));

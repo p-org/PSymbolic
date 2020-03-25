@@ -34,7 +34,7 @@ public class RuntimeLogger {
         base.info(msg);
     }
 
-    public <StateTag, EventTag> void summarizeOutcomes(BaseMachine machine, GotoOutcome<StateTag> gotoOutcome, RaiseOutcome<EventTag> raiseOutcome) {
+    public void summarizeOutcomes(BaseMachine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
         if (!isVerbose) return;
         String msg = String.format("machine %s outcomes: Goto: %s Raise %s", machine.getName(), gotoOutcome, raiseOutcome);
         base.info(msg);

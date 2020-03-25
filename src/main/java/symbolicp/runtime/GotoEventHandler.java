@@ -2,7 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 
-public class GotoEventHandler<StateTag, EventTag> extends EventHandler<StateTag, EventTag> {
+public class GotoEventHandler extends EventHandler {
     public final StateTag dest;
 
     public GotoEventHandler(EventTag eventTag, StateTag dest) {
@@ -13,8 +13,8 @@ public class GotoEventHandler<StateTag, EventTag> extends EventHandler<StateTag,
     public void transitionAction(Bdd pc, BaseMachine machine, Object payload) {}
 
     @Override
-    public void handleEvent(Bdd pc, Object payload, BaseMachine machine, GotoOutcome<StateTag> gotoOutcome,
-                            RaiseOutcome<EventTag> raiseOutcome) {
+    public void handleEvent(Bdd pc, Object payload, BaseMachine machine, GotoOutcome gotoOutcome,
+                            RaiseOutcome raiseOutcome) {
         transitionAction(pc, machine, payload);
         gotoOutcome.addGuardedGoto(pc, dest);
     }

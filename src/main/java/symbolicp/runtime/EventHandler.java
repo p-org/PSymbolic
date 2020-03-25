@@ -2,7 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 
-public abstract class EventHandler <StateTag, EventTag> {
+public abstract class EventHandler {
     public final EventTag eventTag;
 
     protected EventHandler(EventTag eventTag) {
@@ -13,7 +13,7 @@ public abstract class EventHandler <StateTag, EventTag> {
         Bdd pc,
         Object payload,
         BaseMachine machine,
-        GotoOutcome<StateTag> gotoOutcome,
-        RaiseOutcome<EventTag> raiseOutcome
+        GotoOutcome gotoOutcome,
+        RaiseOutcome raiseOutcome
     );
 }

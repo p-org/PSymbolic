@@ -7,23 +7,23 @@ import symbolicp.vs.EventVS;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class State <StateTag, EventTag> {
+public abstract class State {
     public final StateTag stateTag;
-    private final Map<EventTag, EventHandler<StateTag, EventTag>> eventHandlers;
+    private final Map<EventTag, EventHandler> eventHandlers;
 
-    public void entry(Bdd pc, BaseMachine machine, GotoOutcome<StateTag> gotoOutcome, RaiseOutcome<EventTag> raiseOutcome) {}
+    public void entry(Bdd pc, BaseMachine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {}
     public void exit(Bdd pc, BaseMachine machine) {}
 
-    public State(StateTag stateTag, EventHandler<StateTag, EventTag>... eventHandlers) {
+    public State(StateTag stateTag, EventHandler... eventHandlers) {
         this.stateTag = stateTag;
 
         this.eventHandlers = new HashMap<>();
-        for (EventHandler<StateTag, EventTag> handler : eventHandlers) {
+        for (EventHandler handler : eventHandlers) {
             this.eventHandlers.put(handler.eventTag, handler);
         }
     }
 
-    public void handleEvent(EventVS<EventTag> eventVS, BaseMachine machine, GotoOutcome<StateTag> gotoOutcome, RaiseOutcome<EventTag> raiseOutcome) {
+    public void handleEvent(EventVS eventVS, BaseMachine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
         for (Map.Entry<EventTag, Bdd> entry : eventVS.getTag().guardedValues.entrySet()) {
             EventTag tag = entry.getKey();
             Bdd eventPc = entry.getValue();

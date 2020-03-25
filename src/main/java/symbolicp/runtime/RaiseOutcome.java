@@ -3,13 +3,13 @@ package symbolicp.runtime;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
 
-public class RaiseOutcome<EventTag> {
-    private final EventVS.Ops<EventTag> eventOps;
+public class RaiseOutcome {
+    private final EventVS.Ops eventOps;
 
     private Bdd cond;
-    private EventVS<EventTag> event;
+    private EventVS event;
 
-    public RaiseOutcome(EventVS.Ops<EventTag> eventOps) {
+    public RaiseOutcome(EventVS.Ops eventOps) {
         this.eventOps = eventOps;
         cond = Bdd.constFalse();
         event = eventOps.empty();
@@ -23,11 +23,11 @@ public class RaiseOutcome<EventTag> {
         return cond;
     }
 
-    public EventVS<EventTag> getEventSummary() {
+    public EventVS getEventSummary() {
         return event;
     }
 
-    public void addGuardedRaise(Bdd pc, EventVS<EventTag> newEvent) {
+    public void addGuardedRaise(Bdd pc, EventVS newEvent) {
         cond = cond.or(pc);
         event = eventOps.merge2(event, newEvent);
     }
