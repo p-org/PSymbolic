@@ -1,8 +1,10 @@
 package symbolicp.runtime;
 
+import com.sun.xml.internal.rngom.parse.host.Base;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
 import symbolicp.vs.MachineRefVS;
+import symbolicp.vs.PrimVS;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -36,12 +38,34 @@ public class EffectQueue {
         public Effect withCond(EventVS.Ops eventOps, Bdd guard) {
             return new SendEffect(
                 guard,
-                new MachineRefVS.Ops<MachineTag>().guard(target, guard),
+                new MachineRefVS.Ops().guard(target, guard),
                 eventOps.guard(event, guard));
         }
     }
 
     // TODO: Determine best architecture for creation effects
+    public static class MachineCreationEffect extends Effect {
+        final PrimVS<BaseMachine> machine;
+
+        /** The compiler is responsible for pre-allocating machines and storing them in a machine VS, and assigning
+         * them to any field variables (i.e. {Machine m = new Machine();})
+         * This effect does not have a target
+         * @param cond path constraint of this effect
+         * @param machine PrimVS of machine to be created
+         */
+        public MachineCreationEffect(Bdd cond, PrimVS<BaseMachine> machine) {
+            super(cond, null);
+            this.machine = machine;
+        }
+
+        @Override
+        public Effect withCond(EventVS.Ops eventOps, Bdd guard) {
+            return new MachineCreationEffect(
+                    guard,
+                    new PrimVS.Ops<BaseMachine>().guard(machine, guard)
+                    );
+        }
+    }
 
     private LinkedList<Effect> effects;
 

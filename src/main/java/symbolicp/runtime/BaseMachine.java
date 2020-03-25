@@ -109,6 +109,10 @@ public abstract class BaseMachine {
         return machineId;
     }
 
+    public MachineTag getMachineTag() {
+        return machineTag;
+    }
+
     void setName(String name) {
         this.name = name;
     }

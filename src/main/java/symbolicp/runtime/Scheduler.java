@@ -1,5 +1,6 @@
 package symbolicp.runtime;
 
+import com.sun.xml.internal.rngom.parse.host.Base;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 public class Scheduler {
     private final EventVS.Ops eventOps;
+    private final PrimVS.Ops<BaseMachine> machineOps = new PrimVS.Ops<>();
 
     final Map<MachineTag, List<BaseMachine>> machines;
     final Map<MachineTag, PrimVS<BaseMachine>> machineCounters;
@@ -89,7 +91,23 @@ public class Scheduler {
                     }
                 }
             }
-        } else {
+        } else if (effect instanceof EffectQueue.MachineCreationEffect){
+            /* Register machine to scheduler under the machine tag provided with the machine */
+            for (Map.Entry<BaseMachine, Bdd> entry : ((EffectQueue.MachineCreationEffect) effect).machine.guardedValues.entrySet()) {
+                Bdd pc = entry.getValue();
+                BaseMachine machine = entry.getKey();
+                Map<BaseMachine, Bdd> map = new HashMap<>(); map.put(machine, pc);
+                PrimVS<BaseMachine> merge_segment = new PrimVS<>(map);
+                if (!pc.isConstFalse()) {
+                    machines.get(machine.getMachineTag()).add(machine);
+                    machineCounters.put(machine.getMachineTag(),
+                            machineOps.merge2(machineCounters.get(machine.getMachineTag()), merge_segment));
+                }
+                /* Start the machine after registration */
+                machine.start(pc);
+            }
+        }
+        else {
             throw new NotImplementedException();
         }
     }
