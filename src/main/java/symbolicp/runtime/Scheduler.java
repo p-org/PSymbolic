@@ -1,6 +1,5 @@
 package symbolicp.runtime;
 
-import com.sun.xml.internal.rngom.parse.host.Base;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
