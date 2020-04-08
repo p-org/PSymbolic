@@ -12,7 +12,7 @@ public abstract class BaseMachine {
     private final Map<StateTag, State> states;
     private static final RuntimeLogger LOGGER = new RuntimeLogger();
 
-    private PrimVS.Ops<StateTag> stateOps = new PrimVS.Ops<>();
+    private static final PrimVS.Ops<StateTag> stateOps = new PrimVS.Ops<>();
     private EventVS.Ops eventOps;
 
     private final MachineTag machineTag;
@@ -32,6 +32,9 @@ public abstract class BaseMachine {
         this.startState = startState;
         this.effectQueue = new EffectQueue(eventOps);
 
+        //this.state = stateOps.empty()
+        this.state = new PrimVS<>(startState);
+
         this.states = new HashMap<>();
         for (State state : states) {
             this.states.put(state.stateTag, state);
@@ -39,6 +42,7 @@ public abstract class BaseMachine {
     }
 
     public void start(Bdd pc) {
+        
         this.state = stateOps.merge2(
             stateOps.guard(this.state, pc.not()),
             stateOps.guard(new PrimVS<>(startState), pc));

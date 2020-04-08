@@ -36,7 +36,7 @@ public class EffectQueue {
         public Effect withCond(EventVS.Ops eventOps, Bdd guard) {
             return new SendEffect(
                 guard,
-                new MachineRefVS.Ops<MachineTag>().guard(target, guard),
+                new MachineRefVS.Ops().guard(target, guard),
                 eventOps.guard(event, guard));
         }
     }

@@ -15,6 +15,7 @@ public class Scheduler {
 
     final Map<MachineTag, List<BaseMachine>> machines;
     final Map<MachineTag, PrimVS<BaseMachine>> machineCounters;
+    private int step_count = 0;
 
     public Scheduler(EventVS.Ops eventOps) {
         this.eventOps = eventOps;
@@ -49,9 +50,11 @@ public class Scheduler {
         return results;
     }
 
-    public void step() {
+    public boolean step() {
         List<MachineTag> candidateTags = new ArrayList<>();
         List<Integer> candidateIds  = new ArrayList<>();
+        step_count ++;
+
         for (Map.Entry<MachineTag, List<BaseMachine>> entry : machines.entrySet()) {
             List<BaseMachine> machinesForTag = entry.getValue();
             for (int i = 0; i < machinesForTag.size(); i++) {
@@ -61,6 +64,11 @@ public class Scheduler {
                     candidateIds.add(i);
                 }
             }
+        }
+
+        if (candidateTags.isEmpty()) {
+            RuntimeLogger.log(String.format("Execution finished in %d steps", step_count));
+            return true;
         }
 
         Map<Integer, Bdd> candidateGuards = getNondetChoice(candidateTags.size());
@@ -75,6 +83,8 @@ public class Scheduler {
                 performEffect(effect);
             }
         }
+
+        return false;
     }
 
     private void performEffect(EffectQueue.Effect effect) {
