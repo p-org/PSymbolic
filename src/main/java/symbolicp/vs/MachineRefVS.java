@@ -15,6 +15,13 @@ public class MachineRefVS {
         this.id = id;
     }
 
+    private static final MachineTag nullMachineTag = new MachineTag("null", -1);
+    private static final MachineRefVS nullMachineRef = new MachineRefVS(new PrimVS<>(nullMachineTag), new PrimVS<>(-1));
+
+    public static MachineRefVS nullMachineRef() {
+        return nullMachineRef;
+    }
+
     public static class Ops implements ValueSummaryOps<MachineRefVS> {
         private final PrimVS.Ops<MachineTag> tagOps = new PrimVS.Ops<>();
         private final PrimVS.Ops<Integer> intOps = new PrimVS.Ops<>();

@@ -13,7 +13,7 @@ public class EventVS {
     private PrimVS<EventTag> tag;
     private Map<EventTag, Object> payloads;
 
-    private EventVS(PrimVS<EventTag> tag, Map<EventTag, Object> payloads) {
+    public EventVS(PrimVS<EventTag> tag, Map<EventTag, Object> payloads) {
         this.tag = tag;
         this.payloads = payloads;
     }

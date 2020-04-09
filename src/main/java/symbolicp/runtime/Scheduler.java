@@ -3,24 +3,31 @@ package symbolicp.runtime;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
+import symbolicp.vs.MachineRefVS;
 import symbolicp.vs.PrimVS;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class Scheduler {
     private final EventVS.Ops eventOps;
     private final PrimVS.Ops<BaseMachine> machineOps = new PrimVS.Ops<>();
 
     final Map<MachineTag, List<BaseMachine>> machines;
-    final Map<MachineTag, PrimVS<BaseMachine>> machineCounters;
+    final Map<MachineTag, PrimVS<Integer>> machineCounters;
 
-    public Scheduler(EventVS.Ops eventOps) {
+    public Scheduler(EventVS.Ops eventOps, MachineTag... machineTags) {
         this.eventOps = eventOps;
         this.machines = new HashMap<>();
         this.machineCounters = new HashMap<>();
+
+        for (MachineTag tag : machineTags) {
+            this.machines.put(tag, new ArrayList<>());
+            this.machineCounters.put(tag, new PrimVS<>(0));
+        }
     }
 
     // minChoice is inclusive, maxChoice is exclusive
@@ -78,36 +85,43 @@ public class Scheduler {
         }
     }
 
+    public MachineRefVS allocateMachineId(Bdd pc, MachineTag tag, Function<Integer, BaseMachine> constructor) {
+        final PrimVS.Ops<Integer> intOps = new PrimVS.Ops<>();
+        final PrimVS.Ops<MachineTag> tagOps = new PrimVS.Ops<>();
+
+        PrimVS<Integer> guardedCount = intOps.guard(machineCounters.get(tag), pc);
+        guardedCount = guardedCount.map(i -> i + 1);
+
+        List<BaseMachine> machineList = machines.get(tag);
+        assert guardedCount.guardedValues.keySet().stream().allMatch(i -> i <= machineList.size());
+        if (guardedCount.guardedValues.containsKey(machineList.size())) {
+            machineList.add(constructor.apply(machineList.size()));
+        }
+
+        PrimVS<Integer> mergedCount = intOps.merge2(guardedCount, intOps.guard(machineCounters.get(tag), pc.not()));
+        machineCounters.put(tag, mergedCount);
+
+        return new MachineRefVS(tagOps.guard(new PrimVS<>(tag), pc), guardedCount);
+    }
+
     private void performEffect(EffectQueue.Effect effect) {
-        if (effect instanceof EffectQueue.SendEffect) {
-            for (Map.Entry<MachineTag, Bdd> tagEntry : effect.target.tag.guardedValues.entrySet()) {
-                for (Map.Entry<Integer, Bdd> idEntry : effect.target.id.guardedValues.entrySet()) {
-                    Bdd pc = tagEntry.getValue().and(idEntry.getValue());
-                    if (!pc.isConstFalse()) {
-                        BaseMachine target = machines.get(tagEntry.getKey()).get(idEntry.getKey());
+        for (Map.Entry<MachineTag, Bdd> tagEntry : effect.target.tag.guardedValues.entrySet()) {
+            for (Map.Entry<Integer, Bdd> idEntry : effect.target.id.guardedValues.entrySet()) {
+                Bdd pc = tagEntry.getValue().and(idEntry.getValue());
+                if (!pc.isConstFalse()) {
+                    BaseMachine target = machines.get(tagEntry.getKey()).get(idEntry.getKey());
+                    if (effect instanceof EffectQueue.SendEffect) {
                         EventVS event = ((EffectQueue.SendEffect) effect).event;
                         target.processEventToCompletion(pc, eventOps.guard(event, pc));
                     }
+                    else if (effect instanceof EffectQueue.InitEffect) {
+                        target.start(pc);
+                    }
+                    else {
+                        throw new NotImplementedException();
+                    }
                 }
             }
-        } else if (effect instanceof EffectQueue.MachineCreationEffect){
-            /* Register machine to scheduler under the machine tag provided with the machine */
-            for (Map.Entry<BaseMachine, Bdd> entry : ((EffectQueue.MachineCreationEffect) effect).machine.guardedValues.entrySet()) {
-                Bdd pc = entry.getValue();
-                BaseMachine machine = entry.getKey();
-                Map<BaseMachine, Bdd> map = new HashMap<>(); map.put(machine, pc);
-                PrimVS<BaseMachine> merge_segment = new PrimVS<>(map);
-                if (!pc.isConstFalse()) {
-                    machines.get(machine.getMachineTag()).add(machine);
-                    machineCounters.put(machine.getMachineTag(),
-                            machineOps.merge2(machineCounters.get(machine.getMachineTag()), merge_segment));
-                }
-                /* Start the machine after registration */
-                machine.start(pc);
-            }
-        }
-        else {
-            throw new NotImplementedException();
         }
     }
 }

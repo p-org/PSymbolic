@@ -1,15 +1,13 @@
 package symbolicp.runtime;
 
-import com.sun.xml.internal.rngom.parse.host.Base;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
 import symbolicp.vs.MachineRefVS;
 import symbolicp.vs.PrimVS;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.*;
+import java.util.function.Function;
 
 public class EffectQueue {
     private final EventVS.Ops eventOps;
@@ -43,27 +41,16 @@ public class EffectQueue {
         }
     }
 
-    // TODO: Determine best architecture for creation effects
-    public static class MachineCreationEffect extends Effect {
-        final PrimVS<BaseMachine> machine;
-
-        /** The compiler is responsible for pre-allocating machines and storing them in a machine VS, and assigning
-         * them to any field variables (i.e. {Machine m = new Machine();})
-         * This effect does not have a target
-         * @param cond path constraint of this effect
-         * @param machine PrimVS of machine to be created
-         */
-        public MachineCreationEffect(Bdd cond, PrimVS<BaseMachine> machine) {
-            super(cond, null);
-            this.machine = machine;
+    public static class InitEffect extends Effect {
+        public InitEffect(Bdd cond, MachineRefVS machine) {
+            super(cond, machine);
         }
 
         @Override
         public Effect withCond(EventVS.Ops eventOps, Bdd guard) {
-            return new MachineCreationEffect(
+            return new InitEffect(
                     guard,
-                    new PrimVS.Ops<BaseMachine>().guard(machine, guard)
-                    );
+                    new MachineRefVS.Ops().guard(target, guard));
         }
     }
 
@@ -77,6 +64,22 @@ public class EffectQueue {
     public void addEffect(Effect effect) {
         // TODO: We could do some merging here in the future
         effects.addLast(effect);
+    }
+
+    public void send(Bdd pc, MachineRefVS dest, PrimVS<EventTag> eventTag, Object payload) {
+        if (eventTag.guardedValues.size() > 1) {
+            throw new NotImplementedException();
+        }
+        EventTag concreteTag = eventTag.guardedValues.keySet().iterator().next();
+        Map<EventTag, Object> payloadMap = new HashMap<>();
+        payloadMap.put(concreteTag, payload);
+        addEffect(new SendEffect(pc, dest, new EventVS(eventTag, payloadMap)));
+    }
+
+    public MachineRefVS create(Bdd pc, Scheduler scheduler, MachineTag tag, Function<Integer, BaseMachine> constructor) {
+        MachineRefVS ref = scheduler.allocateMachineId(pc, tag, constructor);
+        addEffect(new InitEffect(pc, ref));
+        return ref;
     }
 
     public boolean isEmpty() {

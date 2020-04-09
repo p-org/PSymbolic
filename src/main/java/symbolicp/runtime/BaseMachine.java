@@ -2,6 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
+import symbolicp.vs.MachineRefVS;
 import symbolicp.vs.PrimVS;
 
 import java.util.HashMap;
@@ -111,6 +112,10 @@ public abstract class BaseMachine {
 
     public MachineTag getMachineTag() {
         return machineTag;
+    }
+
+    public MachineRefVS getMachineRef() {
+        return new MachineRefVS(new PrimVS<>(getMachineTag()), new PrimVS<>(getMachineId()));
     }
 
     void setName(String name) {
