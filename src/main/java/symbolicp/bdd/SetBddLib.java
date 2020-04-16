@@ -1,7 +1,6 @@
 package symbolicp.bdd;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
+import symbolicp.util.NotImplementedException;
 import java.util.HashSet;
 import java.util.Set;
 

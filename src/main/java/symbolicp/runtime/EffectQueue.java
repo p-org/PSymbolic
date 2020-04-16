@@ -1,6 +1,6 @@
 package symbolicp.runtime;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+import symbolicp.util.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
 import symbolicp.vs.MachineRefVS;

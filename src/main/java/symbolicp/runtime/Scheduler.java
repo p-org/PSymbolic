@@ -1,6 +1,6 @@
 package symbolicp.runtime;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+import symbolicp.util.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
 import symbolicp.vs.MachineRefVS;
@@ -22,7 +22,6 @@ public class Scheduler {
 
     private int step_count = 0;
 
-
     public Scheduler(EventVS.Ops eventOps, MachineTag... machineTags) {
         this.eventOps = eventOps;
         this.machines = new HashMap<>();
@@ -32,6 +31,23 @@ public class Scheduler {
             this.machines.put(tag, new ArrayList<>());
             this.machineCounters.put(tag, new PrimVS<>(0));
         }
+    }
+
+    public void startWith(MachineTag tag, BaseMachine machine) {
+        for (PrimVS<Integer> machineCounter : machineCounters.values()) {
+            if (machineCounter.guardedValues.size() != 1 || !machineCounter.guardedValues.containsKey(0)) {
+                throw new RuntimeException("You cannot start the scheduler after it already contains machines");
+            }
+        }
+
+        machineCounters.put(tag, new PrimVS<>(1));
+        machines.get(tag).add(machine);
+
+        performEffect(
+            new EffectQueue.InitEffect(
+                Bdd.constTrue(),
+                new MachineRefVS(new PrimVS<>(tag), new PrimVS<>(0)))
+        );
     }
 
     // minChoice is inclusive, maxChoice is exclusive
@@ -107,14 +123,14 @@ public class Scheduler {
 
         List<BaseMachine> machineList = machines.get(tag);
         assert guardedCount.guardedValues.keySet().stream().allMatch(i -> i <= machineList.size());
-        if (guardedCount.guardedValues.containsKey(machineList.size())) {
+        if (guardedCount.guardedValues.containsKey(machineList.size() + 1)) {
             machineList.add(constructor.apply(machineList.size()));
         }
 
         PrimVS<Integer> mergedCount = intOps.merge2(guardedCount, intOps.guard(machineCounters.get(tag), pc.not()));
         machineCounters.put(tag, mergedCount);
 
-        return new MachineRefVS(tagOps.guard(new PrimVS<>(tag), pc), guardedCount);
+        return new MachineRefVS(tagOps.guard(new PrimVS<>(tag), pc), guardedCount.map(i -> i - 1));
     }
 
     private void performEffect(EffectQueue.Effect effect) {
