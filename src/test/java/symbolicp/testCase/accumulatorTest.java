@@ -20,7 +20,7 @@ public class accumulatorTest {
 
     // Skipping Interface 'AccumulatorMachine'
 
-    private static class machine_Main extends BaseMachine {
+    public static class machine_Main extends BaseMachine {
         private final static StateTag state_Init = new StateTag("Init", 0);
         private final static StateTag state_Send = new StateTag("Send", 1);
         private final static StateTag state_Stop = new StateTag("Stop", 2);
@@ -186,14 +186,14 @@ public class accumulatorTest {
 
     }
 
-    private static class machine_AccumulatorMachine extends BaseMachine {
+    public static class machine_AccumulatorMachine extends BaseMachine {
         private final static StateTag state_Init = new StateTag("Init", 0);
         private final static StateTag state_Wait = new StateTag("Wait", 1);
         private final static StateTag state_Accumulate = new StateTag("Accumulate", 2);
 
         private PrimVS<Integer> var_pool = new PrimVS<Integer>(0);
 
-        machine_AccumulatorMachine(int id) {
+        public machine_AccumulatorMachine(int id) {
             super(eventOps, machineTag_AccumulatorMachine, id, state_Init,
                     new State(state_Init
                     ) {
@@ -271,5 +271,5 @@ public class accumulatorTest {
     private static final PrimVS.Ops<EventTag> ops_3 =
             new PrimVS.Ops<EventTag>();
 
-    final static EventVS.Ops eventOps = new EventVS.Ops(event_null, null, event_halt, null, event_ACC, ops_1);
+    public final static EventVS.Ops eventOps = new EventVS.Ops(event_null, null, event_halt, null, event_ACC, ops_1);
 }
