@@ -30,7 +30,7 @@ public class IntegrationTest {
         Scheduler scheduler = new Scheduler(eventOps, Utils.getMachineTags(wrapper_class, wrapper));
         wrapper_class.getField("scheduler").set(wrapper, scheduler);
         //scheduler.disableLogging();
-        scheduler.bootStrap(machineTag_Main, main);
+        scheduler.startWith(machineTag_Main, main);
 
         int max_depth = 100;
         for (int i = 0; i < max_depth; ++i)
