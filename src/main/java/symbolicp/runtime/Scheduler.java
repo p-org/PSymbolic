@@ -34,6 +34,15 @@ public class Scheduler {
         }
     }
 
+    public void bootStrap(MachineTag main_tag, BaseMachine main_machine) {
+        this.machines.computeIfAbsent(main_tag, k -> new ArrayList<>());
+
+        this.machineCounters.put(main_tag, new PrimVS<>(1));
+        this.machines.get(main_tag).add(main_machine);
+
+        main_machine.start(Bdd.constTrue());
+    }
+
     // minChoice is inclusive, maxChoice is exclusive
     public void addNondetChoices(int minChoice, int maxChoice, Bdd cond, Map<Integer, Bdd> dest) {
         if (maxChoice <= minChoice) {
@@ -41,8 +50,8 @@ public class Scheduler {
         }
 
         if (minChoice + 1 == maxChoice) {
-           dest.put(minChoice, cond);
-           return;
+            dest.put(minChoice, cond);
+            return;
         }
 
         int mid = minChoice + (maxChoice - minChoice) / 2;
@@ -63,8 +72,8 @@ public class Scheduler {
 
     public boolean step() {
         List<MachineTag> candidateTags = new ArrayList<>();
-        List<Integer> candidateIds  = new ArrayList<>();
-        step_count ++;
+        List<Integer> candidateIds = new ArrayList<>();
+        step_count++;
 
         for (Map.Entry<MachineTag, List<BaseMachine>> entry : machines.entrySet()) {
             List<BaseMachine> machinesForTag = entry.getValue();
@@ -106,15 +115,17 @@ public class Scheduler {
         guardedCount = guardedCount.map(i -> i + 1);
 
         List<BaseMachine> machineList = machines.get(tag);
-        assert guardedCount.guardedValues.keySet().stream().allMatch(i -> i <= machineList.size());
-        if (guardedCount.guardedValues.containsKey(machineList.size())) {
+        // TODO: potential off by one error fixed in below two lines. Review required
+        assert guardedCount.guardedValues.keySet().stream().allMatch(i -> i <= machineList.size() + 1);
+        if (guardedCount.guardedValues.containsKey(machineList.size() + 1)) {
             machineList.add(constructor.apply(machineList.size()));
         }
 
         PrimVS<Integer> mergedCount = intOps.merge2(guardedCount, intOps.guard(machineCounters.get(tag), pc.not()));
         machineCounters.put(tag, mergedCount);
 
-        return new MachineRefVS(tagOps.guard(new PrimVS<>(tag), pc), guardedCount);
+        // TODO: potential off by one error fixed in line below. Review required
+        return new MachineRefVS(tagOps.guard(new PrimVS<>(tag), pc), guardedCount.map(i -> i - 1));
     }
 
     private void performEffect(EffectQueue.Effect effect) {
@@ -126,15 +137,21 @@ public class Scheduler {
                     if (effect instanceof EffectQueue.SendEffect) {
                         EventVS event = ((EffectQueue.SendEffect) effect).event;
                         target.processEventToCompletion(pc, eventOps.guard(event, pc));
-                    }
-                    else if (effect instanceof EffectQueue.InitEffect) {
+                    } else if (effect instanceof EffectQueue.InitEffect) {
                         target.start(pc);
-                    }
-                    else {
+                    } else {
                         throw new NotImplementedException();
                     }
                 }
             }
         }
+    }
+
+    public void disableLogging() {
+        RuntimeLogger.disableInfo();
+    }
+
+    public void enableLogging() {
+        RuntimeLogger.enableInfo();
     }
 }

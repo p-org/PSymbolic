@@ -3,6 +3,8 @@ package symbolicp.runtime;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.*;
 
+import java.util.Arrays;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class RuntimeLogger {
@@ -40,11 +42,21 @@ public class RuntimeLogger {
         base.info(msg);
     }
 
-    public static void log(String ... message) {
-        base.info("<PrintLog> " + String.join(", ", message));
+    public static void log(Object ... message) {
+        base.info("<PrintLog> " + String.join(", ", Arrays.toString(message)));
     }
 
     public void setVerbose(boolean verbose) {
         isVerbose = verbose;
     }
+
+    public static void disableInfo() {
+        base.setLevel(Level.OFF);
+    }
+
+    public static void enableInfo() {
+        base.setLevel(Level.INFO);
+    }
+
+
 }
