@@ -205,7 +205,7 @@ public class TestSingleMachineSend {
 
           Scheduler scheduler = new Scheduler(eventOps, machineTag_Main);
           scheduler.disableLogging();
-          scheduler.bootStrap(machineTag_Main, main);
+          scheduler.startWith(machineTag_Main, main);
 
           scheduler.step();
           scheduler.step();
