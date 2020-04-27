@@ -24,7 +24,7 @@ public class TestSingleMachineSend {
     // Skipping Interface 'Main'
 
 
-    private static class machine_Main extends BaseMachine {
+    public static class machine_Main extends BaseMachine {
         private final static StateTag state_Init = new StateTag("Init", 0);
         private final static StateTag state_Send = new StateTag("Send", 1);
         private final static StateTag state_Stop = new StateTag("Stop", 2);
@@ -198,7 +198,7 @@ public class TestSingleMachineSend {
     @Test
     public void test() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
 
-          Class<?> mainMachineClass = Class.forName("symbolicp.TestScedulerSingleMachine$machine_Main");
+          Class<?> mainMachineClass = Class.forName("symbolicp.TestSingleMachineSend$machine_Main");
 
           Constructor constructor = mainMachineClass.getConstructor(int.class);
           BaseMachine main = (BaseMachine) constructor.newInstance(0);
