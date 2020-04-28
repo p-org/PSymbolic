@@ -1,6 +1,6 @@
 package symbolicp;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import symbolicp.bdd.*;
 import symbolicp.vs.*;
 import symbolicp.runtime.*;

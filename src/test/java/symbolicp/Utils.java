@@ -4,6 +4,9 @@ import symbolicp.runtime.MachineTag;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.stream.StreamSupport;
 
 public class Utils {
     public static MachineTag[] getMachineTags(Class<?> wrapper_class, Object wrapper) throws IllegalAccessException {
@@ -17,5 +20,11 @@ public class Utils {
         MachineTag[] machineTags1 = new MachineTag[machineTags.size()];
         machineTags.toArray(machineTags1);
         return machineTags1;
+    }
+
+    public static String[] splitPath(String pathString) {
+        Path path = Paths.get(pathString);
+        return StreamSupport.stream(path.spliterator(), false).map(Path::toString)
+                .toArray(String[]::new);
     }
 }

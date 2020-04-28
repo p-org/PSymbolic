@@ -1,13 +1,13 @@
 package symbolicp;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.ListVS;
 import symbolicp.vs.MapVS;
 import symbolicp.vs.PrimVS;
 import symbolicp.vs.SetVS;
 
-import static org.junit.Assert.assertTrue;
 
 
 public class TestValueSummaries {
@@ -33,6 +33,7 @@ public class TestValueSummaries {
 
         PrimVS<Integer> var_x1 = ops_int.merge2(ops_int.guard(var_x, bdd1.not()), var_xg);
         PrimVS<Integer> var_y1 = ops_int.merge2(ops_int.guard(var_y, bdd1), var_yg);
+
 
         assertTrue(ops_int.symbolicEquals(var_x1, var_y1, path).guardedValues
                 .getOrDefault(false, Bdd.constFalse()).isConstTrue());
