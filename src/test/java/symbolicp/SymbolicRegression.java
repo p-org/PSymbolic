@@ -14,7 +14,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class TestCaseLoader {
+/**
+ * Runner for Symbolic P Regressions.
+ * Pre-requisites:
+ *  Run from P repository as a submodule
+ *  Build the symbolic compiler to ../Bld/Drops/Release/Binaries/Pc.dll
+ *  Place test cases as source P files at ../Tst/SymbolicRegressionTests/
+ */
+public class SymbolicRegression {
 
     @TestFactory
     Collection<DynamicTest> loadTests() {
