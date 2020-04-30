@@ -2,14 +2,9 @@ package symbolicp.runtime;
 
 import symbolicp.util.NotImplementedException;
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.EventVS;
-import symbolicp.vs.MachineRefVS;
-import symbolicp.vs.PrimVS;
+import symbolicp.vs.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 
 public class Scheduler {
@@ -50,36 +45,42 @@ public class Scheduler {
         );
     }
 
-    // minChoice is inclusive, maxChoice is exclusive
-    public void addNondetChoices(int minChoice, int maxChoice, Bdd cond, Map<Integer, Bdd> dest) {
-        if (maxChoice <= minChoice) {
-            return;
+
+    private OptionalVS<PrimVS<Integer>> getNondetChoice(List<Bdd> candidateConds) {
+        final PrimVS.Ops<Integer> intOps = new PrimVS.Ops<>();
+
+        List<PrimVS<Integer>> results = new ArrayList<>();
+
+        Bdd residualPc = Bdd.constTrue();
+        for (int i = 0; i < candidateConds.size(); i++) {
+            Bdd enabledCond = candidateConds.get(i);
+            Bdd choiceCond = Bdd.newVar().and(enabledCond);
+
+            Bdd returnPc = residualPc.and(choiceCond);
+            results.add(intOps.guard(new PrimVS<>(i), returnPc));
+
+            residualPc = residualPc.and(choiceCond.not());
         }
 
-        if (minChoice + 1 == maxChoice) {
-            dest.put(minChoice, cond);
-            return;
+        for (int i = 0; i < candidateConds.size(); i++) {
+            Bdd enabledCond = candidateConds.get(i);
+
+            Bdd returnPc = residualPc.and(enabledCond);
+            results.add(intOps.guard(new PrimVS<>(i), returnPc));
+
+            residualPc = residualPc.and(enabledCond.not());
         }
 
-        int mid = minChoice + (maxChoice - minChoice) / 2;
+        final Bdd noneEnabledCond = residualPc;
+        PrimVS<Boolean> isPresent = BoolUtils.fromTrueGuard(noneEnabledCond.not());
 
-        Bdd rightVar = Bdd.newVar();
-        Bdd leftCond = cond.and(rightVar.not());
-        Bdd rightCond = cond.and(rightVar);
-
-        addNondetChoices(minChoice, mid, leftCond, dest);
-        addNondetChoices(mid, maxChoice, rightCond, dest);
-    }
-
-    public Map<Integer, Bdd> getNondetChoice(int choices) {
-        Map<Integer, Bdd> results = new HashMap<>();
-        addNondetChoices(0, choices, Bdd.constTrue(), results);
-        return results;
+        return new OptionalVS<>(isPresent, intOps.merge(results));
     }
 
     public boolean step() {
         List<MachineTag> candidateTags = new ArrayList<>();
         List<Integer> candidateIds = new ArrayList<>();
+        List<Bdd> candidateConds = new ArrayList<>();
         step_count++;
 
         for (Map.Entry<MachineTag, List<BaseMachine>> entry : machines.entrySet()) {
@@ -89,6 +90,7 @@ public class Scheduler {
                 if (!machine.effectQueue.isEmpty()) {
                     candidateTags.add(entry.getKey());
                     candidateIds.add(i);
+                    candidateConds.add(machine.effectQueue.enabledCond());
                 }
             }
         }
@@ -98,8 +100,8 @@ public class Scheduler {
             return true;
         }
 
-        Map<Integer, Bdd> candidateGuards = getNondetChoice(candidateTags.size());
-        for (Map.Entry<Integer, Bdd> entry : candidateGuards.entrySet()) {
+        OptionalVS<PrimVS<Integer>> candidateGuards = getNondetChoice(candidateConds);
+        for (Map.Entry<Integer, Bdd> entry : candidateGuards.item.guardedValues.entrySet()) {
             MachineTag tag = candidateTags.get(entry.getKey());
             int id = candidateIds.get(entry.getKey());
 
@@ -149,6 +151,17 @@ public class Scheduler {
                         throw new NotImplementedException();
                     }
                 }
+            }
+        }
+    }
+
+    public void logState() {
+        for (Map.Entry<MachineTag, List<BaseMachine>> entry : machines.entrySet()) {
+            List<BaseMachine> machinesWithTag = entry.getValue();
+            for (int i = 0; i < machinesWithTag.size(); i++) {
+                RuntimeLogger.log(
+                        String.format("Machine (tag: %s, index: %d): %s", entry.getKey(), i, machinesWithTag.get(i))
+                );
             }
         }
     }

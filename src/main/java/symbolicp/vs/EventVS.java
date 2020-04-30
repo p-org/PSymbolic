@@ -58,7 +58,12 @@ public class EventVS {
                 final EventTag tag = entry.getKey();
                 final Object payload = entry.getValue();
                 if (newTag.guardedValues.containsKey(tag)) {
-                    newPayloads.put(tag, payloadOps.get(tag).guard(payload, guard));
+                    if (payload == null) {
+                        assert payloadOps.get(tag) == null;
+                        newPayloads.put(tag, null);
+                    } else {
+                        newPayloads.put(tag, payloadOps.get(tag).guard(payload, guard));
+                    }
                 }
             }
             return new EventVS(newTag, newPayloads);
@@ -81,8 +86,13 @@ public class EventVS {
             final Map<EventTag, Object> newPayloads = new HashMap<>();
             for (Map.Entry<EventTag, List<Object>> entry : payloadsToMerge.entrySet()) {
                 EventTag tag = entry.getKey();
-                Object newPayload = payloadOps.get(tag).merge(entry.getValue());
-                newPayloads.put(tag, newPayload);
+                ValueSummaryOps ops = payloadOps.get(tag);
+                if (ops == null) {
+                    newPayloads.put(tag, null);
+                } else {
+                    Object newPayload = payloadOps.get(tag).merge(entry.getValue());
+                    newPayloads.put(tag, newPayload);
+                }
             }
 
             return new EventVS(newTag, newPayloads);

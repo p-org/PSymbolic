@@ -39,6 +39,14 @@ public class EffectQueue {
                 new MachineRefVS.Ops().guard(target, guard),
                 eventOps.guard(event, guard));
         }
+
+        @Override
+        public String toString() {
+            return "SendEffect{" +
+                    "target=" + target +
+                    ", event=" + event +
+                    '}';
+        }
     }
 
     public static class InitEffect extends Effect {
@@ -51,6 +59,13 @@ public class EffectQueue {
             return new InitEffect(
                     guard,
                     new MachineRefVS.Ops().guard(target, guard));
+        }
+
+        @Override
+        public String toString() {
+            return "InitEffect{" +
+                    "target=" + target +
+                    '}';
         }
     }
 
@@ -86,6 +101,15 @@ public class EffectQueue {
         return effects.isEmpty();
     }
 
+    // TODO: Can/should we optimize this?
+    public Bdd enabledCond() {
+        Bdd result = Bdd.constFalse();
+        for (Effect effect : effects) {
+            result = result.or(effect.cond);
+        }
+        return result;
+    }
+
     public List<Effect> dequeueEffect(Bdd pc) {
         List<Effect> result = new ArrayList<>();
 
@@ -112,5 +136,12 @@ public class EffectQueue {
         }
 
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "EffectQueue{" +
+                "effects=" + effects +
+                '}';
     }
 }

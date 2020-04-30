@@ -136,4 +136,14 @@ public abstract class BaseMachine {
         eventRaiseOutcome.addGuardedRaise(pc, event);
         runOutcomesToCompletion(emptyGotoOutcome, eventRaiseOutcome);
     }
+
+    @Override
+    public String toString() {
+        return "BaseMachine{" +
+                "machineTag=" + machineTag +
+                ", machineId=" + machineId +
+                ", state=" + state +
+                ", effectQueue=" + effectQueue +
+                '}';
+    }
 }

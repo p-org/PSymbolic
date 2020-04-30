@@ -60,4 +60,12 @@ public class MachineRefVS {
                     (tagsEqual, idsEqual) -> tagsEqual && idsEqual);
         }
     }
+
+    @Override
+    public String toString() {
+        return "MachineRefVS{" +
+                "tag=" + tag +
+                ", id=" + id +
+                '}';
+    }
 }
