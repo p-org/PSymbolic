@@ -30,7 +30,7 @@ public class SymbolicRegression {
 
         // First, fetch all files that are within the Regression Test folder.
         List<String> result = new ArrayList<>();
-        try (Stream<Path> walk = Files.walk(Paths.get("../Tst/SymbolicRegressionTests/"))) {
+        try (Stream<Path> walk = Files.walk(Paths.get("../Tst/RegressionTests/"))) {
              result = walk.map(Path::toString)
                     .filter(f -> f.endsWith(".p")).collect(Collectors.toList());
 
@@ -42,13 +42,16 @@ public class SymbolicRegression {
         for (String testCasePath : result) {
             Executable exec = null;
             if (testCasePath.contains("Correct")) {
-                exec = () -> assertEquals(TestCaseExecutor.runTestCase(testCasePath), 0);
+                exec = () -> assertEquals(0, TestCaseExecutor.runTestCase(testCasePath));
             }
             else if (testCasePath.contains("DynamicError")) {
-                exec = () -> assertEquals(TestCaseExecutor.runTestCase(testCasePath), 2);
+                exec = () -> assertEquals(2, TestCaseExecutor.runTestCase(testCasePath));
             }
             else if (testCasePath.contains("StaticError")) {
-                exec = () -> assertEquals(TestCaseExecutor.runTestCase(testCasePath), 1);
+                exec = () -> assertEquals(1, TestCaseExecutor.runTestCase(testCasePath));
+            }
+            else {
+                continue;
             }
 
             DynamicTest dynamicTest = DynamicTest.dynamicTest(testCasePath, exec);

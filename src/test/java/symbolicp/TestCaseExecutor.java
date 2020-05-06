@@ -58,8 +58,14 @@ public class TestCaseExecutor {
         String class_name = path_split[path_split.length-1].split("\\.")[0].toLowerCase();
         String outputPath = outputDirectory + File.separator + class_name + ".java";
         String file_content = readLineByLineJava8(outputPath);
-
-        Reflect.compile(class_name, file_content);
+        try{
+            Reflect.compile(class_name, file_content);
+        }
+        catch (Exception e) {
+            // Dynamic compilation exceptions are considered as Static Errors
+            e.printStackTrace();
+            return 1;
+        }
         try {
             Class<?> wrapper_class = Class.forName("symbolicp.testCase." + class_name);
             Class<?> mainMachineClass = Class.forName("symbolicp.testCase." + class_name + "$machine_Main");
@@ -82,14 +88,8 @@ public class TestCaseExecutor {
                 if (scheduler.step()) return 0;
             }
         }
-        catch (ClassNotFoundException | InvocationTargetException | InstantiationException |
-                IllegalAccessException | NoSuchFieldException | NoSuchMethodException e) {
-            // Dynamic compilation exceptions are considered as Static Errors
-            e.printStackTrace();
-            return 1;
-        }
-        catch (Exception e) {
-            // Other exceptions are considered as Dynamic Errors
+        catch (Exception | AssertionError e) {
+            // Runtime exceptions are considered as Dynamic Errors
             e.printStackTrace();
             return 2;
         }
