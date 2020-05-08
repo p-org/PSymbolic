@@ -42,7 +42,7 @@ public abstract class BaseMachine {
         }
     }
 
-    public void start(Bdd pc) {
+    public void start(Bdd pc, Object payload) {
         
         this.state = stateOps.merge2(
             stateOps.guard(this.state, pc.not()),
@@ -50,7 +50,7 @@ public abstract class BaseMachine {
 
         GotoOutcome initGotoOutcome = new GotoOutcome();
         RaiseOutcome initRaiseOutcome = new RaiseOutcome(eventOps);
-        states.get(startState).entry(pc, this, initGotoOutcome, initRaiseOutcome);
+        states.get(startState).entry(pc, this, initGotoOutcome, initRaiseOutcome, payload);
 
         runOutcomesToCompletion(initGotoOutcome, initRaiseOutcome);
     }
@@ -60,7 +60,13 @@ public abstract class BaseMachine {
             GotoOutcome nextGotoOutcome = new GotoOutcome();
             RaiseOutcome nextRaiseOutcome = new RaiseOutcome(eventOps);
             if (!gotoOutcome.isEmpty()) {
-                processStateTransition(gotoOutcome.getGotoCond(), nextGotoOutcome, nextRaiseOutcome, gotoOutcome.getStateSummary());
+                processStateTransition(
+                        gotoOutcome.getGotoCond(),
+                        nextGotoOutcome,
+                        nextRaiseOutcome,
+                        gotoOutcome.getStateSummary(),
+                        gotoOutcome.getPayloads()
+                );
             }
             if (!raiseOutcome.isEmpty()) {
                 processEvent(raiseOutcome.getRaiseCond(), nextGotoOutcome, nextRaiseOutcome, raiseOutcome.getEventSummary());
@@ -74,7 +80,8 @@ public abstract class BaseMachine {
             Bdd pc,
             GotoOutcome gotoOutcome, // 'out' parameter
             RaiseOutcome raiseOutcome, // 'out' parameter
-            PrimVS<StateTag> newState
+            PrimVS<StateTag> newState,
+            Map<StateTag, Object> payloads
     ) {
         LOGGER.onProcessStateTransition(pc, this, newState);
         if (this.state == null) {
@@ -89,7 +96,10 @@ public abstract class BaseMachine {
         }
 
         for (Map.Entry<StateTag, Bdd> entry : newState.guardedValues.entrySet()) {
-            states.get(entry.getKey()).entry(entry.getValue(), this, gotoOutcome, raiseOutcome);
+            StateTag tag = entry.getKey();
+            Bdd transitionCond = entry.getValue();
+            Object payload = payloads.get(tag);
+            states.get(tag).entry(transitionCond, this, gotoOutcome, raiseOutcome, payload);
         }
         LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);
     }

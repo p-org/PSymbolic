@@ -146,7 +146,7 @@ public class Scheduler {
                         EventVS event = ((EffectQueue.SendEffect) effect).event;
                         target.processEventToCompletion(pc, eventOps.guard(event, pc));
                     } else if (effect instanceof EffectQueue.InitEffect) {
-                        target.start(pc);
+                        target.start(pc, ((EffectQueue.InitEffect) effect).payload);
                     } else {
                         throw new NotImplementedException();
                     }

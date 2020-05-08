@@ -5,6 +5,7 @@ import symbolicp.bdd.Bdd;
 import symbolicp.vs.EventVS;
 import symbolicp.vs.MachineRefVS;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.ValueSummaryOps;
 
 import java.util.*;
 import java.util.function.Function;
@@ -50,15 +51,27 @@ public class EffectQueue {
     }
 
     public static class InitEffect extends Effect {
-        public InitEffect(Bdd cond, MachineRefVS machine) {
+        final ValueSummaryOps payloadOps;
+        final Object payload;
+
+        public InitEffect(Bdd cond, MachineRefVS machine, ValueSummaryOps payloadOps, Object payload) {
             super(cond, machine);
+            this.payloadOps = payloadOps;
+            this.payload = payload;
+        }
+
+        public InitEffect(Bdd cond, MachineRefVS machine) {
+            this(cond, machine, null, null);
         }
 
         @Override
         public Effect withCond(EventVS.Ops eventOps, Bdd guard) {
-            return new InitEffect(
-                    guard,
-                    new MachineRefVS.Ops().guard(target, guard));
+                return new InitEffect(
+                        guard,
+                        new MachineRefVS.Ops().guard(target, guard),
+                        payloadOps,
+                        payload != null ? payloadOps.guard(payload, guard) : null
+                );
         }
 
         @Override
@@ -91,10 +104,14 @@ public class EffectQueue {
         addEffect(new SendEffect(pc, dest, new EventVS(eventTag, payloadMap)));
     }
 
-    public MachineRefVS create(Bdd pc, Scheduler scheduler, MachineTag tag, Function<Integer, BaseMachine> constructor) {
+    public MachineRefVS create(Bdd pc, Scheduler scheduler, MachineTag tag, ValueSummaryOps payloadOps, Object payload, Function<Integer, BaseMachine> constructor) {
         MachineRefVS ref = scheduler.allocateMachineId(pc, tag, constructor);
-        addEffect(new InitEffect(pc, ref));
+        addEffect(new InitEffect(pc, ref, payloadOps, payload));
         return ref;
+    }
+
+    public MachineRefVS create(Bdd pc, Scheduler scheduler, MachineTag tag, Function<Integer, BaseMachine> constructor) {
+        return create(pc, scheduler, tag, null, null, constructor);
     }
 
     public boolean isEmpty() {
