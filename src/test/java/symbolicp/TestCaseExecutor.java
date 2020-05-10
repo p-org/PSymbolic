@@ -1,19 +1,11 @@
 package symbolicp;
 import org.joor.Reflect;
 import java.io.*;
-import symbolicp.runtime.BaseMachine;
-import symbolicp.runtime.MachineTag;
-import symbolicp.runtime.Scheduler;
-import symbolicp.vs.EventVS;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 
 public class TestCaseExecutor {
@@ -95,42 +87,23 @@ public class TestCaseExecutor {
         String class_name = path_split[path_split.length-1].split("\\.")[0];
         String outputPath = outputDirectory + File.separator + class_name + ".java";
         String fileContent = prependPackageDeclarationAndRead(outputPackage, outputPath);
+        Reflect r;
         try{
-            Reflect.compile(class_name, fileContent);
+            r = Reflect.compile(outputPackage + "." + class_name, fileContent);
         }
         catch (Exception e) {
             // Dynamic compilation exceptions are considered as Static Errors
             e.printStackTrace();
             return 1;
         }
-        try {
-            Class<?> wrapper_class = Class.forName(outputPackage + "." + class_name);
-            Class<?> mainMachineClass = Class.forName(outputPackage + "." + class_name + "$machine_Main");
-
-            Object wrapper = wrapper_class.getConstructor().newInstance();
-
-            MachineTag machineTag_Main = (MachineTag) wrapper_class.getField("machineTag_Main").get(wrapper);
-            EventVS.Ops eventOps =  (EventVS.Ops) wrapper_class.getField("eventOps").get(wrapper);
-
-            Constructor constructor = mainMachineClass.getConstructor(int.class);
-            BaseMachine main = (BaseMachine) constructor.newInstance(0);
-
-            Scheduler scheduler = new Scheduler(eventOps, Utils.getMachineTags(wrapper_class, wrapper));
-            wrapper_class.getField("scheduler").set(wrapper, scheduler);
-            scheduler.disableLogging();
-            scheduler.startWith(machineTag_Main, main);
-
-            int max_depth = 100;
-            for (int i = 0; i < max_depth; ++i) {
-                if (scheduler.step()) return 0;
-            }
-            return 0;
+        try{
+            r.call("main", (Object) new String[] {});
         }
         catch (Exception | AssertionError e) {
-            // Runtime exceptions are considered as Dynamic Errors
             e.printStackTrace();
             return 2;
         }
+        return 0;
     }
 
     private static class StreamGobbler implements Runnable {
