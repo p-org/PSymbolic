@@ -22,6 +22,7 @@ public abstract class BaseMachine {
 
     private PrimVS<StateTag> state;
     public final EffectQueue effectQueue;
+    public final EffectQueue deferredQueue;
 
     public BaseMachine(EventVS.Ops eventOps, MachineTag machineTag, int machineId, StateTag startState, State... states) {
         this.eventOps = eventOps;
@@ -32,6 +33,7 @@ public abstract class BaseMachine {
 
         this.startState = startState;
         this.effectQueue = new EffectQueue(eventOps);
+        this.deferredQueue = new EffectQueue(eventOps);
 
         //this.state = stateOps.empty()
         this.state = new PrimVS<>(startState);
