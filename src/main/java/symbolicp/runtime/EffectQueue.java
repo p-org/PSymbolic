@@ -1,44 +1,48 @@
 package symbolicp.runtime;
 
-import symbolicp.util.NotImplementedException;
 import symbolicp.bdd.Bdd;
+import symbolicp.util.NotImplementedException;
 import symbolicp.vs.EventVS;
 import symbolicp.vs.MachineRefVS;
 import symbolicp.vs.PrimVS;
 import symbolicp.vs.ValueSummaryOps;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
-public class EffectQueue {
-    private final EventVS.Ops eventOps;
-
-    public abstract static class Effect {
+public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
+    public abstract static class Effect implements SymbolicQueue.Entry<Effect> {
+        final EventVS.Ops eventOps;
         final Bdd cond;
         final MachineRefVS target;
 
-        public Effect(Bdd cond, MachineRefVS target) {
+        public Effect(EventVS.Ops eventOps, Bdd cond, MachineRefVS target) {
+            this.eventOps = eventOps;
             this.cond = cond;
             this.target = target;
         }
 
-        public abstract Effect withCond(EventVS.Ops eventOps, Bdd guard);
+        public Bdd getCond() {
+            return cond;
+        }
     }
 
     public static class SendEffect extends Effect {
         final EventVS event;
 
-        public SendEffect(Bdd cond, MachineRefVS target, EventVS event) {
-            super(cond, target);
+        public SendEffect(EventVS.Ops eventOps, Bdd cond, MachineRefVS target, EventVS event) {
+            super(eventOps, cond, target);
             this.event = event;
         }
 
-        @Override
-        public Effect withCond(EventVS.Ops eventOps, Bdd guard) {
+        public Effect withCond(Bdd guard) {
             return new SendEffect(
-                guard,
-                new MachineRefVS.Ops().guard(target, guard),
-                eventOps.guard(event, guard));
+                    eventOps,
+                    guard,
+                    new MachineRefVS.Ops().guard(target, guard),
+                    eventOps.guard(event, guard)
+            );
         }
 
         @Override
@@ -54,22 +58,22 @@ public class EffectQueue {
         final ValueSummaryOps payloadOps;
         final Object payload;
 
-        public InitEffect(Bdd cond, MachineRefVS machine, ValueSummaryOps payloadOps, Object payload) {
-            super(cond, machine);
+        public InitEffect(EventVS.Ops eventOps, ValueSummaryOps payloadOps, Bdd cond, MachineRefVS machine, Object payload) {
+            super(eventOps, cond, machine);
             this.payloadOps = payloadOps;
             this.payload = payload;
         }
 
-        public InitEffect(Bdd cond, MachineRefVS machine) {
-            this(cond, machine, null, null);
+        public InitEffect(EventVS.Ops eventOps, Bdd cond, MachineRefVS machine) {
+            this(eventOps, null, cond, machine, null);
         }
 
-        @Override
-        public Effect withCond(EventVS.Ops eventOps, Bdd guard) {
+        public Effect withCond(Bdd guard) {
                 return new InitEffect(
+                        eventOps,
+                        payloadOps,
                         guard,
                         new MachineRefVS.Ops().guard(target, guard),
-                        payloadOps,
                         payload != null ? payloadOps.guard(payload, guard) : null
                 );
         }
@@ -82,16 +86,11 @@ public class EffectQueue {
         }
     }
 
-    private LinkedList<Effect> effects;
+    private final EventVS.Ops eventOps;
 
     public EffectQueue(EventVS.Ops eventOps) {
+        super();
         this.eventOps = eventOps;
-        this.effects = new LinkedList<>();
-    }
-
-    public void addEffect(Effect effect) {
-        // TODO: We could do some merging here in the future
-        effects.addLast(effect);
     }
 
     public void send(Bdd pc, MachineRefVS dest, PrimVS<EventTag> eventTag, Object payload) {
@@ -101,64 +100,23 @@ public class EffectQueue {
         EventTag concreteTag = eventTag.guardedValues.keySet().iterator().next();
         Map<EventTag, Object> payloadMap = new HashMap<>();
         payloadMap.put(concreteTag, payload);
-        addEffect(new SendEffect(pc, dest, new EventVS(eventTag, payloadMap)));
+        enqueueEntry(new SendEffect(eventOps, pc, dest, new EventVS(eventTag, payloadMap)));
     }
 
-    public MachineRefVS create(Bdd pc, Scheduler scheduler, MachineTag tag, ValueSummaryOps payloadOps, Object payload, Function<Integer, BaseMachine> constructor) {
+    public MachineRefVS create(
+            Bdd pc,
+            Scheduler scheduler,
+            MachineTag tag,
+            ValueSummaryOps payloadOps,
+            Object payload,
+            Function<Integer, BaseMachine> constructor
+    ) {
         MachineRefVS ref = scheduler.allocateMachineId(pc, tag, constructor);
-        addEffect(new InitEffect(pc, ref, payloadOps, payload));
+        enqueueEntry(new InitEffect(eventOps, payloadOps, pc, ref, payload));
         return ref;
     }
 
     public MachineRefVS create(Bdd pc, Scheduler scheduler, MachineTag tag, Function<Integer, BaseMachine> constructor) {
-        return create(pc, scheduler, tag, null, null, constructor);
-    }
-
-    public boolean isEmpty() {
-        return effects.isEmpty();
-    }
-
-    // TODO: Can/should we optimize this?
-    public Bdd enabledCond() {
-        Bdd result = Bdd.constFalse();
-        for (Effect effect : effects) {
-            result = result.or(effect.cond);
-        }
-        return result;
-    }
-
-    public List<Effect> dequeueEffect(Bdd pc) {
-        List<Effect> result = new ArrayList<>();
-
-        ListIterator<Effect> candidateIter = effects.listIterator();
-        while (candidateIter.hasNext() && !pc.isConstFalse()) {
-            Effect effect = candidateIter.next();
-            Bdd dequeueCond = effect.cond.and(pc);
-            if (!dequeueCond.isConstFalse()) {
-                Bdd remainCond = effect.cond.and(pc.not());
-                if (remainCond.isConstFalse()) {
-                    candidateIter.remove();
-                } else {
-                    Effect remainingEffect = effect.withCond(eventOps, remainCond);
-                    candidateIter.set(remainingEffect);
-                }
-                result.add(effect.withCond(eventOps, dequeueCond));
-
-                // We only want to pop the first effect from the queue.  However, which event is "first" is
-                // symbolically determined.  Even if the effect we just popped was first under the path constraint
-                // 'dequeueCond', there may be a "residual" path constraint under which it does not exist, and
-                // therefore a different effect is first in the queue.
-                pc = pc.and(effect.cond.not());
-            }
-        }
-
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return "EffectQueue{" +
-                "effects=" + effects +
-                '}';
+        return create( pc, scheduler, tag, null, null, constructor);
     }
 }

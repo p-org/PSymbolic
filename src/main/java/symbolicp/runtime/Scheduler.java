@@ -40,8 +40,10 @@ public class Scheduler {
 
         performEffect(
             new EffectQueue.InitEffect(
-                Bdd.constTrue(),
-                new MachineRefVS(new PrimVS<>(tag), new PrimVS<>(0)))
+                    eventOps,
+                    Bdd.constTrue(),
+                    new MachineRefVS(new PrimVS<>(tag), new PrimVS<>(0))
+            )
         );
     }
 
@@ -107,7 +109,7 @@ public class Scheduler {
 
             BaseMachine machine = machines.get(tag).get(id);
             Bdd guard = entry.getValue();
-            List<EffectQueue.Effect> symbolicEffect = machine.effectQueue.dequeueEffect(guard);
+            List<EffectQueue.Effect> symbolicEffect = machine.effectQueue.dequeueEntry(guard);
             for (EffectQueue.Effect effect : symbolicEffect) {
                 performEffect(effect);
             }
