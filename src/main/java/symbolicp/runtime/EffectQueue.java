@@ -23,6 +23,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
             this.target = target;
         }
 
+        @Override
         public Bdd getCond() {
             return cond;
         }
@@ -36,6 +37,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
             this.event = event;
         }
 
+        @Override
         public Effect withCond(Bdd guard) {
             return new SendEffect(
                     eventOps,
@@ -68,6 +70,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
             this(eventOps, null, cond, machine, null);
         }
 
+        @Override
         public Effect withCond(Bdd guard) {
                 return new InitEffect(
                         eventOps,

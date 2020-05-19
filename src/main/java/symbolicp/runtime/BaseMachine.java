@@ -6,6 +6,7 @@ import symbolicp.vs.MachineRefVS;
 import symbolicp.vs.PrimVS;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public abstract class BaseMachine {
@@ -22,7 +23,7 @@ public abstract class BaseMachine {
 
     private PrimVS<StateTag> state;
     public final EffectQueue effectQueue;
-    public final EffectQueue deferredQueue;
+    public final DeferQueue deferredQueue;
 
     public BaseMachine(EventVS.Ops eventOps, MachineTag machineTag, int machineId, StateTag startState, State... states) {
         this.eventOps = eventOps;
@@ -33,7 +34,7 @@ public abstract class BaseMachine {
 
         this.startState = startState;
         this.effectQueue = new EffectQueue(eventOps);
-        this.deferredQueue = new EffectQueue(eventOps);
+        this.deferredQueue = new DeferQueue(eventOps);
 
         //this.state = stateOps.empty()
         this.state = new PrimVS<>(startState);
@@ -54,27 +55,42 @@ public abstract class BaseMachine {
         RaiseOutcome initRaiseOutcome = new RaiseOutcome(eventOps);
         states.get(startState).entry(pc, this, initGotoOutcome, initRaiseOutcome, payload);
 
-        runOutcomesToCompletion(initGotoOutcome, initRaiseOutcome);
+        runOutcomesToCompletion(pc, initGotoOutcome, initRaiseOutcome);
     }
 
-    void runOutcomesToCompletion(GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
+    void runOutcomesToCompletion(Bdd pc, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
+        // Outer loop: process sequences of 'goto's, 'raise's, and events from the deferred queue.
         while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
-            GotoOutcome nextGotoOutcome = new GotoOutcome();
-            RaiseOutcome nextRaiseOutcome = new RaiseOutcome(eventOps);
-            if (!gotoOutcome.isEmpty()) {
-                processStateTransition(
-                        gotoOutcome.getGotoCond(),
-                        nextGotoOutcome,
-                        nextRaiseOutcome,
-                        gotoOutcome.getStateSummary(),
-                        gotoOutcome.getPayloads()
-                );
+            // Inner loop: process sequences of 'goto's and 'raise's.
+            while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
+                GotoOutcome nextGotoOutcome = new GotoOutcome();
+                RaiseOutcome nextRaiseOutcome = new RaiseOutcome(eventOps);
+                if (!gotoOutcome.isEmpty()) {
+                    processStateTransition(
+                            gotoOutcome.getGotoCond(),
+                            nextGotoOutcome,
+                            nextRaiseOutcome,
+                            gotoOutcome.getStateSummary(),
+                            gotoOutcome.getPayloads()
+                    );
+                }
+                if (!raiseOutcome.isEmpty()) {
+                    processEvent(raiseOutcome.getRaiseCond(), nextGotoOutcome, nextRaiseOutcome, raiseOutcome.getEventSummary());
+                }
+                gotoOutcome = nextGotoOutcome;
+                raiseOutcome = nextRaiseOutcome;
             }
-            if (!raiseOutcome.isEmpty()) {
-                processEvent(raiseOutcome.getRaiseCond(), nextGotoOutcome, nextRaiseOutcome, raiseOutcome.getEventSummary());
+
+            // Process events from the deferred queue
+            pc = pc.and(deferredQueue.enabledCond());
+            if (!pc.isConstFalse()) {
+                RaiseOutcome deferredRaiseOutcome = new RaiseOutcome(eventOps);
+                List<DeferQueue.Event> deferredEvents = deferredQueue.dequeueEntry(pc);
+                for (DeferQueue.Event event : deferredEvents) {
+                    deferredRaiseOutcome.addGuardedRaise(event.getCond(), event.event);
+                }
+                raiseOutcome = deferredRaiseOutcome;
             }
-            gotoOutcome = nextGotoOutcome;
-            raiseOutcome = nextRaiseOutcome;
         }
     }
 
@@ -146,7 +162,7 @@ public abstract class BaseMachine {
         final GotoOutcome emptyGotoOutcome = new GotoOutcome();
         final RaiseOutcome eventRaiseOutcome = new RaiseOutcome(eventOps);
         eventRaiseOutcome.addGuardedRaise(pc, event);
-        runOutcomesToCompletion(emptyGotoOutcome, eventRaiseOutcome);
+        runOutcomesToCompletion(pc, emptyGotoOutcome, eventRaiseOutcome);
     }
 
     @Override
