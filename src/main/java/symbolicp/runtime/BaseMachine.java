@@ -61,11 +61,15 @@ public abstract class BaseMachine {
     void runOutcomesToCompletion(Bdd pc, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
         // Outer loop: process sequences of 'goto's, 'raise's, and events from the deferred queue.
         while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
+            // TODO: Determine if this can be safely optimized into a concrete boolean
+            Bdd performedTransition = Bdd.constFalse();
+
             // Inner loop: process sequences of 'goto's and 'raise's.
             while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
                 GotoOutcome nextGotoOutcome = new GotoOutcome();
                 RaiseOutcome nextRaiseOutcome = new RaiseOutcome(eventOps);
                 if (!gotoOutcome.isEmpty()) {
+                    performedTransition = performedTransition.or(gotoOutcome.getGotoCond());
                     processStateTransition(
                             gotoOutcome.getGotoCond(),
                             nextGotoOutcome,
@@ -82,7 +86,7 @@ public abstract class BaseMachine {
             }
 
             // Process events from the deferred queue
-            pc = pc.and(deferredQueue.enabledCond());
+            pc = performedTransition.and(deferredQueue.enabledCond());
             if (!pc.isConstFalse()) {
                 RaiseOutcome deferredRaiseOutcome = new RaiseOutcome(eventOps);
                 List<DeferQueue.Event> deferredEvents = deferredQueue.dequeueEntry(pc);
