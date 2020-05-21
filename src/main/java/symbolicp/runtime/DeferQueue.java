@@ -1,15 +1,15 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.EventVS;
+import symbolicp.vs.UnionVS;
 
 public class DeferQueue extends SymbolicQueue<DeferQueue.Event> {
     public static class Event implements SymbolicQueue.Entry<Event> {
-        final EventVS.Ops eventOps;
+        final UnionVS.Ops<EventTag> eventOps;
         final Bdd cond;
-        final EventVS event;
+        final UnionVS<EventTag> event;
 
-        public Event(EventVS.Ops eventOps, Bdd cond, EventVS event) {
+        public Event(UnionVS.Ops<EventTag> eventOps, Bdd cond, UnionVS<EventTag> event) {
             this.eventOps = eventOps;
             this.cond = cond;
             this.event = event;
@@ -30,14 +30,14 @@ public class DeferQueue extends SymbolicQueue<DeferQueue.Event> {
         }
     }
 
-    final EventVS.Ops eventOps;
+    final UnionVS.Ops<EventTag> eventOps;
 
-    public DeferQueue(EventVS.Ops eventOps) {
+    public DeferQueue(UnionVS.Ops<EventTag> eventOps) {
         super();
         this.eventOps = eventOps;
     }
 
-    public void defer(Bdd pc, EventVS event) {
+    public void defer(Bdd pc, UnionVS<EventTag> event) {
         enqueueEntry(new Event(eventOps, pc, event));
     }
 }

@@ -1,7 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.EventVS;
+import symbolicp.vs.UnionVS;
 import symbolicp.vs.MachineRefVS;
 import symbolicp.vs.PrimVS;
 
@@ -15,7 +15,7 @@ public abstract class BaseMachine {
     private static final RuntimeLogger LOGGER = new RuntimeLogger();
 
     private static final PrimVS.Ops<StateTag> stateOps = new PrimVS.Ops<>();
-    private EventVS.Ops eventOps;
+    private UnionVS.Ops<EventTag> eventOps;
 
     private final MachineTag machineTag;
     private final int machineId;
@@ -25,7 +25,7 @@ public abstract class BaseMachine {
     public final EffectQueue effectQueue;
     public final DeferQueue deferredQueue;
 
-    public BaseMachine(EventVS.Ops eventOps, MachineTag machineTag, int machineId, StateTag startState, State... states) {
+    public BaseMachine(UnionVS.Ops<EventTag> eventOps, MachineTag machineTag, int machineId, StateTag startState, State... states) {
         this.eventOps = eventOps;
 
         this.machineTag = machineTag;
@@ -126,13 +126,13 @@ public abstract class BaseMachine {
             Bdd pc,
             GotoOutcome gotoOutcome, // 'out' parameter
             RaiseOutcome raiseOutcome, // 'out' parameter
-            EventVS event
+            UnionVS<EventTag> event
     ) {
         LOGGER.onProcessEvent(pc, this, event);
         PrimVS<StateTag> guardedState = stateOps.guard(this.state, pc);
         for (Map.Entry<StateTag, Bdd> entry : guardedState.guardedValues.entrySet()) {
             Bdd state_pc = entry.getValue();
-            EventVS guardedEvent = eventOps.guard(event, state_pc);
+            UnionVS<EventTag> guardedEvent = eventOps.guard(event, state_pc);
             states.get(entry.getKey()).handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
         }
         LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);
@@ -158,7 +158,7 @@ public abstract class BaseMachine {
         return name;
     }
 
-    void processEventToCompletion(Bdd pc, EventVS event) {
+    void processEventToCompletion(Bdd pc, UnionVS<EventTag> event) {
         final GotoOutcome emptyGotoOutcome = new GotoOutcome();
         final RaiseOutcome eventRaiseOutcome = new RaiseOutcome(eventOps);
         eventRaiseOutcome.addGuardedRaise(pc, event);

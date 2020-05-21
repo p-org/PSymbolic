@@ -3,7 +3,8 @@ import org.junit.jupiter.api.Test;
 import symbolicp.runtime.BaseMachine;
 import symbolicp.runtime.MachineTag;
 import symbolicp.runtime.Scheduler;
-import symbolicp.vs.EventVS;
+import symbolicp.vs.UnionVS;
+import symbolicp.runtime.EventTag;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
@@ -22,7 +23,7 @@ public class TestExecutorDemo {
         Object wrapper = wrapper_class.getConstructor().newInstance();
 
         MachineTag machineTag_Main = (MachineTag) wrapper_class.getField("machineTag_Main").get(wrapper);
-        EventVS.Ops eventOps =  (EventVS.Ops) wrapper_class.getField("eventOps").get(wrapper);
+        UnionVS.Ops<EventTag> eventOps =  (UnionVS.Ops<EventTag>) wrapper_class.getField("eventOps").get(wrapper);
 
         Constructor constructor = mainMachineClass.getConstructor(int.class);
         BaseMachine main = (BaseMachine) constructor.newInstance(0);

@@ -1,19 +1,19 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.EventVS;
+import symbolicp.vs.UnionVS;
 import symbolicp.vs.PrimVS;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class RaiseOutcome {
-    private final EventVS.Ops eventOps;
+    private final UnionVS.Ops<EventTag> eventOps;
 
     private Bdd cond;
-    private EventVS event;
+    private UnionVS<EventTag> event;
 
-    public RaiseOutcome(EventVS.Ops eventOps) {
+    public RaiseOutcome(UnionVS.Ops<EventTag> eventOps) {
         this.eventOps = eventOps;
         cond = Bdd.constFalse();
         event = eventOps.empty();
@@ -27,11 +27,11 @@ public class RaiseOutcome {
         return cond;
     }
 
-    public EventVS getEventSummary() {
+    public UnionVS<EventTag> getEventSummary() {
         return event;
     }
 
-    public void addGuardedRaise(Bdd pc, EventVS newEvent) {
+    public void addGuardedRaise(Bdd pc, UnionVS<EventTag> newEvent) {
         cond = cond.or(pc);
         event = eventOps.merge2(event, newEvent);
     }
@@ -47,8 +47,8 @@ public class RaiseOutcome {
         Map<EventTag, Object> payloads = new HashMap<>();
         payloads.put(tag, payload);
 
-        EventVS eventVS = new EventVS(eventTag, payloads);
-        addGuardedRaise(pc, eventVS);
+        UnionVS<EventTag> EventVS = new UnionVS<>(eventTag, payloads);
+        addGuardedRaise(pc, EventVS);
     }
 
     public void addGuardedRaise(Bdd pc, PrimVS<EventTag> eventTag) {

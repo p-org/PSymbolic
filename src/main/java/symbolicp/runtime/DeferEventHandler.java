@@ -1,7 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.EventVS;
+import symbolicp.vs.UnionVS;
 
 public class DeferEventHandler extends EventHandler {
 
@@ -12,6 +12,6 @@ public class DeferEventHandler extends EventHandler {
     @Override
     public void handleEvent(Bdd pc, Object payload, BaseMachine machine, GotoOutcome gotoOutcome,
                             RaiseOutcome raiseOutcome) {
-        machine.deferredQueue.defer(pc, new EventVS(pc, eventTag, payload));
+        machine.deferredQueue.defer(pc, new UnionVS<>(pc, eventTag, payload));
     }
 }

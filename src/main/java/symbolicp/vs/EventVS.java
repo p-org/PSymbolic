@@ -5,13 +5,13 @@
 //
 //import java.util.*;
 //
-//public class EventVS extends UnionVS<EventTag> {
+//public class UnionVS<EventTag> extends UnionVS<EventTag> {
 //
-//    public EventVS(PrimVS<EventTag> tag, Map<EventTag, Object> payloads) {
+//    public UnionVS<EventTag>(PrimVS<EventTag> tag, Map<EventTag, Object> payloads) {
 //        super(tag, payloads);
 //    }
 //
-//    public EventVS(Bdd pc, EventTag tag, Object payloads) {
+//    public UnionVS<EventTag>(Bdd pc, EventTag tag, Object payloads) {
 //        super(pc, tag, payloads);
 //    }
 //

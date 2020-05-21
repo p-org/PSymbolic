@@ -5,7 +5,7 @@ import symbolicp.vs.PrimVS;
 
 public class testsym {
     enum EventTag { event_null, event_halt }
-    //final static EventVS.Ops<EventTag> eventOps = new EventVS.Ops<EventTag>(EventTag.event_null, null, EventTag.event_halt, null);
+    //final static UnionVS<EventTag>.Ops<EventTag> eventOps = new UnionVS<EventTag>.Ops<EventTag>(EventTag.event_null, null, EventTag.event_halt, null);
     static PrimVS<Integer>
     func_testequality(
             Bdd pc_0

@@ -14,10 +14,10 @@ public class RuntimeLogger {
     /* If turned on, logs the path constraints and goto/raise outcomes */
     private boolean isVerbose = false;
 
-    public void onProcessEvent(Bdd pc, BaseMachine machine, EventVS eventVS)
+    public void onProcessEvent(Bdd pc, BaseMachine machine, UnionVS<EventTag> EventVS)
     {
         base.entering("BaseMachine", "processEvent");
-        String msg = String.format("machine %s processing event: %s", machine.getName(), eventVS);
+        String msg = String.format("machine %s processing event: %s", machine.getName(), EventVS);
         if (isVerbose) msg = String.format("under path %s ", pc) + msg;
         base.info(msg);
     }

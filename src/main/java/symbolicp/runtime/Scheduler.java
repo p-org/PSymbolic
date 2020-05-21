@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.function.Function;
 
 public class Scheduler {
-    private final EventVS.Ops eventOps;
+    private final UnionVS.Ops<EventTag> eventOps;
     private final PrimVS.Ops<BaseMachine> machineOps = new PrimVS.Ops<>();
 
     final Map<MachineTag, List<BaseMachine>> machines;
@@ -17,7 +17,7 @@ public class Scheduler {
 
     private int step_count = 0;
 
-    public Scheduler(EventVS.Ops eventOps, MachineTag... machineTags) {
+    public Scheduler(UnionVS.Ops<EventTag> eventOps, MachineTag... machineTags) {
         this.eventOps = eventOps;
         this.machines = new HashMap<>();
         this.machineCounters = new HashMap<>();
@@ -145,7 +145,7 @@ public class Scheduler {
                 if (!pc.isConstFalse()) {
                     BaseMachine target = machines.get(tagEntry.getKey()).get(idEntry.getKey());
                     if (effect instanceof EffectQueue.SendEffect) {
-                        EventVS event = ((EffectQueue.SendEffect) effect).event;
+                        UnionVS<EventTag> event = ((EffectQueue.SendEffect) effect).event;
                         target.processEventToCompletion(pc, eventOps.guard(event, pc));
                     } else if (effect instanceof EffectQueue.InitEffect) {
                         target.start(pc, ((EffectQueue.InitEffect) effect).payload);
