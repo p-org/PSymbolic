@@ -84,7 +84,7 @@ public class TestCaseExecutor {
 
         // Next, try to dynamically load and compile this file
         String[] path_split = Utils.splitPath(testCasePath);
-        String class_name = path_split[path_split.length-1].split("\\.")[0];
+        String class_name = path_split[path_split.length-1].split("\\.")[0].toLowerCase();
         String outputPath = outputDirectory + File.separator + class_name + ".java";
         String fileContent = prependPackageDeclarationAndRead(outputPackage, outputPath);
         Reflect r;
