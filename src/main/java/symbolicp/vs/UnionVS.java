@@ -66,7 +66,7 @@ public class UnionVS <T extends Tag> {
                 final Object value = entry.getValue();
                 if (newTag.guardedValues.containsKey(tag)) {
                     if (value == null) {
-                        assert payloadOps.get(tag) == null;
+                        // assert payloadOps.get(tag) == null; In Any type, all ops are not null
                         payloadOps.put(tag, null);
                     } else {
                         newPayloads.put(tag, payloadOps.get(tag).guard(value, guard));
@@ -109,6 +109,11 @@ public class UnionVS <T extends Tag> {
         public PrimVS<Boolean> symbolicEquals(UnionVS<T> left, UnionVS<T> right, Bdd pc) {
             throw new NotImplementedException();
         }
+    }
+
+    @Override
+    public String toString() {
+        return tag.guardedValues.toString();
     }
 
 }

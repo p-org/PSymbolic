@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class SymbolicRegression {
 
-    Collection<DynamicTest> loadTests(String testDirPath) {
+    Collection<DynamicTest> loadTests(String testDirPath, String[] excluded) {
 
         Collection<DynamicTest> dynamicTests = new ArrayList<>();
 
@@ -41,7 +42,17 @@ public class SymbolicRegression {
         }
 
         for (String testCasePath : result) {
-            Executable exec = null;
+            Executable exec;
+            boolean skip = false;
+            if (excluded != null)
+                for (String excluded_fragment : excluded) {
+                    if (testCasePath.contains(excluded_fragment)) {
+                        skip = true;
+                        break;
+                    }
+                }
+            if (skip) continue;
+            if (testCasePath.contains("Feature5ModuleSystem")) continue; // Feature5ModuleSystem is skipped
             if (testCasePath.contains("Correct")) {
                 exec = () -> assertEquals(0, TestCaseExecutor.runTestCase(testCasePath));
             }
@@ -64,12 +75,12 @@ public class SymbolicRegression {
 
     @TestFactory
     Collection<DynamicTest> loadStandardRegressions() {
-        return loadTests("../Tst/RegressionTests/");
+        return loadTests("../Tst/RegressionTests/", new String[] {"Feature5ModuleSystem/"});
     }
 
     @TestFactory
     Collection<DynamicTest> loadSymbolicRegressions() {
-        return loadTests("../Tst/SymbolicRegressionTests/");
+        return loadTests("../Tst/SymbolicRegressionTests/", null);
     }
 
 }
