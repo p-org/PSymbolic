@@ -1,6 +1,7 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.runtime.TypeTag;
 
 import java.util.Arrays;
 
@@ -60,5 +61,20 @@ public interface ValueSummaryOps<ValueSummary> {
 
     default ValueSummary merge2(ValueSummary summary1, ValueSummary summary2) {
         return merge(Arrays.asList(summary1, summary2));
+    }
+
+    /**
+     * Casts an AnyVS (UnionVS<TypeTag>) to a concrete Value Summary type. If there is some non
+     * constantly false path constraint under which the current pc is defined but not the guard
+     * corresponding to the specified type, the function throws a ClassCastException.
+     */
+    default ValueSummary fromAny(Bdd pc, TypeTag typeTag, UnionVS<TypeTag> src) {
+        Bdd typeGuard = src.getTag().guardedValues.getOrDefault(typeTag, Bdd.constFalse());
+        Bdd pcNotDefined = pc.and(typeGuard.not());
+        if (!pcNotDefined.isConstFalse()) {
+            throw new ClassCastException(String.format("Symbolic casting under path constraint %s is not defined",
+                    pcNotDefined));
+        }
+        return guard((ValueSummary) src.getPayload(typeTag), pc);
     }
 }
