@@ -16,7 +16,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
      *
      *  The map 'guardedValues' should never be modified.
      */
-    private final Map<T, Bdd> guardedValues;
+    public final Map<T, Bdd> guardedValues;
 
     public PrimVS(T value) {
         this.guardedValues = Collections.singletonMap(value, Bdd.constTrue());
@@ -143,6 +143,11 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
         }
 
         return new PrimVS<>(result);
+    }
+
+    @Override
+    public PrimVS<T> merge(PrimVS<T> summary) {
+        return merge(Collections.singletonList(summary));
     }
 
     @Override

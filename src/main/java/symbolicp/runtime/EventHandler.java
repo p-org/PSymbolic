@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.vs.ValueSummary;
 
 public abstract class EventHandler {
     public final EventTag eventTag;
@@ -11,7 +12,7 @@ public abstract class EventHandler {
 
     public abstract void handleEvent(
         Bdd pc,
-        Object payload,
+        ValueSummary payload,
         BaseMachine machine,
         GotoOutcome gotoOutcome,
         RaiseOutcome raiseOutcome

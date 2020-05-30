@@ -1,101 +1,94 @@
 package symbolicp.vs;
 
+import com.sun.tools.javac.util.List;
+import org.checkerframework.checker.units.qual.A;
 import symbolicp.bdd.Bdd;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
-public class TupleVS implements ValueSummary {
-    private final Object[] fields;
+public class TupleVS implements ValueSummary<TupleVS> {
+    private final ValueSummary[] fields;
+    private final Class[] classes;
 
-    public TupleVS(Object... items) {
+    public TupleVS(ValueSummary... items) {
         this.fields = items;
+        this.classes = List.from(items).stream().map(x -> x.getClass())
+                .collect(Collectors.toList()).toArray(new Class[items.length]);
     }
 
-    public Object getField(int i) {
+    public ValueSummary getField(int i) {
         return fields[i];
     }
 
-    public TupleVS setField(int i, Object val) {
-        final Object[] newItems = new Object[fields.length];
+    public TupleVS setField(int i, ValueSummary val) {
+        final ValueSummary[] newItems = new ValueSummary[fields.length];
         System.arraycopy(fields, 0, newItems, 0, fields.length);
+        if (!(val.getClass().equals(classes[i]))) throw new ClassCastException();
         newItems[i] = val;
         return new TupleVS(newItems);
     }
 
-    public static class Ops implements ValueSummaryOps<TupleVS> {
-        private final ValueSummaryOps[] fieldOps;
+    @Override
+    public boolean isEmpty() {
+        // Optimization: Tuples should always be nonempty,
+        // and all fields should exist under the same conditions
+        return fields[0].isEmpty();
+    }
 
-        public Ops(ValueSummaryOps... fieldOps) {
-            this.fieldOps = fieldOps;
+    @Override
+    public TupleVS guard(Bdd guard) {
+        ValueSummary[] resultFields = new ValueSummary[fields.length];
+        for (int i = 0; i < fields.length; i++) {
+            resultFields[i] = fields[i].guard(guard);
         }
+        return new TupleVS(resultFields);
+    }
 
-        @Override
-        public boolean isEmpty(TupleVS tupleVS) {
-            // Optimization: Tuples should always be nonempty,
-            // and all fields should exist under the same conditions
-            return fieldOps[0].isEmpty(tupleVS.fields[0]);
-        }
-
-        @Override
-        public TupleVS empty() {
-            Object[] resultFields = new Object[fieldOps.length];
-            for (int i = 0; i < fieldOps.length; i++) {
-                resultFields[i] = fieldOps[i].empty();
-            }
-            return new TupleVS(resultFields);
-        }
-
-        @Override
-        public TupleVS guard(TupleVS tupleVS, Bdd guard) {
-            Object[] resultFields = new Object[fieldOps.length];
-            for (int i = 0; i < fieldOps.length; i++) {
-                resultFields[i] = fieldOps[i].guard(tupleVS.fields[i], guard);
-            }
-            return new TupleVS(resultFields);
-        }
-
-        @Override
-        public TupleVS merge(Iterable<TupleVS> tuplesToMerge) {
-            ArrayList[] resultFieldsToMerge = new ArrayList[fieldOps.length];
-
-            for (int i = 0; i < fieldOps.length; i++) {
-                resultFieldsToMerge[i] = new ArrayList();
-            }
-
-            for (TupleVS tupleVS : tuplesToMerge) {
-                for (int i = 0; i < fieldOps.length; i++) {
-                    resultFieldsToMerge[i].add(tupleVS.fields[i]);
+    @Override
+    public TupleVS merge(Iterable<TupleVS> summaries) {
+        List<ValueSummary> resultList = List.from(fields);
+        for (TupleVS summary : summaries) {
+            for (int i = 0; i < summary.fields.length; i++) {
+                if (i < resultList.size()) {
+                    resultList.set(i, resultList.get(i).merge(summary.fields[i]));
+                } else {
+                    resultList.add(summary.fields[i]);
                 }
             }
-
-            Object[] resultFields = new Object[fieldOps.length];
-            for (int i = 0; i < fieldOps.length; i++) {
-                resultFields[i] = fieldOps[i].merge(resultFieldsToMerge[i]);
-            }
-
-            return new TupleVS(resultFields);
         }
+        return new TupleVS(resultList.toArray(new ValueSummary[resultList.size()]));
+    }
 
-        @Override
-        public PrimVS<Boolean> symbolicEquals(TupleVS left, TupleVS right, Bdd pc) {
-            if (left.fields.length != right.fields.length) {
-                return new PrimVS<>(false);
-            }
-            Bdd tupleEqual = IntStream.range(0, left.fields.length)
-                    .mapToObj((i) -> (Bdd) fieldOps[i].symbolicEquals(left.fields[i], right.fields[i], pc).guardedValues.get(Boolean.TRUE))
-                    .reduce(Bdd::and)
-                    .orElse(Bdd.constTrue());
-            return BoolUtils.fromTrueGuard(pc.and(tupleEqual));
-        }
+    @Override
+    public TupleVS merge(TupleVS summary) {
+        return merge(Collections.singletonList(summary));
+    }
 
-        @Override
-        public TupleVS merge2(TupleVS tupleVS1, TupleVS tupleVS2) {
-            Object[] resultFields = new Object[fieldOps.length];
-            for (int i = 0; i < fieldOps.length; i++) {
-                resultFields[i] = fieldOps[i].merge2(tupleVS1.fields[i], tupleVS2.fields[i]);
-            }
-            return new TupleVS(resultFields);
+    @Override
+    public TupleVS update(Bdd guard, TupleVS update) {
+        return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
+    }
+
+    @Override
+    public PrimVS<Boolean> symbolicEquals(TupleVS cmp, Bdd pc) {
+        if (fields.length != cmp.fields.length) {
+            return new PrimVS<>(false);
         }
+        Bdd tupleEqual = IntStream.range(0, fields.length)
+                .mapToObj((i) -> fields[i].symbolicEquals(cmp.fields[i], pc).getGuard(Boolean.TRUE))
+                .reduce(Bdd::and)
+                .orElse(Bdd.constTrue());
+        return BoolUtils.fromTrueGuard(pc.and(tupleEqual));
+    }
+
+    @Override
+    public Bdd getUniverse() {
+        // Optimization: Tuples should always be nonempty,
+        // and all fields should exist under the same conditions
+        return fields[0].getUniverse();
     }
 }

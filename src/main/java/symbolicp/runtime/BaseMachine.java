@@ -14,9 +14,6 @@ public abstract class BaseMachine {
     private final Map<StateTag, State> states;
     private static final RuntimeLogger LOGGER = new RuntimeLogger();
 
-    private static final PrimVS.Ops<StateTag> stateOps = new PrimVS.Ops<>();
-    private UnionVS.Ops<EventTag> eventOps;
-
     private final MachineTag machineTag;
     private final int machineId;
     private String name;
@@ -25,16 +22,15 @@ public abstract class BaseMachine {
     public final EffectQueue effectQueue;
     public final DeferQueue deferredQueue;
 
-    public BaseMachine(UnionVS.Ops<EventTag> eventOps, MachineTag machineTag, int machineId, StateTag startState, State... states) {
-        this.eventOps = eventOps;
+    public BaseMachine(MachineTag machineTag, int machineId, StateTag startState, State... states) {
 
         this.machineTag = machineTag;
         this.machineId = machineId;
         name = String.format("Machine %s #%d", this.machineTag, this.machineId);
 
         this.startState = startState;
-        this.effectQueue = new EffectQueue(eventOps);
-        this.deferredQueue = new DeferQueue(eventOps);
+        this.effectQueue = new EffectQueue();
+        this.deferredQueue = new DeferQueue();
 
         //this.state = stateOps.empty()
         this.state = new PrimVS<>(startState);
@@ -47,12 +43,10 @@ public abstract class BaseMachine {
 
     public void start(Bdd pc, Object payload) {
         
-        this.state = stateOps.merge2(
-            stateOps.guard(this.state, pc.not()),
-            stateOps.guard(new PrimVS<>(startState), pc));
+        this.state = this.state.guard(pc.not()).merge(new PrimVS<>(startState).guard(pc));
 
         GotoOutcome initGotoOutcome = new GotoOutcome();
-        RaiseOutcome initRaiseOutcome = new RaiseOutcome(eventOps);
+        RaiseOutcome initRaiseOutcome = new RaiseOutcome();
         states.get(startState).entry(pc, this, initGotoOutcome, initRaiseOutcome, payload);
 
         runOutcomesToCompletion(pc, initGotoOutcome, initRaiseOutcome);
@@ -67,7 +61,7 @@ public abstract class BaseMachine {
             // Inner loop: process sequences of 'goto's and 'raise's.
             while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
                 GotoOutcome nextGotoOutcome = new GotoOutcome();
-                RaiseOutcome nextRaiseOutcome = new RaiseOutcome(eventOps);
+                RaiseOutcome nextRaiseOutcome = new RaiseOutcome();
                 if (!gotoOutcome.isEmpty()) {
                     performedTransition = performedTransition.or(gotoOutcome.getGotoCond());
                     processStateTransition(
@@ -88,7 +82,7 @@ public abstract class BaseMachine {
             // Process events from the deferred queue
             pc = performedTransition.and(deferredQueue.enabledCond());
             if (!pc.isConstFalse()) {
-                RaiseOutcome deferredRaiseOutcome = new RaiseOutcome(eventOps);
+                RaiseOutcome deferredRaiseOutcome = new RaiseOutcome();
                 List<DeferQueue.Event> deferredEvents = deferredQueue.dequeueEntry(pc);
                 for (DeferQueue.Event event : deferredEvents) {
                     deferredRaiseOutcome.addGuardedRaise(event.getCond(), event.event);
@@ -109,12 +103,12 @@ public abstract class BaseMachine {
         if (this.state == null) {
             this.state = newState;
         } else {
-            PrimVS<StateTag> guardedState = stateOps.guard(this.state, pc);
+            PrimVS<StateTag> guardedState = this.state.guard(pc);
             for (Map.Entry<StateTag, Bdd> entry : guardedState.guardedValues.entrySet()) {
                 states.get(entry.getKey()).exit(entry.getValue(), this);
             }
 
-            this.state = stateOps.merge2(newState, stateOps.guard(this.state, pc.not()));
+            this.state = newState.merge(this.state.guard(pc.not()));
         }
 
         for (Map.Entry<StateTag, Bdd> entry : newState.guardedValues.entrySet()) {
@@ -133,10 +127,10 @@ public abstract class BaseMachine {
             UnionVS<EventTag> event
     ) {
         LOGGER.onProcessEvent(pc, this, event);
-        PrimVS<StateTag> guardedState = stateOps.guard(this.state, pc);
+        PrimVS<StateTag> guardedState = this.state.guard(pc);
         for (Map.Entry<StateTag, Bdd> entry : guardedState.guardedValues.entrySet()) {
             Bdd state_pc = entry.getValue();
-            UnionVS<EventTag> guardedEvent = eventOps.guard(event, state_pc);
+            UnionVS<EventTag> guardedEvent = event.guard(state_pc);
             states.get(entry.getKey()).handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
         }
         LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);
@@ -164,7 +158,7 @@ public abstract class BaseMachine {
 
     void processEventToCompletion(Bdd pc, UnionVS<EventTag> event) {
         final GotoOutcome emptyGotoOutcome = new GotoOutcome();
-        final RaiseOutcome eventRaiseOutcome = new RaiseOutcome(eventOps);
+        final RaiseOutcome eventRaiseOutcome = new RaiseOutcome();
         eventRaiseOutcome.addGuardedRaise(pc, event);
         runOutcomesToCompletion(pc, emptyGotoOutcome, eventRaiseOutcome);
     }

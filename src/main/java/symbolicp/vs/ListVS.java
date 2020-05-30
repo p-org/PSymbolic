@@ -5,11 +5,11 @@ import symbolicp.bdd.Bdd;
 import java.util.*;
 import java.util.stream.IntStream;
 
-public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<ListVS<Item>> {
+public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>> {
     private final PrimVS<Integer> size;
-    private final List<Item> items;
+    private final List<T> items;
 
-    private ListVS(PrimVS<Integer> size, List<Item> items) {
+    private ListVS(PrimVS<Integer> size, List<T> items) {
         this.size = size;
         this.items = items;
     }
@@ -18,7 +18,7 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
         this(new PrimVS<>(0).guard(universe), new ArrayList<>());
     }
 
-    public ListVS(ListVS<Item> old) {
+    public ListVS(ListVS<T> old) {
         this(old.size, new ArrayList<>(old.items));
     }
 
@@ -28,12 +28,12 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
     }
 
     @Override
-    public ListVS<Item> guard(Bdd guard) {
+    public ListVS<T> guard(Bdd guard) {
         final PrimVS<Integer> newSize = size.guard(guard);
-        final List<Item> newItems = new ArrayList<>();
+        final List<T> newItems = new ArrayList<>();
 
-        for (Item item : this.items) {
-            Item newItem = item.guard(guard);
+        for (T item : this.items) {
+            T newItem = item.guard(guard);
             if (newItem.isEmpty()) {
                 break; // No items after this item are possible either due to monotonicity / non-sparseness
             }
@@ -44,21 +44,21 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
     }
 
     @Override
-    public ListVS<Item> update(Bdd guard, ListVS<Item> update) {
+    public ListVS<T> update(Bdd guard, ListVS<T> update) {
         return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
     }
 
     @Override
-    public ListVS<Item> merge(Iterable<ListVS<Item>> summaries) {
+    public ListVS<T> merge(Iterable<ListVS<T>> summaries) {
         final List<PrimVS<Integer>> sizesToMerge = new ArrayList<>();
-        final List<List<Item>> itemsToMergeByIndex = new ArrayList<>();
+        final List<List<T>> itemsToMergeByIndex = new ArrayList<>();
 
         // first add this list's items to the itemsToMergeByIndex
-        for (Item item : this.items) {
+        for (T item : this.items) {
             itemsToMergeByIndex.add(new ArrayList<>(Collections.singletonList(item)));
         }
 
-        for (ListVS<Item> summary : summaries) {
+        for (ListVS<T> summary : summaries) {
             sizesToMerge.add(summary.size);
 
             for (int i = 0; i < summary.items.size(); i++) {
@@ -73,11 +73,11 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
 
         final PrimVS<Integer> mergedSize = size.merge(sizesToMerge);
 
-        final List<Item> mergedItems = new ArrayList<>();
+        final List<T> mergedItems = new ArrayList<>();
 
-        for (List<Item> itemsToMerge : itemsToMergeByIndex) {
+        for (List<T> itemsToMerge : itemsToMergeByIndex) {
             // TODO: cleanup later
-            final Item mergedItem = itemsToMerge.get(0).merge(itemsToMerge.subList(1, itemsToMerge.size()));
+            final T mergedItem = itemsToMerge.get(0).merge(itemsToMerge.subList(1, itemsToMerge.size()));
             mergedItems.add(mergedItem);
         }
 
@@ -85,7 +85,12 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
     }
 
     @Override
-    public PrimVS<Boolean> symbolicEquals(ListVS<Item> cmp, Bdd pc) {
+    public ListVS<T> merge(ListVS<T> summary) {
+        return merge(Collections.singletonList(summary));
+    }
+
+    @Override
+    public PrimVS<Boolean> symbolicEquals(ListVS<T> cmp, Bdd pc) {
         Bdd equalCond = Bdd.constFalse();
         for (GuardedValue<Integer> size : this.size.getGuardedValues()) {
             if (cmp.size.hasValue(size.value)) {
@@ -107,16 +112,16 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
     /** Add an item to the ListVS
      * @param item The Item to add to the ListVS. Should be possible under the same conditions as the ListVS.
      */
-    public ListVS<Item> add(Item item) {
+    public ListVS<T> add(T item) {
         // TODO: same conditions check
         final Map<Integer, Bdd> newSizeValues = new HashMap<>();
-        final List<Item> newItems = new ArrayList<>(this.items);
+        final List<T> newItems = new ArrayList<>(this.items);
 
         for (GuardedValue<Integer> possibleSize : this.size.getGuardedValues()) {
             final int sizeValue = possibleSize.value;
             newSizeValues.put(sizeValue + 1, possibleSize.guard);
 
-            final Item guardedItemToAdd = item.guard(possibleSize.guard);
+            final T guardedItemToAdd = item.guard(possibleSize.guard);
             if (sizeValue == newItems.size()) {
                 newItems.add(guardedItemToAdd);
             } else {
@@ -145,7 +150,7 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
     /** Get an item from the ListVS
      * @param indexSummary The index to take from the ListVS. Should be possible under the same conditions as the ListVS.
      */
-    public OptionalVS<Item> get(PrimVS<Integer> indexSummary) {
+    public OptionalVS<T> get(PrimVS<Integer> indexSummary) {
         return indexSummary.applyVS(
                 new OptionalVS<>(),
                  // for each possible index value
@@ -169,7 +174,7 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
      * @param itemToSet The item to put in the ListVS. Should be possible under the same conditions as the ListVS
      * @return The result of setting the ListVS
      */
-    public OptionalVS<ListVS<Item>> set(PrimVS<Integer> indexSummary, Item itemToSet) {
+    public OptionalVS<ListVS<T>> set(PrimVS<Integer> indexSummary, T itemToSet) {
         return indexSummary.applyVS(
                 new OptionalVS<>(),
                 // for each possible index value
@@ -180,13 +185,13 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
                     return inRange.applyVS(new OptionalVS<>(), isInRange ->
                     {
                         if (isInRange) {
-                            final List<Item> newItems = new ArrayList<>(items);
+                            final List<T> newItems = new ArrayList<>(items);
                             // The guard under which indexSummary has this index
                             Bdd guard = indexSummary.getGuard(index);
                             // the original item remains in the case that the index does not match
-                            final Item originalEntry = newItems.get(index).guard(guard.not());
+                            final T originalEntry = newItems.get(index).guard(guard.not());
                             // otherwise, the new item should be set
-                            final Item newEntry = itemToSet.guard(guard);
+                            final T newEntry = itemToSet.guard(guard);
                             newItems.set(index, originalEntry.merge(Collections.singletonList(newEntry)));
                             return new OptionalVS<>(new ListVS<>(size, newItems));
                         } else {
@@ -200,7 +205,7 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
      * @param element The element to check for. Should be possible under the same conditions as the ListVS.
      * @return Whether or not the ListVS contains an element
      */
-    public PrimVS<Boolean> contains(Item element) {
+    public PrimVS<Boolean> contains(T element) {
         PrimVS<Integer> i = new PrimVS<>(0).guard(getUniverse());
 
         PrimVS<Boolean> contains = new PrimVS<>(false).guard(getUniverse());
@@ -219,7 +224,7 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
      * @param itemToInsert The item to put in the ListVS. Should be possible under the same conditions as the ListVS
      * @return The result of inserting into the ListVS
      */
-    public OptionalVS<ListVS<Item>> insert(PrimVS<Integer> indexSummary, Item itemToInsert) {
+    public OptionalVS<ListVS<T>> insert(PrimVS<Integer> indexSummary, T itemToInsert) {
         final PrimVS<Boolean> inRange = inRange(indexSummary);
         return inRange.applyVS(
                 new OptionalVS<>(),
@@ -228,20 +233,20 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
                     // since it's in range,  all the OptionVS results should be present
                     if (isInRange) {
                         // 1. add a new entry (we'll re-add the last entry)
-                        ListVS<Item> newList = new ListVS<>(this);
+                        ListVS<T> newList = new ListVS<>(this);
                         newList = newList.add(newList.get(IntegerUtils.subtract(size, 1)).unwrapOrThrow());
 
                         // 2. setting at the insertion index
                         PrimVS<Integer> current = indexSummary;
-                        Item prev = newList.get(current).get();
+                        T prev = newList.get(current).unwrapOrThrow();
                         newList = newList.set(indexSummary, itemToInsert).unwrapOrThrow();
                         current = IntegerUtils.add(current, 1);
 
                         // 3. setting everything after insertion index to be the previous element
                         // (but we can skip the very last one, since we've already added it)
                         while (!BoolUtils.isFalse(IntegerUtils.lessThan(current, IntegerUtils.subtract(size, 1)))) {
-                            Item old = newList.get(current).unwrapOrThrow();
-                            Item update = old.update(BoolUtils.trueCond(IntegerUtils.lessThan(current, size)), prev);
+                            T old = newList.get(current).unwrapOrThrow();
+                            T update = old.update(BoolUtils.trueCond(IntegerUtils.lessThan(current, size)), prev);
                             newList = newList.set(current, update).unwrapOrThrow();
                             prev = old;
                             current = IntegerUtils.add(current, 1);
@@ -255,7 +260,7 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
         );
     }
 
-    public OptionalVS<ListVS<Item>> removeAt(PrimVS<Integer> indexSummary) {
+    public OptionalVS<ListVS<T>> removeAt(PrimVS<Integer> indexSummary) {
             final PrimVS<Boolean> inRange = inRange(indexSummary);
 
             return inRange.applyVS(
@@ -269,14 +274,14 @@ public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<Lis
                             // new size
                             PrimVS<Integer> newSize = size.update(updateSizeCond, IntegerUtils.subtract(size, 1));
 
-                            ListVS<Item> newList = new ListVS<>(newSize, items.subList(0, items.size() - 1));
+                            ListVS<T> newList = new ListVS<>(newSize, items.subList(0, items.size() - 1));
                             PrimVS<Integer> current = indexSummary;
 
                             // Setting everything after removal index to be the next element
                             while (!BoolUtils.isFalse(IntegerUtils.lessThan(current, newSize))) {
-                                Item old = get(current).unwrapOrThrow();
-                                Item next = get(IntegerUtils.add(current, 1)).unwrapOrThrow();
-                                Item update = old.update(BoolUtils.trueCond(IntegerUtils.lessThan(current, size)), next);
+                                T old = get(current).unwrapOrThrow();
+                                T next = get(IntegerUtils.add(current, 1)).unwrapOrThrow();
+                                T update = old.update(BoolUtils.trueCond(IntegerUtils.lessThan(current, size)), next);
                                 newList = newList.set(current, update).unwrapOrThrow();
                                 current = IntegerUtils.add(current, 1);
                             }

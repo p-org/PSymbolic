@@ -77,6 +77,11 @@ public class MapVS<K extends ValueSummary<K>, V extends ValueSummary<V>> impleme
     }
 
     @Override
+    public MapVS<K, V> merge(MapVS<K, V> summary) {
+        return merge(Collections.singletonList(summary));
+    }
+
+    @Override
     public MapVS<K, V> update(Bdd guard, MapVS<K, V> update) {
         return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
     }

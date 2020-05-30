@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.vs.ValueSummary;
 import symbolicp.vs.ValueSummaryOps;
 
 public class GotoEventHandler extends EventHandler {
@@ -20,7 +21,7 @@ public class GotoEventHandler extends EventHandler {
     public void transitionAction(Bdd pc, BaseMachine machine, Object payload) {}
 
     @Override
-    public void handleEvent(Bdd pc, Object payload, BaseMachine machine, GotoOutcome gotoOutcome,
+    public void handleEvent(Bdd pc, ValueSummary payload, BaseMachine machine, GotoOutcome gotoOutcome,
                             RaiseOutcome raiseOutcome) {
         transitionAction(pc, machine, payload);
         // If (payload != null) then we should have (payloadOps != null)

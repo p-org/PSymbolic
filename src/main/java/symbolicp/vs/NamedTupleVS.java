@@ -2,15 +2,12 @@ package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public class NamedTupleVS implements ValueSummary {
-    private final Map<String, Object> fields;
+public class NamedTupleVS implements ValueSummary<NamedTupleVS> {
+    private final Map<String, ValueSummary> fields;
 
-    private NamedTupleVS(Map<String, Object> fields) {
+    private NamedTupleVS(Map<String, ValueSummary> fields) {
         this.fields = fields;
     }
 
@@ -18,107 +15,84 @@ public class NamedTupleVS implements ValueSummary {
         fields = new HashMap<>();
         for (int i = 0; i < namesAndFields.length; i += 2) {
             String name = (String)namesAndFields[i];
-            Object val = namesAndFields[i + 1];
+            ValueSummary val = (ValueSummary)namesAndFields[i + 1];
             fields.put(name, val);
         }
     }
 
-    public Object getField(String name) {
+    public ValueSummary getField(String name) {
         return fields.get(name);
     }
 
-    public NamedTupleVS setField(String name, Object val) {
-        final HashMap<String, Object> resultFields = new HashMap<>(fields);
+    public NamedTupleVS setField(String name, ValueSummary val) {
+        final HashMap<String, ValueSummary> resultFields = new HashMap<>(fields);
         resultFields.put(name, val);
         return new NamedTupleVS(resultFields);
     }
 
-    public static class Ops implements ValueSummaryOps<NamedTupleVS> {
-        private final Map<String, ValueSummaryOps> fieldOps;
+    @Override
+    public boolean isEmpty() {
+        // Optimization: named tuples should always be nonempty,
+        // and all fields should exist under the same conditions.
+        Map.Entry<String, ValueSummary> firstEntry = fields.entrySet().iterator().next();
+        return (firstEntry.getValue().isEmpty());
+    }
 
-        public Ops(Object... namesAndFieldOps) {
-            fieldOps = new HashMap<>();
-            for (int i = 0; i < namesAndFieldOps.length; i += 2) {
-                String name = (String)namesAndFieldOps[i];
-                ValueSummaryOps ops = (ValueSummaryOps)namesAndFieldOps[i + 1];
-                fieldOps.put(name, ops);
+    @Override
+    public NamedTupleVS guard(Bdd guard) {
+        final Map<String, Object> resultFields = new HashMap<>();
+        for (Map.Entry<String, ValueSummary> entry : fields.entrySet()) {
+            resultFields.put(entry.getKey(), entry.getValue().guard(guard));
+        }
+        return new NamedTupleVS(resultFields);
+    }
+
+    @Override
+    public NamedTupleVS merge(Iterable<NamedTupleVS> summaries) {
+        final Map<String, ValueSummary> resultMap = new HashMap<>();
+        final Set<String> fieldNames = fields.keySet();
+
+        for (NamedTupleVS summary : summaries) {
+            for (Map.Entry<String, ValueSummary> entry : summary.fields.entrySet()) {
+                resultMap.computeIfPresent(entry.getKey(), (k, v) -> (summary.fields.get(entry.getValue())));
+                resultMap.putIfAbsent(entry.getKey(), summary.fields.get(entry.getValue()));
             }
+            fieldNames.addAll(summary.fields.keySet());
         }
 
-        @Override
-        public boolean isEmpty(NamedTupleVS namedTupleVS) {
-            // Optimization: named tuples should always be nonempty,
-            // and all fields should exist under the same conditions.
-            Map.Entry<String, Object> firstEntry = namedTupleVS.fields.entrySet().iterator().next();
-            return (fieldOps.get(firstEntry.getKey()).isEmpty(firstEntry.getValue()));
+        return new NamedTupleVS(resultMap);
+    }
+
+    @Override
+    public NamedTupleVS merge(NamedTupleVS summaries) {
+        return merge(Collections.singletonList(summaries));
+    }
+
+    @Override
+    public NamedTupleVS update(Bdd guard, NamedTupleVS update) {
+        return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
+    }
+
+    @Override
+    public PrimVS<Boolean> symbolicEquals(NamedTupleVS cmp, Bdd pc) {
+
+        if (fields.keySet().equals(cmp.fields.keySet())) {
+            return new PrimVS<>(false);
         }
 
-        @Override
-        public NamedTupleVS empty() {
-            final Map<String, Object> resultFields = new HashMap<>();
-            for (Map.Entry<String, ValueSummaryOps> opsEntry : fieldOps.entrySet()) {
-                resultFields.put(opsEntry.getKey(), opsEntry.getValue().empty());
-            }
-            return new NamedTupleVS(resultFields);
-        }
+        Bdd tupleEqual = fields.keySet().parallelStream()
+                .map((s) -> fields.get(s).symbolicEquals(cmp.fields.get(s), pc).getGuard(Boolean.TRUE))
+                .reduce(Bdd::and)
+                .orElse(Bdd.constTrue());
 
-        @Override
-        public NamedTupleVS guard(NamedTupleVS namedTupleVS, Bdd guard) {
-            final Map<String, Object> resultFields = new HashMap<>();
-            for (Map.Entry<String, ValueSummaryOps> opsEntry : fieldOps.entrySet()) {
-                final Object unguarded = namedTupleVS.fields.get(opsEntry.getKey());
-                final Object guarded = opsEntry.getValue().guard(unguarded, guard);
-                resultFields.put(opsEntry.getKey(), guarded);
-            }
-            return new NamedTupleVS(resultFields);
-        }
+        return BoolUtils.fromTrueGuard(pc.and(tupleEqual));
+    }
 
-        @Override
-        public NamedTupleVS merge(Iterable<NamedTupleVS> namedTuplesToMerge) {
-            final Map<String, List<Object>> resultFieldsToMerge = new HashMap<>();
-            for (String fieldName : fieldOps.keySet()) {
-                resultFieldsToMerge.put(fieldName, new ArrayList<>());
-            }
-
-            for (NamedTupleVS namedTupleVS : namedTuplesToMerge) {
-                for (Map.Entry<String, Object> field : namedTupleVS.fields.entrySet()) {
-                    resultFieldsToMerge.get(field.getKey()).add(field.getValue());
-                }
-            }
-
-            final Map<String, Object> resultFields = new HashMap<>();
-            for (Map.Entry<String, ValueSummaryOps> opsEntry : fieldOps.entrySet()) {
-                Object merged = opsEntry.getValue().merge(resultFieldsToMerge.get(opsEntry.getKey()));
-                resultFields.put(opsEntry.getKey(), merged);
-            }
-
-            return new NamedTupleVS(resultFields);
-        }
-
-        @Override
-        public PrimVS<Boolean> symbolicEquals(NamedTupleVS left, NamedTupleVS right, Bdd pc) {
-            if (left.fields.keySet().equals(right.fields.keySet())) {
-                return new PrimVS<>(false);
-            }
-            Bdd tupleEqual = left.fields.keySet().parallelStream()
-                    .map((s) -> (Bdd) fieldOps.get(s).symbolicEquals(left.fields.get(s), right.fields.get(s), pc).guardedValues.get(Boolean.TRUE))
-                    .reduce(Bdd::and)
-                    .orElse(Bdd.constTrue());
-            return BoolUtils.fromTrueGuard(pc.and(tupleEqual));
-        }
-
-        @Override
-        public NamedTupleVS merge2(NamedTupleVS namedTupleVS1, NamedTupleVS namedTupleVS2) {
-            final Map<String, Object> resultFields = new HashMap<>();
-            for (Map.Entry<String, ValueSummaryOps> opsEntry : fieldOps.entrySet()) {
-                Object merged =
-                    opsEntry.getValue().merge2(
-                        namedTupleVS1.fields.get(opsEntry.getKey()),
-                        namedTupleVS2.fields.get(opsEntry.getKey())
-                    );
-                resultFields.put(opsEntry.getKey(), merged);
-            }
-            return new NamedTupleVS(resultFields);
-        }
+    @Override
+    public Bdd getUniverse() {
+        // Optimization: named tuples should always be nonempty,
+        // and all fields should exist under the same conditions.
+        Map.Entry<String, ValueSummary> firstEntry = fields.entrySet().iterator().next();
+        return (firstEntry.getValue().getUniverse());
     }
 }

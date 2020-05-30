@@ -54,6 +54,11 @@ public class MachineRefVS implements ValueSummary<MachineRefVS> {
     }
 
     @Override
+    public MachineRefVS merge(MachineRefVS summary) {
+        return merge(Collections.singletonList(summary));
+    }
+
+    @Override
     public MachineRefVS update(Bdd guard, MachineRefVS update) {
         return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
     }

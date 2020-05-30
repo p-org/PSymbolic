@@ -21,9 +21,14 @@ public class Checks {
      * @param a The first Bdd list
      * @param b The second Bdd list */
     public static boolean sameUniverse(List<Bdd> a, List<Bdd> b) {
-        Bdd aUniverse = Bdd.orMany(a);
-        Bdd bUniverse = Bdd.orMany(b);
-        return aUniverse.implies(bUniverse).isConstTrue() && bUniverse.implies(aUniverse).isConstTrue();
+       return sameUniverse(a, b);
+    }
+
+    /** Are the provided Bdds the same universe?
+     * @param a The first Bdd
+     * @param b The second Bdd */
+    public static boolean sameUniverse(Bdd a, Bdd b) {
+        return a.implies(b).isConstTrue() && b.implies(a).isConstTrue();
     }
 
 }

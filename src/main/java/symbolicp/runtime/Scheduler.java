@@ -1,5 +1,7 @@
 package symbolicp.runtime;
 
+import com.sun.tools.javac.comp.Check;
+import symbolicp.bdd.Checks;
 import symbolicp.util.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.*;
@@ -13,8 +15,6 @@ public class Scheduler {
      * events have payloads whose types are dynamically determined (can have different event types and payload types)
      * so we need to make an ops for event data structure
      */
-    private final UnionVS.Ops<EventTag> eventOps;
-    private final PrimVS.Ops<BaseMachine> machineOps = new PrimVS.Ops<>();
 
     public static void debug(String str) {
         System.err.println("[SCHEDULER]: " + str);
@@ -32,8 +32,7 @@ public class Scheduler {
 
     private int step_count = 0;
 
-    public Scheduler(UnionVS.Ops<EventTag> eventOps, MachineTag... machineTags) {
-        this.eventOps = eventOps;
+    public Scheduler(MachineTag... machineTags) {
         this.machines = new HashMap<>();
         this.machineCounters = new HashMap<>();
 
@@ -61,7 +60,6 @@ public class Scheduler {
 
         performEffect(
             new EffectQueue.InitEffect(
-                    eventOps,
                     Bdd.constTrue(),
                     new MachineRefVS(new PrimVS<>(tag), new PrimVS<>(0))
             )
@@ -70,7 +68,6 @@ public class Scheduler {
 
 
     private OptionalVS<PrimVS<Integer>> getNondetChoice(List<Bdd> candidateConds) {
-        final PrimVS.Ops<Integer> intOps = new PrimVS.Ops<>();
 
         List<PrimVS<Integer>> results = new ArrayList<>();
 
@@ -80,7 +77,7 @@ public class Scheduler {
             Bdd choiceCond = Bdd.newVar().and(enabledCond);
 
             Bdd returnPc = residualPc.and(choiceCond);
-            results.add(intOps.guard(new PrimVS<>(i), returnPc));
+            results.add(new PrimVS<>(i).guard(returnPc));
 
             residualPc = residualPc.and(choiceCond.not());
         }
@@ -89,7 +86,7 @@ public class Scheduler {
             Bdd enabledCond = candidateConds.get(i);
 
             Bdd returnPc = residualPc.and(enabledCond);
-            results.add(intOps.guard(new PrimVS<>(i), returnPc));
+            results.add(new PrimVS<>(i).guard(returnPc));
 
             residualPc = residualPc.and(enabledCond.not());
         }
@@ -97,7 +94,8 @@ public class Scheduler {
         final Bdd noneEnabledCond = residualPc;
         PrimVS<Boolean> isPresent = BoolUtils.fromTrueGuard(noneEnabledCond.not());
 
-        return new OptionalVS<>(isPresent, intOps.merge(results));
+        assert(Checks.sameUniverse(noneEnabledCond, new PrimVS<Integer>().merge(results).getUniverse()));
+        return new OptionalVS<>(new PrimVS<Integer>().merge(results));
     }
 
     public boolean step() {
@@ -125,7 +123,7 @@ public class Scheduler {
         }
 
         OptionalVS<PrimVS<Integer>> candidateGuards = getNondetChoice(candidateConds);
-        for (Map.Entry<Integer, Bdd> entry : candidateGuards.item.guardedValues.entrySet()) {
+        for (Map.Entry<Integer, Bdd> entry : candidateGuards.unwrapOrThrow().guardedValues.entrySet()) {
             MachineTag tag = candidateTags.get(entry.getKey());
             int id = candidateIds.get(entry.getKey());
 
@@ -141,10 +139,7 @@ public class Scheduler {
     }
 
     public MachineRefVS allocateMachineId(Bdd pc, MachineTag tag, Function<Integer, BaseMachine> constructor) {
-        final PrimVS.Ops<Integer> intOps = new PrimVS.Ops<>();
-        final PrimVS.Ops<MachineTag> tagOps = new PrimVS.Ops<>();
-
-        PrimVS<Integer> guardedCount = intOps.guard(machineCounters.get(tag), pc);
+        PrimVS<Integer> guardedCount = machineCounters.get(tag).guard(pc);
         guardedCount = guardedCount.apply(i -> i + 1);
 
         List<BaseMachine> machineList = machines.get(tag);
@@ -155,9 +150,9 @@ public class Scheduler {
             machineList.add(constructor.apply(machineList.size()));
         }
 
-        PrimVS<Integer> mergedCount = intOps.merge2(guardedCount, intOps.guard(machineCounters.get(tag), pc.not()));
+        PrimVS<Integer> mergedCount = guardedCount.merge(machineCounters.get(tag).guard(pc.not()));
         machineCounters.put(tag, mergedCount);
-        return new MachineRefVS(tagOps.guard(new PrimVS<>(tag), pc), guardedCount.apply(i -> i - 1));
+        return new MachineRefVS(new PrimVS<>(tag).guard(pc), guardedCount.apply(i -> i - 1));
     }
 
     private void performEffect(EffectQueue.Effect effect) {
@@ -168,7 +163,7 @@ public class Scheduler {
                     BaseMachine target = machines.get(tagEntry.getKey()).get(idEntry.getKey());
                     if (effect instanceof EffectQueue.SendEffect) {
                         UnionVS<EventTag> event = ((EffectQueue.SendEffect) effect).event;
-                        target.processEventToCompletion(pc, eventOps.guard(event, pc));
+                        target.processEventToCompletion(pc, event.guard(pc));
                     } else if (effect instanceof EffectQueue.InitEffect) {
                         target.start(pc, ((EffectQueue.InitEffect) effect).payload);
                     } else {

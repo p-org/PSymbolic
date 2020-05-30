@@ -2,10 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.util.NotImplementedException;
-import symbolicp.vs.UnionVS;
-import symbolicp.vs.MachineRefVS;
-import symbolicp.vs.PrimVS;
-import symbolicp.vs.ValueSummaryOps;
+import symbolicp.vs.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,12 +10,10 @@ import java.util.function.Function;
 
 public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
     public abstract static class Effect implements SymbolicQueue.Entry<Effect> {
-        final UnionVS.Ops<EventTag> eventOps;
         final Bdd cond;
         final MachineRefVS target;
 
-        public Effect(UnionVS.Ops<EventTag> eventOps, Bdd cond, MachineRefVS target) {
-            this.eventOps = eventOps;
+        public Effect(Bdd cond, MachineRefVS target) {
             this.cond = cond;
             this.target = target;
         }
@@ -32,18 +27,17 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
     public static class SendEffect extends Effect {
         final UnionVS<EventTag> event;
 
-        public SendEffect(UnionVS.Ops<EventTag> eventOps, Bdd cond, MachineRefVS target, UnionVS<EventTag> event) {
-            super(eventOps, cond, target);
+        public SendEffect(Bdd cond, MachineRefVS target, UnionVS<EventTag> event) {
+            super(cond, target);
             this.event = event;
         }
 
         @Override
         public Effect withCond(Bdd guard) {
             return new SendEffect(
-                    eventOps,
                     guard,
-                    new MachineRefVS.Ops().guard(target, guard),
-                    eventOps.guard(event, guard)
+                    target.guard(guard),
+                    event.guard(guard)
             );
         }
 
@@ -60,23 +54,22 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         final ValueSummaryOps payloadOps;
         final Object payload;
 
-        public InitEffect(UnionVS.Ops<EventTag> eventOps, ValueSummaryOps payloadOps, Bdd cond, MachineRefVS machine, Object payload) {
-            super(eventOps, cond, machine);
+        public InitEffect(ValueSummaryOps payloadOps, Bdd cond, MachineRefVS machine, Object payload) {
+            super(cond, machine);
             this.payloadOps = payloadOps;
             this.payload = payload;
         }
 
-        public InitEffect(UnionVS.Ops<EventTag> eventOps, Bdd cond, MachineRefVS machine) {
-            this(eventOps, null, cond, machine, null);
+        public InitEffect(Bdd cond, MachineRefVS machine) {
+            this(null, cond, machine, null);
         }
 
         @Override
         public Effect withCond(Bdd guard) {
                 return new InitEffect(
-                        eventOps,
                         payloadOps,
                         guard,
-                        new MachineRefVS.Ops().guard(target, guard),
+                        target.guard(guard),
                         payload != null ? payloadOps.guard(payload, guard) : null
                 );
         }
@@ -89,21 +82,19 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         }
     }
 
-    private final UnionVS.Ops<EventTag> eventOps;
 
-    public EffectQueue(UnionVS.Ops<EventTag> eventOps) {
+    public EffectQueue() {
         super();
-        this.eventOps = eventOps;
     }
 
-    public void send(Bdd pc, MachineRefVS dest, PrimVS<EventTag> eventTag, Object payload) {
+    public void send(Bdd pc, MachineRefVS dest, PrimVS<EventTag> eventTag, ValueSummary payload) {
         if (eventTag.guardedValues.size() > 1) {
             throw new NotImplementedException();
         }
         EventTag concreteTag = eventTag.guardedValues.keySet().iterator().next();
-        Map<EventTag, Object> payloadMap = new HashMap<>();
+        Map<EventTag, ValueSummary> payloadMap = new HashMap<>();
         payloadMap.put(concreteTag, payload);
-        enqueueEntry(new SendEffect(eventOps, pc, dest, new UnionVS<EventTag>(eventTag, payloadMap)));
+        enqueueEntry(new SendEffect(pc, dest, new UnionVS<EventTag>(eventTag, payloadMap)));
     }
 
     public MachineRefVS create(
@@ -115,7 +106,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
             Function<Integer, BaseMachine> constructor
     ) {
         MachineRefVS ref = scheduler.allocateMachineId(pc, tag, constructor);
-        enqueueEntry(new InitEffect(eventOps, payloadOps, pc, ref, payload));
+        enqueueEntry(new InitEffect(payloadOps, pc, ref, payload));
         return ref;
     }
 

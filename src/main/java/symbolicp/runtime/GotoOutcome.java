@@ -8,17 +8,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class GotoOutcome {
-    private final PrimVS.Ops<StateTag> stateOps;
 
     private Bdd cond;
     private PrimVS<StateTag> dest;
     private Map<StateTag, Object> payloads;
 
     public GotoOutcome() {
-        stateOps = new PrimVS.Ops<>();
 
         cond = Bdd.constFalse();
-        dest = stateOps.empty();
+        dest = new PrimVS<>();
         payloads = new HashMap<>();
     }
 
@@ -40,7 +38,7 @@ public class GotoOutcome {
 
     public void addGuardedGoto(Bdd pc, StateTag newDest, ValueSummaryOps payloadOps, Object newPayload) {
         cond = cond.or(pc);
-        dest = stateOps.merge2(dest, stateOps.guard(new PrimVS<>(newDest), pc));
+        dest = dest.merge(new PrimVS<>(newDest).guard(pc));
 
         if (newPayload != null) {
             payloads.merge(newDest, newPayload, payloadOps::merge2);
