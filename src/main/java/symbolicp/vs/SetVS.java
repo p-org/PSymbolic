@@ -20,7 +20,7 @@ public class SetVS<T> implements ValueSummary<SetVS<T>> {
     /** Get all the different possible guarded values */
     public Iterable<GuardedValue<T>> getElements() {
         return elements.entrySet().stream()
-                .map(x -> new GuardedValue(x.getKey(), x.getValue())).collect(Collectors.toList());
+                .map(x -> new GuardedValue<T>(x.getKey(), x.getValue())).collect(Collectors.toList());
     }
 
     /* Caution: Callers must take care to ensure that the above invariants are satisfied. */
@@ -71,6 +71,11 @@ public class SetVS<T> implements ValueSummary<SetVS<T>> {
         final PrimVS<Integer> mergedSize = size.merge(sizesToMerge);
 
         return new SetVS<>(mergedSize, mergedElements);
+    }
+
+    @Override
+    public SetVS<T> merge(SetVS<T> summary) {
+        return merge(Collections.singletonList(summary));
     }
 
     @Override

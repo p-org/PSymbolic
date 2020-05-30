@@ -105,7 +105,7 @@ public class OptionalVS<T extends ValueSummary<T>> implements ValueSummary<Optio
 
     public T unwrapOrThrow() {
         final @Nullable Bdd absentCond = present.getGuard(false);
-        if ((absentCond != null && !absentCond.isConstFalse()) || item == null) {
+        if ((absentCond != null && absentCond.isConstFalse()) || item == null) {
             throw new BugFoundException("Attempt to unwrap an absent optional value", absentCond);
         }
         return item;

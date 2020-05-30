@@ -34,9 +34,9 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     public PrimVS() { this(new HashMap<>()); }
 
     /** Get all the different possible guarded values */
-    public Iterable<GuardedValue<T>> getGuardedValues() {
+    public List<GuardedValue<T>> getGuardedValues() {
         return guardedValues.entrySet().stream()
-                .map(x -> new GuardedValue(x.getKey(), x.getValue())).collect(Collectors.toList());
+                .map(x -> new GuardedValue<T>(x.getKey(), x.getValue())).collect(Collectors.toList());
     }
 
     @Override

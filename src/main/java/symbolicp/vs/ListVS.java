@@ -91,6 +91,14 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
 
     @Override
     public PrimVS<Boolean> symbolicEquals(ListVS<T> cmp, Bdd pc) {
+        if (size.isEmpty()) {
+            if (cmp.isEmpty()) {
+                return BoolUtils.fromTrueGuard(pc);
+            } else {
+                return BoolUtils.fromTrueGuard(Bdd.constFalse());
+            }
+        }
+
         Bdd equalCond = Bdd.constFalse();
         for (GuardedValue<Integer> size : this.size.getGuardedValues()) {
             if (cmp.size.hasValue(size.value)) {
@@ -125,7 +133,7 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
             if (sizeValue == newItems.size()) {
                 newItems.add(guardedItemToAdd);
             } else {
-                newItems.set(sizeValue, guardedItemToAdd.merge(Collections.singletonList(newItems.get(sizeValue))));
+                newItems.set(sizeValue, guardedItemToAdd.merge(newItems.get(sizeValue)));
             }
         }
 

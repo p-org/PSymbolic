@@ -1,6 +1,5 @@
 package symbolicp.runtime;
 
-import com.sun.tools.javac.comp.Check;
 import symbolicp.bdd.Checks;
 import symbolicp.util.NotImplementedException;
 import symbolicp.bdd.Bdd;

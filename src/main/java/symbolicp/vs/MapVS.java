@@ -4,7 +4,7 @@ import symbolicp.bdd.Bdd;
 
 import java.util.*;
 
-public class MapVS<K extends ValueSummary<K>, V extends ValueSummary<V>> implements ValueSummary<MapVS<K,V>> {
+public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K,V>> {
     public final SetVS<K> keys;
     public final Map<K, V> entries;
 
@@ -107,7 +107,7 @@ public class MapVS<K extends ValueSummary<K>, V extends ValueSummary<V>> impleme
 
         for (Map.Entry<K, Bdd> entry : cmp.keys.elements.entrySet()) {
             /* Keys unique to cmp must not be present*/
-            if (!cmp.keys.elements.containsKey(entry.getKey())) {
+            if (!keys.elements.containsKey(entry.getKey())) {
                 equalCond = entry.getValue().not().and(equalCond);
             }
         }

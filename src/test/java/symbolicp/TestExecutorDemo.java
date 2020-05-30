@@ -23,12 +23,11 @@ public class TestExecutorDemo {
         Object wrapper = wrapper_class.getConstructor().newInstance();
 
         MachineTag machineTag_Main = (MachineTag) wrapper_class.getField("machineTag_Main").get(wrapper);
-        UnionVS.Ops<EventTag> eventOps =  (UnionVS.Ops<EventTag>) wrapper_class.getField("eventOps").get(wrapper);
 
         Constructor constructor = mainMachineClass.getConstructor(int.class);
         BaseMachine main = (BaseMachine) constructor.newInstance(0);
 
-        Scheduler scheduler = new Scheduler(eventOps, Utils.getMachineTags(wrapper_class, wrapper));
+        Scheduler scheduler = new Scheduler(Utils.getMachineTags(wrapper_class, wrapper));
         wrapper_class.getField("scheduler").set(wrapper, scheduler);
         scheduler.disableLogging();
         scheduler.startWith(machineTag_Main, main);

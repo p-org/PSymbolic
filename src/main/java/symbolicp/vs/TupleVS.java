@@ -1,14 +1,14 @@
 package symbolicp.vs;
 
-import com.sun.tools.javac.util.List;
 import org.checkerframework.checker.units.qual.A;
 import symbolicp.bdd.Bdd;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 public class TupleVS implements ValueSummary<TupleVS> {
     private final ValueSummary[] fields;
@@ -16,7 +16,7 @@ public class TupleVS implements ValueSummary<TupleVS> {
 
     public TupleVS(ValueSummary... items) {
         this.fields = items;
-        this.classes = List.from(items).stream().map(x -> x.getClass())
+        this.classes = Arrays.asList(items).stream().map(x -> x.getClass())
                 .collect(Collectors.toList()).toArray(new Class[items.length]);
     }
 
@@ -50,7 +50,7 @@ public class TupleVS implements ValueSummary<TupleVS> {
 
     @Override
     public TupleVS merge(Iterable<TupleVS> summaries) {
-        List<ValueSummary> resultList = List.from(fields);
+        List<ValueSummary> resultList = Arrays.asList(fields);
         for (TupleVS summary : summaries) {
             for (int i = 0; i < summary.fields.length; i++) {
                 if (i < resultList.size()) {

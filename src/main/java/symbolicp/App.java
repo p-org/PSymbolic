@@ -9,8 +9,6 @@ import java.util.*;
 
 public class App {
     public static void main(String[] args) {
-        final ListVS.Ops<PrimVS<Integer>> intListOps =
-            new ListVS.Ops<>(new PrimVS.Ops<>());
 
         final Map<Integer, Bdd> val1Entries = new HashMap<>();
         val1Entries.put(1, new Bdd(new HashSet<>(Arrays.asList("a", "b"))));
@@ -22,17 +20,17 @@ public class App {
         val2Entries.put(200, new Bdd(new HashSet<>(Arrays.asList("b", "d"))));
         final PrimVS<Integer> val2 = new PrimVS<>(val2Entries);
 
-        final PrimVS<Integer> val3 = val1.map2(val2, (x, y) -> x + y);
+        final PrimVS<Integer> val3 = val1.apply2(val2, (x, y) -> x + y);
 
         System.out.println("val3: " + val3.guardedValues);
 
-        ListVS<PrimVS<Integer>> myList = new ListVS<>();
-        myList = intListOps.add(myList, val2);
-        myList = intListOps.add(myList, val3);
+        ListVS<PrimVS<Integer>> myList = new ListVS<>(Bdd.constFalse());
+        myList = myList.add(val2);
+        myList = myList.add(val3);
 
         final OptionalVS<PrimVS<Integer>> dependentItem =
-            intListOps.get(myList, val1);
+            myList.get(val1);
         System.out.println("Dependent item present: " + dependentItem.present.guardedValues);
-        System.out.println("Dependent item content: " + dependentItem.item.guardedValues);
+        System.out.println("Dependent item content: " + dependentItem.unwrapOrThrow().guardedValues);
     }
 }
