@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class NamedTupleVS {
+public class NamedTupleVS implements ValueSummary {
     private final Map<String, Object> fields;
 
     private NamedTupleVS(Map<String, Object> fields) {

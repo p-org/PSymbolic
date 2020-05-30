@@ -5,7 +5,7 @@ import symbolicp.bdd.Bdd;
 import java.util.ArrayList;
 import java.util.stream.IntStream;
 
-public class TupleVS {
+public class TupleVS implements ValueSummary {
     private final Object[] fields;
 
     public TupleVS(Object... items) {

@@ -5,7 +5,7 @@ import symbolicp.bdd.Bdd;
 import java.util.*;
 import java.util.stream.IntStream;
 
-public class ListVS<Item> {
+public class ListVS<Item extends ValueSummary<Item>> implements ValueSummary<ListVS<Item>> {
     private final PrimVS<Integer> size;
     private final List<Item> items;
 
@@ -14,276 +14,278 @@ public class ListVS<Item> {
         this.items = items;
     }
 
-    public ListVS() {
-        this(new PrimVS<>(0), new ArrayList<>());
+    public ListVS(Bdd universe) {
+        this(new PrimVS<>(0).guard(universe), new ArrayList<>());
     }
 
-    public static class Ops<Item> implements ValueSummaryOps<ListVS<Item>> {
-        private final PrimVS.Ops<Integer> sizeOps;
-        private final ValueSummaryOps<Item> itemOps;
+    public ListVS(ListVS<Item> old) {
+        this(old.size, new ArrayList<>(old.items));
+    }
 
-        public Ops(ValueSummaryOps<Item> itemOps) {
-            this.sizeOps = new PrimVS.Ops<>();
-            this.itemOps = itemOps;
-        }
+    @Override
+    public boolean isEmpty() {
+        return size.isEmpty();
+    }
 
-        @Override
-        public boolean isEmpty(ListVS<Item> summary) {
-            return sizeOps.isEmpty(summary.size);
-        }
+    @Override
+    public ListVS<Item> guard(Bdd guard) {
+        final PrimVS<Integer> newSize = size.guard(guard);
+        final List<Item> newItems = new ArrayList<>();
 
-        @Override
-        public ListVS<Item> empty() {
-            return new ListVS<>(sizeOps.empty(), new ArrayList<>());
-        }
-
-        @Override
-        public ListVS<Item> guard(ListVS<Item> summary, Bdd guard) {
-            final PrimVS<Integer> newSize = sizeOps.guard(summary.size, guard);
-            final List<Item> newItems = new ArrayList<>();
-
-            for (Item item : summary.items) {
-                Item newItem = itemOps.guard(item, guard);
-                if (itemOps.isEmpty(newItem)) {
-                    break; // No items after this item are possible either due to monotonicity / non-sparseness
-                }
-                newItems.add(newItem);
+        for (Item item : this.items) {
+            Item newItem = item.guard(guard);
+            if (newItem.isEmpty()) {
+                break; // No items after this item are possible either due to monotonicity / non-sparseness
             }
-
-            return new ListVS<>(newSize, newItems);
+            newItems.add(newItem);
         }
 
-        @Override
-        public ListVS<Item> merge(Iterable<ListVS<Item>> summaries) {
-            final List<PrimVS<Integer>> sizesToMerge = new ArrayList<>();
-            final List<List<Item>> itemsToMergeByIndex = new ArrayList<>();
+        return new ListVS<>(newSize, newItems);
+    }
 
-            for (ListVS<Item> summary : summaries) {
-                sizesToMerge.add(summary.size);
+    @Override
+    public ListVS<Item> update(Bdd guard, ListVS<Item> update) {
+        return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
+    }
 
-                for (int i = 0; i < summary.items.size(); i++) {
-                    if (i < itemsToMergeByIndex.size()) {
-                        itemsToMergeByIndex.get(i).add(summary.items.get(i));
-                    } else {
-                        assert i == itemsToMergeByIndex.size();
-                        itemsToMergeByIndex.add(new ArrayList<>(Collections.singletonList(summary.items.get(i))));
-                    }
-                }
-            }
+    @Override
+    public ListVS<Item> merge(Iterable<ListVS<Item>> summaries) {
+        final List<PrimVS<Integer>> sizesToMerge = new ArrayList<>();
+        final List<List<Item>> itemsToMergeByIndex = new ArrayList<>();
 
-            final PrimVS<Integer> mergedSize = sizeOps.merge(sizesToMerge);
-
-            final List<Item> mergedItems = new ArrayList<>();
-
-            for (List<Item> itemsToMerge : itemsToMergeByIndex) {
-                final Item mergedItem = itemOps.merge(itemsToMerge);
-                mergedItems.add(mergedItem);
-            }
-
-            return new ListVS<>(mergedSize, mergedItems);
+        // first add this list's items to the itemsToMergeByIndex
+        for (Item item : this.items) {
+            itemsToMergeByIndex.add(new ArrayList<>(Collections.singletonList(item)));
         }
 
-        @Override
-        public PrimVS<Boolean> symbolicEquals(ListVS<Item> left, ListVS<Item> right, Bdd pc) {
-            Bdd equalCond = Bdd.constFalse();
-            for (Map.Entry<Integer, Bdd> size : left.size.guardedValues.entrySet()) {
-                if (right.size.guardedValues.containsKey(size.getKey())) {
-                    Bdd listEqual = IntStream.range(0, size.getKey())
-                            .mapToObj((i) -> itemOps.symbolicEquals(left.items.get(i), right.items.get(i), pc).guardedValues.get(Boolean.TRUE))
-                            .reduce(Bdd::and)
-                            .orElse(Bdd.constTrue());
-                    equalCond = equalCond.or(listEqual);
-                }
-            }
-            return BoolUtils.fromTrueGuard(pc.and(equalCond));
-        }
+        for (ListVS<Item> summary : summaries) {
+            sizesToMerge.add(summary.size);
 
-        // origList and item should be possible under the same conditions.
-        public ListVS<Item> add(ListVS<Item> origList, Item item) {
-            final Map<Integer, Bdd> newSizeValues = new HashMap<>();
-            final List<Item> newItems = new ArrayList<>(origList.items);
-
-            for (Map.Entry<Integer, Bdd> possibleSize : origList.size.guardedValues.entrySet()) {
-                final int sizeValue = possibleSize.getKey();
-                newSizeValues.put(sizeValue + 1, possibleSize.getValue());
-
-                final Item guardedItemToAdd = itemOps.guard(item, possibleSize.getValue());
-                if (sizeValue == newItems.size()) {
-                    newItems.add(guardedItemToAdd);
+            for (int i = 0; i < summary.items.size(); i++) {
+                if (i < itemsToMergeByIndex.size()) {
+                    itemsToMergeByIndex.get(i).add(summary.items.get(i));
                 } else {
-                    newItems.set(
-                        sizeValue,
-                        itemOps.merge(Arrays.asList(newItems.get(sizeValue), guardedItemToAdd))
-                    );
+                    assert i == itemsToMergeByIndex.size();
+                    itemsToMergeByIndex.add(new ArrayList<>(Collections.singletonList(summary.items.get(i))));
                 }
             }
-
-            return new ListVS<>(new PrimVS<>(newSizeValues), newItems);
         }
 
-        // listSummary and indexSummary should be possible under the same conditions
-        public OptionalVS<Item>
-        get(ListVS<Item> listSummary, PrimVS<Integer> indexSummary) {
-            final OptionalVS.Ops<Item> resultOps = new OptionalVS.Ops<>(itemOps);
+        final PrimVS<Integer> mergedSize = size.merge(sizesToMerge);
 
-            return indexSummary.flatMap(
-                resultOps,
-                (index) -> {
-                    final PrimVS<Boolean> inRange =
-                        listSummary.size.map((size) -> index < size);
+        final List<Item> mergedItems = new ArrayList<>();
 
-                    return inRange.flatMap(
-                        resultOps,
-                        (isInRange) -> {
-                            if (isInRange) {
-                                return resultOps.makePresent(listSummary.items.get(index));
-                            } else {
-                                return resultOps.makeAbsent();
+        for (List<Item> itemsToMerge : itemsToMergeByIndex) {
+            // TODO: cleanup later
+            final Item mergedItem = itemsToMerge.get(0).merge(itemsToMerge.subList(1, itemsToMerge.size()));
+            mergedItems.add(mergedItem);
+        }
+
+        return new ListVS<>(mergedSize, mergedItems);
+    }
+
+    @Override
+    public PrimVS<Boolean> symbolicEquals(ListVS<Item> cmp, Bdd pc) {
+        Bdd equalCond = Bdd.constFalse();
+        for (GuardedValue<Integer> size : this.size.getGuardedValues()) {
+            if (cmp.size.hasValue(size.value)) {
+                Bdd listEqual = IntStream.range(0, size.value)
+                        .mapToObj((i) -> this.items.get(i).symbolicEquals(cmp.items.get(i), pc).getGuard(Boolean.TRUE))
+                        .reduce(Bdd::and)
+                        .orElse(Bdd.constTrue());
+                equalCond = equalCond.or(listEqual);
+            }
+        }
+        return BoolUtils.fromTrueGuard(pc.and(equalCond));
+    }
+
+    @Override
+    public Bdd getUniverse() {
+        return size.getUniverse();
+    }
+
+    /** Add an item to the ListVS
+     * @param item The Item to add to the ListVS. Should be possible under the same conditions as the ListVS.
+     */
+    public ListVS<Item> add(Item item) {
+        // TODO: same conditions check
+        final Map<Integer, Bdd> newSizeValues = new HashMap<>();
+        final List<Item> newItems = new ArrayList<>(this.items);
+
+        for (GuardedValue<Integer> possibleSize : this.size.getGuardedValues()) {
+            final int sizeValue = possibleSize.value;
+            newSizeValues.put(sizeValue + 1, possibleSize.guard);
+
+            final Item guardedItemToAdd = item.guard(possibleSize.guard);
+            if (sizeValue == newItems.size()) {
+                newItems.add(guardedItemToAdd);
+            } else {
+                newItems.set(sizeValue, guardedItemToAdd.merge(Collections.singletonList(newItems.get(sizeValue))));
+            }
+        }
+
+        return new ListVS<>(new PrimVS<>(newSizeValues), newItems);
+    }
+
+    /** Is an index in range?
+     * @param indexSummary The index to check
+     */
+    public PrimVS<Boolean> inRange(PrimVS<Integer> indexSummary) {
+        return BoolUtils.and(IntegerUtils.lessThan(indexSummary, size),
+                IntegerUtils.lessThan(-1, indexSummary));
+    }
+
+    /** Is an index in range?
+     * @param index The index to check
+     */
+    public PrimVS<Boolean> inRange(int index) {
+        return BoolUtils.and(IntegerUtils.lessThan(index, size), -1 < index);
+    }
+
+    /** Get an item from the ListVS
+     * @param indexSummary The index to take from the ListVS. Should be possible under the same conditions as the ListVS.
+     */
+    public OptionalVS<Item> get(PrimVS<Integer> indexSummary) {
+        return indexSummary.applyVS(
+                new OptionalVS<>(),
+                 // for each possible index value
+                 index -> {
+                     // see if it is in range
+                     final PrimVS<Boolean> inRange = inRange(index);
+                     // for each possibility about it being in range
+                     return inRange.applyVS(new OptionalVS<>(), isInRange ->
+                     {
+                         if (isInRange) {
+                             return new OptionalVS<>(items.get(index));
+                         } else {
+                             return new OptionalVS<>();
+                         }
+                     } );
+                 } );
+    }
+
+    /** Set an item in the ListVS
+     * @param indexSummary The index to set in the ListVS. Should be possible under the same conditions as the ListVS.
+     * @param itemToSet The item to put in the ListVS. Should be possible under the same conditions as the ListVS
+     * @return The result of setting the ListVS
+     */
+    public OptionalVS<ListVS<Item>> set(PrimVS<Integer> indexSummary, Item itemToSet) {
+        return indexSummary.applyVS(
+                new OptionalVS<>(),
+                // for each possible index value
+                index -> {
+                    // see if it is in range
+                    final PrimVS<Boolean> inRange = inRange(index);
+                    // for each possibility about it being in range
+                    return inRange.applyVS(new OptionalVS<>(), isInRange ->
+                    {
+                        if (isInRange) {
+                            final List<Item> newItems = new ArrayList<>(items);
+                            // The guard under which indexSummary has this index
+                            Bdd guard = indexSummary.getGuard(index);
+                            // the original item remains in the case that the index does not match
+                            final Item originalEntry = newItems.get(index).guard(guard.not());
+                            // otherwise, the new item should be set
+                            final Item newEntry = itemToSet.guard(guard);
+                            newItems.set(index, originalEntry.merge(Collections.singletonList(newEntry)));
+                            return new OptionalVS<>(new ListVS<>(size, newItems));
+                        } else {
+                            return new OptionalVS<>();
+                        }
+                    });
+                });
+    }
+
+    /** Check whether the ListVS contains an element
+     * @param element The element to check for. Should be possible under the same conditions as the ListVS.
+     * @return Whether or not the ListVS contains an element
+     */
+    public PrimVS<Boolean> contains(Item element) {
+        PrimVS<Integer> i = new PrimVS<>(0).guard(getUniverse());
+
+        PrimVS<Boolean> contains = new PrimVS<>(false).guard(getUniverse());
+
+        while (!BoolUtils.isFalse(IntegerUtils.lessThan(i, size)))  {
+            contains = BoolUtils.or(contains, element.symbolicEquals(get(i).unwrapOrThrow(), getUniverse()));
+            i = IntegerUtils.add(i, 1);
+        }
+
+        return contains;
+    }
+
+
+    /** Insert an item in the ListVS. Inserting at the end will produce an empty option rather than adding to the end.
+     * @param indexSummary The index to insert at in the ListVS. Should be possible under the same conditions as the ListVS.
+     * @param itemToInsert The item to put in the ListVS. Should be possible under the same conditions as the ListVS
+     * @return The result of inserting into the ListVS
+     */
+    public OptionalVS<ListVS<Item>> insert(PrimVS<Integer> indexSummary, Item itemToInsert) {
+        final PrimVS<Boolean> inRange = inRange(indexSummary);
+        return inRange.applyVS(
+                new OptionalVS<>(),
+                isInRange ->
+                {
+                    // since it's in range,  all the OptionVS results should be present
+                    if (isInRange) {
+                        // 1. add a new entry (we'll re-add the last entry)
+                        ListVS<Item> newList = new ListVS<>(this);
+                        newList = newList.add(newList.get(IntegerUtils.subtract(size, 1)).unwrapOrThrow());
+
+                        // 2. setting at the insertion index
+                        PrimVS<Integer> current = indexSummary;
+                        Item prev = newList.get(current).get();
+                        newList = newList.set(indexSummary, itemToInsert).unwrapOrThrow();
+                        current = IntegerUtils.add(current, 1);
+
+                        // 3. setting everything after insertion index to be the previous element
+                        // (but we can skip the very last one, since we've already added it)
+                        while (!BoolUtils.isFalse(IntegerUtils.lessThan(current, IntegerUtils.subtract(size, 1)))) {
+                            Item old = newList.get(current).unwrapOrThrow();
+                            Item update = old.update(BoolUtils.trueCond(IntegerUtils.lessThan(current, size)), prev);
+                            newList = newList.set(current, update).unwrapOrThrow();
+                            prev = old;
+                            current = IntegerUtils.add(current, 1);
+                        }
+
+                        return new OptionalVS<>(newList);
+                    } else {
+                        return new OptionalVS<>();
+                    }
+                }
+        );
+    }
+
+    public OptionalVS<ListVS<Item>> removeAt(PrimVS<Integer> indexSummary) {
+            final PrimVS<Boolean> inRange = inRange(indexSummary);
+
+            return inRange.applyVS(
+                    new OptionalVS<>(),
+                    (isInRange) -> {
+                        // since it's in range, we require that all the OptionVS results are present
+                        // TODO: add explicit checks for this
+                        if (isInRange) {
+                            // want to update size if it is greater than 0
+                            Bdd updateSizeCond = BoolUtils.trueCond(IntegerUtils.lessThan(0, size));
+                            // new size
+                            PrimVS<Integer> newSize = size.update(updateSizeCond, IntegerUtils.subtract(size, 1));
+
+                            ListVS<Item> newList = new ListVS<>(newSize, items.subList(0, items.size() - 1));
+                            PrimVS<Integer> current = indexSummary;
+
+                            // Setting everything after removal index to be the next element
+                            while (!BoolUtils.isFalse(IntegerUtils.lessThan(current, newSize))) {
+                                Item old = get(current).unwrapOrThrow();
+                                Item next = get(IntegerUtils.add(current, 1)).unwrapOrThrow();
+                                Item update = old.update(BoolUtils.trueCond(IntegerUtils.lessThan(current, size)), next);
+                                newList = newList.set(current, update).unwrapOrThrow();
+                                current = IntegerUtils.add(current, 1);
                             }
-                        });
-                });
-        }
 
-        // all arguments should be possible under the same conditions
-        public OptionalVS<ListVS<Item>>
-        set(ListVS<Item> origList, PrimVS<Integer> indexSummary, Item itemToSet) {
-            final OptionalVS.Ops<ListVS<Item>> resultOps =
-                new OptionalVS.Ops<>(this);
-
-            final PrimVS<Boolean> inRange =
-                origList.size.map2(indexSummary, (size, index) -> index < size);
-
-            return inRange.flatMap(
-                resultOps,
-                (isInRange) -> {
-                    if (isInRange) {
-                        /* The actual computation happens in here, as if we had no error handling */
-
-                        final List<Item> newItems = new ArrayList<>(origList.items);
-
-                        for (Map.Entry<Integer, Bdd> guardedIndex : indexSummary.guardedValues.entrySet()) {
-                            final int index = guardedIndex.getKey();
-                            final Bdd guard = guardedIndex.getValue();
-
-                            final Item origContribution = itemOps.guard(newItems.get(index), guard.not());
-                            final Item newContribution = itemOps.guard(itemToSet, guard);
-                            newItems.set(index, itemOps.merge(Arrays.asList(origContribution, newContribution)));
+                            return new OptionalVS<>(newList);
+                        } else {
+                            return new OptionalVS<>();
                         }
-
-                        return resultOps.makePresent(new ListVS<>(origList.size, newItems));
-                    } else {
-                        return resultOps.makeAbsent();
                     }
-                });
-        }
-
-        /* TODO 'contains' */
-
-        public OptionalVS<ListVS<Item>>
-        insert(ListVS<Item> origList, PrimVS<Integer> indexSummary, Item itemToInsert) {
-            final OptionalVS.Ops<ListVS<Item>> resultOps =
-                new OptionalVS.Ops<>(this);
-
-            final PrimVS<Boolean> inRange =
-                origList.size.map2(indexSummary, (size, index) -> index <= size);
-
-            return inRange.flatMap(
-                resultOps,
-                (isInRange) -> {
-                    if (isInRange) {
-                        /* The actual computation happens in here, as if we had no error handling */
-
-                        final PrimVS<Integer> newSize = origList.size.map((origSize) -> origSize + 1);
-
-                        final List<Item> newItems = new ArrayList<>();
-
-                        final int maxNewSize = origList.items.size() + 1;
-                        for (int i = 0; i < maxNewSize; i++) {
-                            final int index = i; // Placate lambda mutability rule
-
-                            final PrimVS<Integer> insertionPointComparison =
-                                indexSummary.map((insertionPoint) -> {
-                                    if (index < insertionPoint) {
-                                        return -1;
-                                    } else if (index == insertionPoint) {
-                                        return 0;
-                                    } else {
-                                        return 1;
-                                    }
-                                });
-
-                            final Item newItem =
-                                insertionPointComparison.flatMap(
-                                    itemOps,
-                                    (comparision) -> {
-                                        if (comparision == -1) {
-                                            return origList.items.get(index);
-                                        } else if (comparision == 0) {
-                                            return itemToInsert;
-                                        } else {
-                                            return origList.items.get(index - 1);
-                                        }
-                                    });
-
-                            assert index == newItems.size();
-                            newItems.add(newItem);
-                        }
-
-                        return resultOps.makePresent(new ListVS<>(newSize, newItems));
-                    } else {
-                        return resultOps.makeAbsent();
-                    }
-                }
             );
-        }
-
-        public OptionalVS<ListVS<Item>>
-        removeAt(ListVS<Item> origList, PrimVS<Integer> indexSummary) {
-            final OptionalVS.Ops<ListVS<Item>> resultOps =
-                new OptionalVS.Ops<>(this);
-
-            final PrimVS<Boolean> inRange =
-                origList.size.map2(indexSummary, (size, index) -> index < size);
-
-            return inRange.flatMap(
-                resultOps,
-                (isInRange) -> {
-                    if (isInRange) {
-                        /* The actual computation happens in here, as if we had no error handling. */
-
-                        final PrimVS<Integer> newSize =
-                            origList.size.map((size) -> size - 1);
-
-                        final List<Item> newItems = new ArrayList<>();
-
-                        final int maxNewSize = origList.items.size() - 1;
-                        for (int i = 0; i < maxNewSize; i++) {
-                            final int index = i; // Placate lambda mutability rule
-
-                            final PrimVS<Boolean> afterRemovePoint =
-                                indexSummary.map((removePoint) -> index >= removePoint);
-
-                            final Item newItem =
-                                afterRemovePoint.flatMap(
-                                    itemOps,
-                                    (isAfterRemovePoint) -> {
-                                        if (isAfterRemovePoint) {
-                                            return origList.items.get(index + 1);
-                                        } else {
-                                            return origList.items.get(index);
-                                        }
-                                    });
-
-                            assert index == newItems.size();
-                            newItems.add(newItem);
-                        }
-
-                        return resultOps.makePresent(new ListVS<>(newSize, newItems));
-                    } else {
-                        return resultOps.makeAbsent();
-                    }
-                }
-            );
-        }
     }
 }

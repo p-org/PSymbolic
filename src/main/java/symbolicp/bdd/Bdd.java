@@ -47,6 +47,8 @@ public final class Bdd {
         return new Bdd(globalBddLib.or(wrappedBdd, other.wrappedBdd));
     }
 
+    public Bdd implies(Bdd other) { return not().or(other); }
+
     public Bdd not() {
         return new Bdd(globalBddLib.not(wrappedBdd));
     }

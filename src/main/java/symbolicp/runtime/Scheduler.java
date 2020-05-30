@@ -8,11 +8,26 @@ import java.util.*;
 import java.util.function.Function;
 
 public class Scheduler {
+    /** eventOps are value summary (VS) ops;
+     * every type of VS has its own ops type created at runtime that represent the ops that can be done on them
+     * events have payloads whose types are dynamically determined (can have different event types and payload types)
+     * so we need to make an ops for event data structure
+     */
     private final UnionVS.Ops<EventTag> eventOps;
     private final PrimVS.Ops<BaseMachine> machineOps = new PrimVS.Ops<>();
 
+    public static void debug(String str) {
+        System.err.println("[SCHEDULER]: " + str);
+    }
+
     final Map<MachineTag, List<BaseMachine>> machines;
 
+    /** Refs to machines are represented by integer IDs
+     * for a given Machine declaration in the P file, each machine type
+     * has its own space of ids
+     * MachineTag is PType of machine
+     * machineCounters are used to get the next ID
+     * each tag's counter gives how many of that instances tag there are */
     final Map<MachineTag, PrimVS<Integer>> machineCounters;
 
     private int step_count = 0;
@@ -28,7 +43,13 @@ public class Scheduler {
         }
     }
 
+    /** All events and init effects, before being sent to target machine,
+     * must live in another event's sender queue (because receiver queue is only represented implicitly
+     * by other machines' sender queues)
+     * but can't do this for the very first machine
+     */
     public void startWith(MachineTag tag, BaseMachine machine) {
+        debug("Start with tag " + tag + ", machine type" + machine.getClass());
         for (PrimVS<Integer> machineCounter : machineCounters.values()) {
             if (machineCounter.guardedValues.size() != 1 || !machineCounter.guardedValues.containsKey(0)) {
                 throw new RuntimeException("You cannot start the scheduler after it already contains machines");
@@ -89,6 +110,7 @@ public class Scheduler {
             List<BaseMachine> machinesForTag = entry.getValue();
             for (int i = 0; i < machinesForTag.size(); i++) {
                 BaseMachine machine = machinesForTag.get(i);
+                debug("machine with tag " + entry.getValue() + ", machine type" + machine.getClass());
                 if (!machine.effectQueue.isEmpty()) {
                     candidateTags.add(entry.getKey());
                     candidateIds.add(i);
@@ -123,7 +145,7 @@ public class Scheduler {
         final PrimVS.Ops<MachineTag> tagOps = new PrimVS.Ops<>();
 
         PrimVS<Integer> guardedCount = intOps.guard(machineCounters.get(tag), pc);
-        guardedCount = guardedCount.map(i -> i + 1);
+        guardedCount = guardedCount.apply(i -> i + 1);
 
         List<BaseMachine> machineList = machines.get(tag);
         // TODO: potential off by one error fixed in below two lines. Review required
@@ -135,7 +157,7 @@ public class Scheduler {
 
         PrimVS<Integer> mergedCount = intOps.merge2(guardedCount, intOps.guard(machineCounters.get(tag), pc.not()));
         machineCounters.put(tag, mergedCount);
-        return new MachineRefVS(tagOps.guard(new PrimVS<>(tag), pc), guardedCount.map(i -> i - 1));
+        return new MachineRefVS(tagOps.guard(new PrimVS<>(tag), pc), guardedCount.apply(i -> i - 1));
     }
 
     private void performEffect(EffectQueue.Effect effect) {

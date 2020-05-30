@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class UnionVS <T extends Tag> {
+public class UnionVS <T extends Tag> implements ValueSummary {
 
     private PrimVS<T> tag;
     private Map<T, Object> payloads;

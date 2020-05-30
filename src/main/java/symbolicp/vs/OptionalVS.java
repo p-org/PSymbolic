@@ -1,105 +1,111 @@
 package symbolicp.vs;
 
+import jdk.internal.util.xml.impl.Pair;
+import org.checkerframework.checker.nullness.Opt;
+import org.graalvm.compiler.nodes.calc.IntegerDivRemNode;
 import org.jetbrains.annotations.Nullable;
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-public class OptionalVS<Item> {
-    /* Invariant: 'present' is true under exactly the conditions where 'item' exists.
-     */
+public class OptionalVS<Item extends ValueSummary<Item>> implements ValueSummary<OptionalVS<Item>> {
+    /** Invariant: 'present' is true under exactly the conditions where 'item' exists. */
     public final PrimVS<Boolean> present;
-    public final Item item;
+    private final Item item;
 
-    /** Caution: The caller must take care to ensure that the invariant stated above is upheld.
-     */
-    public OptionalVS(PrimVS<Boolean> present, Item item) {
+    /** Caution: The caller must take care to ensure that the invariant stated above is upheld. */
+    private OptionalVS(PrimVS<Boolean> present, Item item) {
         this.present = present;
         this.item = item;
     }
 
-    public static class Ops<Item> implements ValueSummaryOps<OptionalVS<Item>> {
-        private final ValueSummaryOps<PrimVS<Boolean>> boolOps;
-        private final ValueSummaryOps<Item> itemOps;
+    /** Make a new OptionalVS with item present under the conditions that it exists.
+     *
+     * @param item The item, which is present.
+     */
+    public OptionalVS(Item item) {
+        this(BoolUtils.fromTrueGuard(item.getUniverse()), item);
+    }
 
-        public Ops(ValueSummaryOps<Item> itemOps) {
-            this.boolOps = new PrimVS.Ops<>();
-            this.itemOps = itemOps;
+    public OptionalVS(Bdd universe) { this(new PrimVS<>(false).guard(universe), null); }
+
+    public OptionalVS() {
+        this(new PrimVS<>(false), null);
+    }
+
+    @Override
+    public Bdd getUniverse() {
+        return present.getUniverse();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return present.isEmpty();
+    }
+
+    @Override
+    public OptionalVS<Item> guard(Bdd guard) {
+        if (item == null) {
+            return new OptionalVS<Item>(
+                    present.guard(guard),
+                    null);
         }
+        return new OptionalVS<Item>(
+                present.guard(guard),
+                item.guard(guard)
+        );
+    }
 
-        @Override
-        public boolean isEmpty(OptionalVS<Item> summary) {
-            return boolOps.isEmpty(summary.present);
-        }
+    @Override
+    public OptionalVS<Item> update(Bdd guard, OptionalVS<Item> update) {
+        return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
+    }
 
-        @Override
-        public OptionalVS<Item> empty() {
-            return new OptionalVS<>(boolOps.empty(), itemOps.empty());
-        }
+    @Override
+    public OptionalVS<Item> merge(Iterable<OptionalVS<Item>> summaries) {
+        final List<PrimVS<Boolean>> presentFlagsToMerge = new ArrayList<>();
+        final List<Item> itemsToMerge = new ArrayList<>();
 
-        @Override
-        public OptionalVS<Item> guard(OptionalVS<Item> summary, Bdd guard) {
-            return new OptionalVS<>(
-                boolOps.guard(summary.present, guard),
-                itemOps.guard(summary.item, guard)
-            );
-        }
-
-        @Override
-        public OptionalVS<Item> merge(Iterable<OptionalVS<Item>> summaries) {
-            final List<PrimVS<Boolean>> presentFlagsToMerge = new ArrayList<>();
-            final List<Item> itemsToMerge = new ArrayList<>();
-
-            for (OptionalVS<Item> summary : summaries) {
+        Item mergeItem = this.item;
+        for (OptionalVS<Item> summary : summaries) {
+            if (summary.item != null) {
+                if (this.item == null) mergeItem = summary.item;
                 presentFlagsToMerge.add(summary.present);
                 itemsToMerge.add(summary.item);
             }
-
-            return new OptionalVS<>(
-                boolOps.merge(presentFlagsToMerge),
-                itemOps.merge(itemsToMerge)
-            );
         }
 
-        @Override
-        public PrimVS<Boolean> symbolicEquals(OptionalVS<Item> left, OptionalVS<Item> right, Bdd pc) {
-            Bdd bothPresent = left.present.guardedValues.get(Boolean.TRUE).and(right.present.guardedValues.get(Boolean.TRUE));
-            Bdd bothAbsent = left.present.guardedValues.get(Boolean.FALSE).and(right.present.guardedValues.get(Boolean.FALSE));
-            Bdd equals = itemOps.symbolicEquals(left.item, right.item, pc).guardedValues.get(Boolean.TRUE);
-            return BoolUtils.fromTrueGuard(bothPresent.and(equals).or(bothAbsent).and(pc));
-        }
+        if (mergeItem == null) return new OptionalVS<Item>();
 
-        public OptionalVS<Item> makePresent(Item item) {
-            /* TODO: Strictly speaking, here we create an optional whose 'present' tag may violate
-             *  an implicit invariant by being true under more conditions than we need it
-             *  to be.
-             */
-            return new OptionalVS<>(
-                new PrimVS<>(true),
-                item
-            );
-        }
+        return new OptionalVS<Item>(
+                this.present.merge(presentFlagsToMerge),
+                mergeItem.merge(itemsToMerge)
+        );
+    }
 
-        public OptionalVS<Item> makeAbsent() {
-            /* TODO: Strictly speaking, here we create an optional whose 'present' tag may violate
-             *  an implicit invariant by being false under more conditions than we need it
-             *  to be.
-             */
-            return new OptionalVS<Item>(
-                new PrimVS<>( false),
-                itemOps.empty()
-            );
-        }
-
-        public Item unwrapOrThrow(OptionalVS<Item> summary) {
-            final @Nullable Bdd absentCond = summary.present.guardedValues.get(false);
-            if (absentCond != null && !absentCond.isConstFalse()) {
-                throw new BugFoundException("Attempt to unwrap an absent optional value", absentCond);
+    @Override
+    public PrimVS<Boolean> symbolicEquals(OptionalVS<Item> cmp, Bdd pc) {
+        Bdd bothPresent = this.present.getGuard(Boolean.TRUE).and(cmp.present.getGuard(Boolean.TRUE));
+        Bdd bothAbsent = this.present.getGuard(Boolean.FALSE).and(cmp.present.getGuard(Boolean.FALSE));
+        Bdd equals = Bdd.constFalse();
+        if (this.item == null) {
+            if (cmp.item == null) {
+                equals = Bdd.constTrue();
             }
-
-            return summary.item;
+        } else {
+            equals = this.item.symbolicEquals(cmp.item, pc).getGuard(Boolean.TRUE);
         }
+        return BoolUtils.fromTrueGuard(bothPresent.and(equals).or(bothAbsent).and(pc));
+    }
+
+    public Item unwrapOrThrow() {
+        final @Nullable Bdd absentCond = present.getGuard(false);
+        if ((absentCond != null && !absentCond.isConstFalse()) || item == null) {
+            throw new BugFoundException("Attempt to unwrap an absent optional value", absentCond);
+        }
+        return item;
     }
 }

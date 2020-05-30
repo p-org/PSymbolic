@@ -2,12 +2,10 @@ package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
-public class SetVS<T> {
+public class SetVS<T> implements ValueSummary<SetVS<T>> {
     /* Invariant: 'size' should be consistent with 'elements', in the sense that for any assignment of concrete Bdd
      * variables, the concrete entry in 'size' whose guard is satisfied, if such an entry exists, should match the
      * number of entries in 'elements' whose guards are satisfied.
@@ -19,140 +17,137 @@ public class SetVS<T> {
      */
     public final Map<T, Bdd> elements;
 
+    /** Get all the different possible guarded values */
+    public Iterable<GuardedValue<T>> getElements() {
+        return elements.entrySet().stream()
+                .map(x -> new GuardedValue(x.getKey(), x.getValue())).collect(Collectors.toList());
+    }
+
     /* Caution: Callers must take care to ensure that the above invariants are satisfied. */
     public SetVS(PrimVS<Integer> size, Map<T, Bdd> elements) {
         this.size = size;
         this.elements = elements;
     }
 
-    public SetVS() {
-        this.size = new PrimVS<>(0);
+    public SetVS(Bdd universe) {
+        this.size = new PrimVS<>(0).guard(universe);
         this.elements = new HashMap<>();
     }
 
-    public static class Ops<T> implements ValueSummaryOps<SetVS<T>> {
-        private final PrimVS.Ops<Integer> sizeOps;
+    @Override
+    public boolean isEmpty() {
+        return size.isEmpty();
+    }
 
-        public Ops() {
-            this.sizeOps = new PrimVS.Ops<>();
+    @Override
+    public SetVS<T> guard(Bdd guard) {
+        final PrimVS<Integer> newSize = size.guard(guard);
+
+        final Map<T, Bdd> newElements = new HashMap<>();
+        for (GuardedValue<T> entry : getElements()) {
+            final Bdd newGuard = entry.guard.and(guard);
+            if (newGuard.isConstFalse()) {
+                continue;
+            }
+            newElements.put(entry.value, newGuard);
         }
 
-        @Override
-        public boolean isEmpty(SetVS<T> summary) {
-            return sizeOps.isEmpty(summary.size);
-        }
+        return new SetVS<>(newSize, newElements);
+    }
 
-        @Override
-        public SetVS<T> empty() {
-            return new SetVS<>(sizeOps.empty(), new HashMap<>());
-        }
+    @Override
+    public SetVS<T> merge(Iterable<SetVS<T>> summaries) {
+        List<PrimVS<Integer>> sizesToMerge = new ArrayList<>();
+        final Map<T, Bdd> mergedElements = new HashMap<>();
 
-        @Override
-        public SetVS<T> guard(SetVS<T> summary, Bdd guard) {
-            final PrimVS<Integer> newSize = sizeOps.guard(summary.size, guard);
+        for (SetVS<T> summary : summaries) {
+            sizesToMerge.add(summary.size);
 
-            final Map<T, Bdd> newElements = new HashMap<>();
             for (Map.Entry<T, Bdd> entry : summary.elements.entrySet()) {
-                final Bdd newGuard = entry.getValue().and(guard);
-
-                if (newGuard.isConstFalse()) {
-                    continue;
-                }
-
-                newElements.put(entry.getKey(), newGuard);
+                mergedElements.merge(entry.getKey(), entry.getValue(), Bdd::or);
             }
-
-            return new SetVS<>(newSize, newElements);
         }
 
-        @Override
-        public SetVS<T> merge(Iterable<SetVS<T>> summaries) {
-            List<PrimVS<Integer>> sizesToMerge = new ArrayList<>();
-            final Map<T, Bdd> mergedElements = new HashMap<>();
+        final PrimVS<Integer> mergedSize = size.merge(sizesToMerge);
 
-            for (SetVS<T> summary : summaries) {
-                sizesToMerge.add(summary.size);
+        return new SetVS<>(mergedSize, mergedElements);
+    }
 
-                for (Map.Entry<T, Bdd> entry : summary.elements.entrySet()) {
-                    mergedElements.merge(entry.getKey(), entry.getValue(), Bdd::or);
-                }
+    @Override
+    public SetVS<T> update(Bdd guard, SetVS<T> update) {
+        return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
+    }
+
+    @Override
+    public PrimVS<Boolean> symbolicEquals(SetVS<T> cmp, Bdd pc) {
+        Bdd equalCond = Bdd.constTrue();
+        for (Map.Entry<T, Bdd> entry : elements.entrySet()) {
+            /* Check common elements */
+            if (cmp.elements.containsKey(entry.getKey())) {
+                equalCond = (entry.getValue().and(cmp.elements.get(entry.getKey()))) //both present
+                        .or(entry.getValue().or(cmp.elements.get(entry.getKey())).not()) //both not present
+                        .and(equalCond);
             }
-
-            final PrimVS<Integer> mergedSize = sizeOps.merge(sizesToMerge);
-
-            return new SetVS<>(mergedSize, mergedElements);
+            /* Elements unique to this must not be present*/
+            else {
+                equalCond = entry.getValue().not().and(equalCond);
+            }
         }
-
-        @Override
-        public PrimVS<Boolean> symbolicEquals(SetVS<T> left, SetVS<T> right, Bdd pc) {
-            Bdd equalCond = Bdd.constTrue();
-            for (Map.Entry<T, Bdd> entry : left.elements.entrySet()) {
-                /* Check common elements */
-                if (right.elements.containsKey(entry.getKey())) {
-                    equalCond = (entry.getValue().and(right.elements.get(entry.getKey()))) //both present
-                            .or(entry.getValue().or(right.elements.get(entry.getKey())).not()) //both not present
-                            .and(equalCond);
-                }
-                /* Elements unique to left must not be present*/
-                else {
-                    equalCond = entry.getValue().not().and(equalCond);
-                }
+        for (Map.Entry<T, Bdd> entry : cmp.elements.entrySet()) {
+            /* Elements unique to cmp must not be present*/
+            if (!cmp.elements.containsKey(entry.getKey())) {
+                equalCond = entry.getValue().not().and(equalCond);
             }
-            for (Map.Entry<T, Bdd> entry : right.elements.entrySet()) {
-                /* Elements unique to right must not be present*/
-                if (!right.elements.containsKey(entry.getKey())) {
-                    equalCond = entry.getValue().not().and(equalCond);
-                }
-            }
-            return BoolUtils.fromTrueGuard(pc.and(equalCond));
         }
+        return BoolUtils.fromTrueGuard(pc.and(equalCond));
+    }
 
-        public PrimVS<Boolean>
-        contains(SetVS<T> setSummary, PrimVS<T> itemSummary) {
-            return itemSummary.flatMap(
-                new PrimVS.Ops<>(),
+    @Override
+    public Bdd getUniverse() {
+        return size.getUniverse();
+    }
+
+    public PrimVS<Boolean> contains(PrimVS<T> itemSummary) {
+        return itemSummary.applyVS(
+                new PrimVS<>(),
                 (item) -> {
-                    Bdd itemGuard = setSummary.elements.get(item);
+                    Bdd itemGuard = elements.get(item);
                     if (itemGuard == null) {
                         itemGuard = Bdd.constFalse();
                     }
 
                     return BoolUtils.fromTrueGuard(itemGuard);
                 });
+    }
+
+    public SetVS<T> add(PrimVS<T> itemSummary) {
+        // Update size only when item exists
+        final PrimVS<Integer> newSize = size.update(itemSummary.getUniverse(), IntegerUtils.add(size, 1));
+
+        final Map<T, Bdd> newElements = new HashMap<>(elements);
+        for (GuardedValue<T> entry : itemSummary.getGuardedValues()) {
+            newElements.merge(entry.value, entry.guard, Bdd::or);
         }
 
-        public SetVS<T>
-        add(SetVS<T> setSummary, PrimVS<T> itemSummary) {
-            final PrimVS<Integer> newSize = setSummary.size.map((sizeVal) -> sizeVal + 1);
+        return new SetVS<>(newSize, newElements);
+    }
 
-            final Map<T, Bdd> newElements = new HashMap<>(setSummary.elements);
-            for (Map.Entry<T, Bdd> entry : itemSummary.guardedValues.entrySet()) {
-                newElements.merge(entry.getKey(), entry.getValue(), Bdd::or);
+    public SetVS<T> remove(PrimVS<T> itemSummary) {
+        // Is the item contained?
+        final PrimVS<Boolean> contained = contains(itemSummary);
+        // Update size only when item contained
+        final PrimVS<Integer> newSize = size.update(BoolUtils.trueCond(contained), IntegerUtils.subtract(size, 1));
+
+        final Map<T, Bdd> newElements = new HashMap<>(elements);
+        for (GuardedValue<T> entry : itemSummary.getGuardedValues()) {
+            final Bdd oldGuard = elements.get(entry.value);
+            if (oldGuard == null) {
+                continue;
             }
-
-            return new SetVS<>(newSize, newElements);
+            final Bdd newGuard = oldGuard.and(entry.guard.not());
+            newElements.put(entry.value, newGuard);
         }
 
-        public SetVS<T>
-        remove(SetVS<T> setSummary, PrimVS<T> itemSummary) {
-            final PrimVS<Integer> newSize =
-                setSummary.size.map2(
-                    contains(setSummary, itemSummary),
-                    (oldSize, alreadyContains) -> alreadyContains ? oldSize - 1 : oldSize
-                );
-
-            final Map<T, Bdd> newElements = new HashMap<>(setSummary.elements);
-            for (Map.Entry<T, Bdd> entry : itemSummary.guardedValues.entrySet()) {
-                final Bdd oldGuard = setSummary.elements.get(entry.getKey());
-                if (oldGuard == null) {
-                    continue;
-                }
-
-                final Bdd newGuard = oldGuard.and(entry.getValue().not());
-                newElements.put(entry.getKey(), newGuard);
-            }
-
-            return new SetVS<>(newSize, newElements);
-        }
+        return new SetVS<>(newSize, newElements);
     }
 }

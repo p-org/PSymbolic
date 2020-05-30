@@ -4,7 +4,7 @@ import symbolicp.bdd.Bdd;
 
 import java.util.*;
 
-public class MapVS<K, V> {
+public class MapVS<K extends ValueSummary<K>, V extends ValueSummary<V>> implements ValueSummary<MapVS<K,V>> {
     public final SetVS<K> keys;
     public final Map<K, V> entries;
 
@@ -13,8 +13,8 @@ public class MapVS<K, V> {
         this.entries = entries;
     }
 
-    public MapVS() {
-        this.keys = new SetVS<>();
+    public MapVS(Bdd universe) {
+        this.keys = new SetVS<K>(universe);
         this.entries = new HashMap<>();
     }
 
@@ -22,157 +22,149 @@ public class MapVS<K, V> {
         return keys.size;
     }
 
-    public static class Ops<K, V> implements ValueSummaryOps<MapVS<K, V>> {
-        private final SetVS.Ops<K> setOps;
-        private final ValueSummaryOps<V> valueOps;
+    @Override
+    public boolean isEmpty() {
+        return keys.isEmpty();
+    }
 
-        public Ops(ValueSummaryOps<V> valueOps) {
-            this.setOps = new SetVS.Ops<>();
-            this.valueOps = valueOps;
+    @Override
+    public MapVS<K, V> guard(Bdd guard) {
+        final SetVS<K> newKeys = keys.guard(guard);
+        final Map<K, V> newEntries = new HashMap<>();
+
+        for (Map.Entry<K, V> entry : entries.entrySet()) {
+            final V newValue = entry.getValue().guard(guard);
+            if (!newValue.isEmpty()) {
+                newEntries.put(entry.getKey(), newValue);
+            }
+        }
+        return new MapVS<>(newKeys, newEntries);
+    }
+
+    @Override
+    public MapVS<K, V> merge(Iterable<MapVS<K, V>> summaries) {
+        final List<SetVS<K>> keysToMerge = new ArrayList<>();
+        final Map<K, List<V>> valuesToMerge = new HashMap<>();
+
+        // add this set of entries' values, too
+        for (Map.Entry<K, V> entry : entries.entrySet()) {
+            valuesToMerge
+                    .computeIfAbsent(entry.getKey(), (key) -> new ArrayList<>())
+                    .add(entry.getValue());
         }
 
-
-        @Override
-        public boolean isEmpty(MapVS<K, V> summary) {
-            return setOps.isEmpty(summary.keys);
-        }
-
-        @Override
-        public MapVS<K, V> empty() {
-            return new MapVS<>(setOps.empty(), new HashMap<>());
-        }
-
-        @Override
-        public MapVS<K, V> guard(MapVS<K, V> summary, Bdd guard) {
-            final SetVS<K> newKeys = setOps.guard(summary.keys, guard);
-            final Map<K, V> newEntries = new HashMap<>();
+        for (MapVS<K, V> summary : summaries) {
+            keysToMerge.add(summary.keys);
 
             for (Map.Entry<K, V> entry : summary.entries.entrySet()) {
-                final V newValue = valueOps.guard(entry.getValue(), guard);
-                if (!valueOps.isEmpty(newValue)) {
-                    newEntries.put(entry.getKey(), newValue);
-                }
-            }
-
-            return new MapVS<>(newKeys, newEntries);
-        }
-
-        @Override
-        public MapVS<K, V> merge(Iterable<MapVS<K, V>> summaries) {
-            final List<SetVS<K>> keysToMerge = new ArrayList<>();
-            final Map<K, List<V>> valuesToMerge = new HashMap<>();
-
-            for (MapVS<K, V> summary : summaries) {
-                keysToMerge.add(summary.keys);
-
-                for (Map.Entry<K, V> entry : summary.entries.entrySet()) {
-                    valuesToMerge
+                valuesToMerge
                         .computeIfAbsent(entry.getKey(), (key) -> new ArrayList<>())
                         .add(entry.getValue());
-                }
             }
-
-            final SetVS<K> mergedKeys = setOps.merge(keysToMerge);
-
-            final Map<K, V> mergedValues = new HashMap<>();
-            for (Map.Entry<K, List<V>> entriesToMerge : valuesToMerge.entrySet()) {
-                mergedValues.put(entriesToMerge.getKey(), valueOps.merge(entriesToMerge.getValue()));
-            }
-
-            return new MapVS<>(mergedKeys, mergedValues);
         }
 
-        @Override
-        public PrimVS<Boolean> symbolicEquals(MapVS<K, V> left, MapVS<K, V> right, Bdd pc) {
-            Bdd equalCond = Bdd.constTrue();
+        final SetVS<K> mergedKeys = keys.merge(keysToMerge);
 
-            for (Map.Entry<K, Bdd> entry : left.keys.elements.entrySet()) {
-                /* Check common k v pairs */
-                if (right.keys.elements.containsKey(entry.getKey())) {
-                    Bdd presentAndEqual = (entry.getValue().and(right.keys.elements.get(entry.getKey())))
-                            .and(valueOps.symbolicEquals(left.entries.get(entry.getKey()),
-                                    right.entries.get(entry.getKey()), pc).guardedValues.get(Boolean.TRUE));
-                    Bdd absent = entry.getValue().or(right.keys.elements.get(entry.getKey())).not();
-                    equalCond = absent.or(presentAndEqual).and(equalCond);
-                }
-                /* Keys unique to left must not be present*/
-                else {
-                    equalCond = entry.getValue().not().and(equalCond);
-                }
+        final Map<K, V> mergedValues = new HashMap<>();
+        for (Map.Entry<K, List<V>> entriesToMerge : valuesToMerge.entrySet()) {
+            List<V> toMerge = entriesToMerge.getValue();
+            if (toMerge.size() > 0) {
+                mergedValues.put(entriesToMerge.getKey(), toMerge.get(0).merge(toMerge.subList(1, toMerge.size())));
+            }
+        }
+
+        return new MapVS<>(mergedKeys, mergedValues);
+    }
+
+    @Override
+    public MapVS<K, V> update(Bdd guard, MapVS<K, V> update) {
+        return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
+    }
+
+    @Override
+    public PrimVS<Boolean> symbolicEquals(MapVS<K, V> cmp, Bdd pc) {
+        Bdd equalCond = Bdd.constTrue();
+
+        for (Map.Entry<K, Bdd> entry : this.keys.elements.entrySet()) {
+            /* Check common k v pairs */
+            if (cmp.keys.elements.containsKey(entry.getKey())) {
+                Bdd presentAndEqual = (entry.getValue().and(cmp.keys.elements.get(entry.getKey())))
+                        .and(this.entries.get(entry.getKey()).symbolicEquals(
+                                cmp.entries.get(entry.getKey()), pc).getGuard(Boolean.TRUE));
+                Bdd absent = entry.getValue().or(cmp.keys.elements.get(entry.getKey())).not();
+                equalCond = absent.or(presentAndEqual).and(equalCond);
+            }
+            /* Keys unique to this must not be present*/
+            else {
+                equalCond = entry.getValue().not().and(equalCond);
+            }
+        }
+
+        for (Map.Entry<K, Bdd> entry : cmp.keys.elements.entrySet()) {
+            /* Keys unique to cmp must not be present*/
+            if (!cmp.keys.elements.containsKey(entry.getKey())) {
+                equalCond = entry.getValue().not().and(equalCond);
+            }
+        }
+        return BoolUtils.fromTrueGuard(pc.and(equalCond));
+    }
+
+    @Override
+    public Bdd getUniverse() {
+        return keys.getUniverse();
+    }
+
+    public MapVS<K, V> put(PrimVS<K> keySummary, V valSummary) {
+        final SetVS<K> newKeys = keys.add(keySummary);
+        final Map<K, V> newEntries = new HashMap<>(entries);
+        for (GuardedValue<K> guardedKey : keySummary.getGuardedValues()) {
+            V oldVal = entries.get(guardedKey.value);
+            if (oldVal == null) {
+                newEntries.put(guardedKey.value, valSummary);
+            } else {
+                newEntries.put(guardedKey.value, oldVal.update(guardedKey.guard, valSummary));
+            }
+        }
+
+        return new MapVS<>(newKeys, newEntries);
+    }
+
+    // TODO: Some parts of the non-symbolic P compiler and runtime seem to make a distinction
+    //  between 'add' and 'put'.  Should we?
+    public MapVS<K, V> add(PrimVS<K> keySummary, V valSummary) {
+        return put(keySummary, valSummary);
+    }
+
+    public MapVS<K, V> remove(PrimVS<K> keySummary) {
+        final SetVS<K> newKeys = keys.remove(keySummary);
+
+        final Map<K, V> newEntries = new HashMap<>(entries);
+        for (GuardedValue<K> guardedKey : keySummary.getGuardedValues()) {
+            V oldVal = entries.get(guardedKey.value);
+            if (oldVal == null) {
+                continue;
             }
 
-            for (Map.Entry<K, Bdd> entry : right.keys.elements.entrySet()) {
-                /* Keys unique to right must not be present*/
-                if (!left.keys.elements.containsKey(entry.getKey())) {
-                    equalCond = entry.getValue().not().and(equalCond);
-                }
+            final V remainingVal = oldVal.guard(guardedKey.guard.not());
+            if (remainingVal.isEmpty()) {
+                newEntries.remove(guardedKey.value);
+            } else {
+                newEntries.put(guardedKey.value, remainingVal);
             }
-            return BoolUtils.fromTrueGuard(pc.and(equalCond));
         }
 
+        return new MapVS<>(newKeys, newEntries);
+    }
 
-        // FIXME: putting new entries do not update keys.size
-        public MapVS<K, V>
-        put(MapVS<K, V> mapSummary, PrimVS<K> keySummary, V valSummary) {
-            final SetVS<K> newKeys = setOps.add(mapSummary.keys, keySummary);
+    public OptionalVS<V> get(PrimVS<K> keySummary) {
+        final PrimVS<Boolean> containsKeySummary = keys.contains(keySummary);
 
-            final Map<K, V> newEntries = new HashMap<>(mapSummary.entries);
-            for (Map.Entry<K, Bdd> guardedKey : keySummary.guardedValues.entrySet()) {
-                V oldVal = mapSummary.entries.get(guardedKey.getKey());
-                if (oldVal == null) {
-                    oldVal = valueOps.empty();
-                }
-
-                final V guardedOldVal = valueOps.guard(oldVal, guardedKey.getValue().not());
-                final V guardedNewVal = valueOps.guard(valSummary, guardedKey.getValue());
-                newEntries.put(guardedKey.getKey(), valueOps.merge(Arrays.asList(guardedOldVal, guardedNewVal)));
+        return containsKeySummary.applyVS(new OptionalVS<>(), (containsKey) -> {
+            if (containsKey) {
+                return keySummary.applyVS(new OptionalVS<>(), (key) -> new OptionalVS<V>(entries.get(key)));
+            } else {
+                return new OptionalVS<V>(Bdd.constFalse());
             }
-
-            return new MapVS<>(newKeys, newEntries);
-        }
-
-        // TODO: Some parts of the non-symbolic P compiler and runtime seem to make a distinction
-        //  between 'add' and 'put'.  Should we?
-        public MapVS<K, V>
-        add(MapVS<K, V> mapSummary, PrimVS<K> keySummary, V valSummary) {
-            return put(mapSummary, keySummary, valSummary);
-        }
-
-        public MapVS<K, V>
-        remove(MapVS<K, V> mapSummary, PrimVS<K> keySummary) {
-            final SetVS<K> newKeys = setOps.remove(mapSummary.keys, keySummary);
-
-            final Map<K, V> newEntries = new HashMap<>(mapSummary.entries);
-            for (Map.Entry<K, Bdd> guardedKey : keySummary.guardedValues.entrySet()) {
-                V oldVal = mapSummary.entries.get(guardedKey.getKey());
-                if (oldVal == null) {
-                    continue;
-                }
-
-                final V remainingVal = valueOps.guard(oldVal, guardedKey.getValue().not());
-                if (valueOps.isEmpty(remainingVal)) {
-                    newEntries.remove(guardedKey.getKey());
-                } else {
-                    newEntries.put(guardedKey.getKey(), remainingVal);
-                }
-            }
-
-            return new MapVS<>(newKeys, newEntries);
-        }
-
-        public OptionalVS<V>
-        get(MapVS<K, V> mapSummary, PrimVS<K> keySummary) {
-            final OptionalVS.Ops<V> resultOps = new OptionalVS.Ops<>(valueOps);
-
-            final PrimVS<Boolean> containsKeySummary = setOps.contains(mapSummary.keys, keySummary);
-
-            return containsKeySummary.flatMap(resultOps, (containsKey) -> {
-                if (containsKey) {
-                    return keySummary.flatMap(resultOps, (key) -> resultOps.makePresent(mapSummary.entries.get(key)));
-                } else {
-                    return resultOps.makeAbsent();
-                }
-            });
-        }
+        });
     }
 }

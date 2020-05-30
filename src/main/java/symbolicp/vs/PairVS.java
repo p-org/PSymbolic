@@ -13,7 +13,7 @@ import java.util.List;
  * 2. Synthesize tuples of arbitrary size during codegen in the P compiler.
  * 3. Sacrifice some type safety and create a single N-ary tuple class over dynamically typed value summaries.
  */
-public class PairVS<Left, Right> {
+public class PairVS<Left, Right> implements ValueSummary{
     /* Invariant: 'left' and 'right' should be "possible under the same conditions."
      *
      * Formally, for any Bdd 'cond' we should have
