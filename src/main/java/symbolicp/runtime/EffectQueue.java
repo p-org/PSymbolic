@@ -51,26 +51,23 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
     }
 
     public static class InitEffect extends Effect {
-        final ValueSummaryOps payloadOps;
-        final Object payload;
+        final ValueSummary payload;
 
-        public InitEffect(ValueSummaryOps payloadOps, Bdd cond, MachineRefVS machine, Object payload) {
+        public InitEffect(Bdd cond, MachineRefVS machine, ValueSummary payload) {
             super(cond, machine);
-            this.payloadOps = payloadOps;
             this.payload = payload;
         }
 
         public InitEffect(Bdd cond, MachineRefVS machine) {
-            this(null, cond, machine, null);
+            this(cond, machine, null);
         }
 
         @Override
         public Effect withCond(Bdd guard) {
                 return new InitEffect(
-                        payloadOps,
                         guard,
                         target.guard(guard),
-                        payload != null ? payloadOps.guard(payload, guard) : null
+                        payload != null ? payload.guard(guard) : null
                 );
         }
 
@@ -101,16 +98,15 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
             Bdd pc,
             Scheduler scheduler,
             MachineTag tag,
-            ValueSummaryOps payloadOps,
-            Object payload,
+            ValueSummary payload,
             Function<Integer, BaseMachine> constructor
     ) {
         MachineRefVS ref = scheduler.allocateMachineId(pc, tag, constructor);
-        enqueueEntry(new InitEffect(payloadOps, pc, ref, payload));
+        enqueueEntry(new InitEffect(pc, ref, payload));
         return ref;
     }
 
     public MachineRefVS create(Bdd pc, Scheduler scheduler, MachineTag tag, Function<Integer, BaseMachine> constructor) {
-        return create( pc, scheduler, tag, null, null, constructor);
+        return create(pc, scheduler, tag, null, constructor);
     }
 }

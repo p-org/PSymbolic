@@ -4,6 +4,7 @@ import symbolicp.bdd.Bdd;
 import symbolicp.vs.UnionVS;
 import symbolicp.vs.MachineRefVS;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.ValueSummary;
 
 import java.util.HashMap;
 import java.util.List;
@@ -97,7 +98,7 @@ public abstract class BaseMachine {
             GotoOutcome gotoOutcome, // 'out' parameter
             RaiseOutcome raiseOutcome, // 'out' parameter
             PrimVS<StateTag> newState,
-            Map<StateTag, Object> payloads
+            Map<StateTag, ValueSummary> payloads
     ) {
         LOGGER.onProcessStateTransition(pc, this, newState);
         if (this.state == null) {

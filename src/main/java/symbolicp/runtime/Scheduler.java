@@ -9,11 +9,6 @@ import java.util.*;
 import java.util.function.Function;
 
 public class Scheduler {
-    /** eventOps are value summary (VS) ops;
-     * every type of VS has its own ops type created at runtime that represent the ops that can be done on them
-     * events have payloads whose types are dynamically determined (can have different event types and payload types)
-     * so we need to make an ops for event data structure
-     */
 
     public static void debug(String str) {
         System.err.println("[SCHEDULER]: " + str);

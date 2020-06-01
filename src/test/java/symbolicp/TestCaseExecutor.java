@@ -60,6 +60,9 @@ public class TestCaseExecutor {
 
         Process process;
         try {
+            System.out.println("compilation start");
+            System.out.println(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s\n"
+                                                    , compilerDirectory, testCasePath, outputDirectory));
             if (isWindows) {
                 process = Runtime.getRuntime()
                         .exec(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s"
@@ -75,10 +78,12 @@ public class TestCaseExecutor {
             }
 
             int exitCode = process.waitFor();
+            System.out.println("compilation finish");
 
             if (exitCode != 0) return 1;
         }
         catch (IOException | InterruptedException e) {
+            System.out.println("compilation failure");
             e.printStackTrace();
         }
 
@@ -93,6 +98,7 @@ public class TestCaseExecutor {
         }
         catch (Exception e) {
             // Dynamic compilation exceptions are considered as Static Errors
+            System.out.println("compilation failure");
             e.printStackTrace();
             return 1;
         }
@@ -100,6 +106,7 @@ public class TestCaseExecutor {
             r.call("main", (Object) new String[] {});
         }
         catch (Exception | AssertionError e) {
+            System.out.println("call failure");
             e.printStackTrace();
             return 2;
         }

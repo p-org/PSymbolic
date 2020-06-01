@@ -2,7 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.PrimVS;
-import symbolicp.vs.ValueSummaryOps;
+import symbolicp.vs.ValueSummary;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +11,7 @@ public class GotoOutcome {
 
     private Bdd cond;
     private PrimVS<StateTag> dest;
-    private Map<StateTag, Object> payloads;
+    private Map<StateTag, ValueSummary> payloads;
 
     public GotoOutcome() {
 
@@ -32,20 +32,20 @@ public class GotoOutcome {
         return dest;
     }
 
-    public Map<StateTag, Object> getPayloads() {
+    public Map<StateTag, ValueSummary> getPayloads() {
         return payloads;
     }
 
-    public void addGuardedGoto(Bdd pc, StateTag newDest, ValueSummaryOps payloadOps, Object newPayload) {
+    public void addGuardedGoto(Bdd pc, StateTag newDest, ValueSummary newPayload) {
         cond = cond.or(pc);
         dest = dest.merge(new PrimVS<>(newDest).guard(pc));
 
         if (newPayload != null) {
-            payloads.merge(newDest, newPayload, payloadOps::merge2);
+            payloads.merge(newDest, newPayload, (x, y) -> x.merge(y));
         }
     }
 
     public void addGuardedGoto(Bdd pc, StateTag newDest) {
-        addGuardedGoto(pc, newDest, null, null);
+        addGuardedGoto(pc, newDest, null);
     }
 }
