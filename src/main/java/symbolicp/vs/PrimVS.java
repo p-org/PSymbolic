@@ -6,7 +6,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class PrimVS<T> {
+public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     /** The guards on these values *must* be mutually exclusive.
      *
      * In other words, for any two 'value1', 'value2' of type T, the following must be identically false:
@@ -27,6 +27,35 @@ public class PrimVS<T> {
      */
     public PrimVS(Map<T, Bdd> guardedValues) {
         this.guardedValues = guardedValues;
+    }
+
+    @Override
+    public PrimVS<T> guard(Bdd cond) {
+        final Map<T, Bdd> result = new HashMap<>();
+
+        for (Map.Entry<T, Bdd> entry : guardedValues.entrySet()) {
+            final Bdd newEntryGuard = entry.getValue().and(cond);
+            if (!newEntryGuard.isConstFalse()) {
+                result.put(entry.getKey(), newEntryGuard);
+            }
+        }
+
+        return new PrimVS<>(result);
+    }
+
+    @Override
+    public PrimVS<T> merge(PrimVS<T> other) {
+        final Map<T, Bdd> result = new HashMap<>();
+
+        for (Map.Entry<T, Bdd> entry : this.guardedValues.entrySet()) {
+            result.merge(entry.getKey(), entry.getValue(), Bdd::or);
+        }
+
+        for (Map.Entry<T, Bdd> entry : other.guardedValues.entrySet()) {
+            result.merge(entry.getKey(), entry.getValue(), Bdd::or);
+        }
+
+        return new PrimVS<>(result);
     }
 
     public <U> PrimVS<U> map(Function<T, U> function) {

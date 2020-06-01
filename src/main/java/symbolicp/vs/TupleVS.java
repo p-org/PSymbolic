@@ -5,10 +5,10 @@ import symbolicp.bdd.Bdd;
 import java.util.ArrayList;
 import java.util.stream.IntStream;
 
-public class TupleVS {
-    private final Object[] fields;
+public class TupleVS implements ValueSummary<TupleVS> {
+    private final ValueSummary[] fields;
 
-    public TupleVS(Object... items) {
+    public TupleVS(ValueSummary... items) {
         this.fields = items;
     }
 
@@ -16,10 +16,28 @@ public class TupleVS {
         return fields[i];
     }
 
-    public TupleVS setField(int i, Object val) {
-        final Object[] newItems = new Object[fields.length];
+    public TupleVS setField(int i, ValueSummary val) {
+        final ValueSummary[] newItems = new ValueSummary[fields.length];
         System.arraycopy(fields, 0, newItems, 0, fields.length);
         newItems[i] = val;
+        return new TupleVS(newItems);
+    }
+
+    @Override
+    public TupleVS guard(Bdd cond) {
+        final ValueSummary[] newItems = new ValueSummary[fields.length];
+        for (int i = 0; i < fields.length; i++) {
+            newItems[i] = fields[i].guard(cond);
+        }
+        return new TupleVS(newItems);
+    }
+
+    @Override
+    public TupleVS merge(TupleVS other) {
+        final ValueSummary[] newItems = new ValueSummary[fields.length];
+        for (int i = 0; i < fields.length; i++) {
+            newItems[i] = this.fields[i].merge(other.fields[i]);
+        }
         return new TupleVS(newItems);
     }
 
