@@ -42,7 +42,7 @@ public abstract class BaseMachine {
         }
     }
 
-    public void start(Bdd pc, Object payload) {
+    public void start(Bdd pc, ValueSummary payload) {
         
         this.state = this.state.guard(pc.not()).merge(new PrimVS<>(startState).guard(pc));
 
@@ -115,7 +115,7 @@ public abstract class BaseMachine {
         for (Map.Entry<StateTag, Bdd> entry : newState.guardedValues.entrySet()) {
             StateTag tag = entry.getKey();
             Bdd transitionCond = entry.getValue();
-            Object payload = payloads.get(tag);
+            ValueSummary payload = payloads.get(tag);
             states.get(tag).entry(transitionCond, this, gotoOutcome, raiseOutcome, payload);
         }
         LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);

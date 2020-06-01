@@ -3,6 +3,7 @@ package symbolicp.runtime;
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
 import symbolicp.vs.UnionVS;
+import symbolicp.vs.ValueSummary;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +12,7 @@ public abstract class State {
     public final StateTag stateTag;
     private final Map<EventTag, EventHandler> eventHandlers;
 
-    public void entry(Bdd pc, BaseMachine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome, Object payload) {}
+    public void entry(Bdd pc, BaseMachine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome, ValueSummary payload) {}
     public void exit(Bdd pc, BaseMachine machine) {}
 
     public State(StateTag stateTag, EventHandler... eventHandlers) {
