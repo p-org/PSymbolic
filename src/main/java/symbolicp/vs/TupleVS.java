@@ -12,6 +12,9 @@ public class TupleVS implements ValueSummary<TupleVS> {
         this.fields = items;
     }
 
+    @Deprecated
+    public TupleVS(Object... fields) {this.fields = (ValueSummary[]) fields;}
+
     public Object getField(int i) {
         return fields[i];
     }
@@ -41,6 +44,7 @@ public class TupleVS implements ValueSummary<TupleVS> {
         return new TupleVS(newItems);
     }
 
+    @Deprecated
     public static class Ops implements ValueSummaryOps<TupleVS> {
         private final ValueSummaryOps[] fieldOps;
 

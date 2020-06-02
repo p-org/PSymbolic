@@ -4,6 +4,7 @@ import symbolicp.bdd.Bdd;
 
 import java.util.Arrays;
 
+@Deprecated
 public interface ValueSummaryOps<ValueSummary> {
     /** Informally, a value summary is "empty" if it contains no values (or, equivalently, if all of its values are
      * guarded by conditions which are identically false).

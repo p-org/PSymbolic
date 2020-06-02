@@ -1,10 +1,13 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.util.NotImplementedException;
 
 public interface ValueSummary<Self extends ValueSummary<Self>> {
     Self guard(Bdd cond);
     Self merge(Self other);
+
+    default PrimVS<Boolean> symbolicEquals(Self other, Bdd pc) {throw new NotImplementedException();}
 
     // There are two important design questions here that I consider open: how do we represent 'empty' (which is needed
     // for correctness in some places), and how do we represent merges of more than two value summaries (which is
