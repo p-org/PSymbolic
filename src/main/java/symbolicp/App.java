@@ -22,7 +22,7 @@ public class App {
 
         final PrimVS<Integer> val3 = val1.apply2(val2, (x, y) -> x + y);
 
-        System.out.println("val3: " + val3.guardedValues);
+        System.out.println("val3: " + val3.getGuardedValues());
 
         ListVS<PrimVS<Integer>> myList = new ListVS<>(Bdd.constFalse());
         myList = myList.add(val2);
@@ -30,7 +30,7 @@ public class App {
 
         final OptionalVS<PrimVS<Integer>> dependentItem =
             myList.get(val1);
-        System.out.println("Dependent item present: " + dependentItem.present.guardedValues);
-        System.out.println("Dependent item content: " + dependentItem.unwrapOrThrow().guardedValues);
+        System.out.println("Dependent item present: " + dependentItem.present.getGuardedValues());
+        System.out.println("Dependent item content: " + dependentItem.unwrapOrThrow().getGuardedValues());
     }
 }

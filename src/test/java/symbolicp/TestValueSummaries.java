@@ -23,15 +23,13 @@ public class TestValueSummaries {
         PrimVS<Integer> var_xg = new PrimVS<Integer>(1).guard(bdd1);
         PrimVS<Integer> var_yg = new PrimVS<Integer>(1).guard(bdd1.not());
 
-        assertTrue(var_x.symbolicEquals(var_y, path).guardedValues
-                .getOrDefault(true, Bdd.constFalse()).isConstTrue());
+        assertTrue(var_x.symbolicEquals(var_y, path).getGuard(true).isConstTrue());
 
         PrimVS<Integer> var_x1 = var_x.guard(bdd1.not()).merge(var_xg);
         PrimVS<Integer> var_y1 = var_y.guard(bdd1).merge(var_yg);
 
 
-        assertTrue(var_x1.symbolicEquals(var_y1, path).guardedValues
-                .getOrDefault(false, Bdd.constFalse()).isConstTrue());
+        assertTrue(var_x1.symbolicEquals(var_y1, path).getGuard(false).isConstTrue());
     }
 
     @Test
@@ -52,13 +50,11 @@ public class TestValueSummaries {
         set_1 = set_1.add(var_y0);
         set_1 = set_1.add(var_y1);
 
-        assertTrue(set_0.symbolicEquals(set_1, path).guardedValues
-                .getOrDefault(true, Bdd.constFalse()).isConstTrue());
+        assertTrue(set_0.symbolicEquals(set_1, path).getGuard(true).isConstTrue());
 
         set_1 = set_1.remove(var_y0);
 
-        assertTrue(set_1.symbolicEquals(set_0, path).guardedValues
-                .getOrDefault(false, Bdd.constFalse()).isConstTrue());
+        assertTrue(set_1.symbolicEquals(set_0, path).getGuard(false).isConstTrue());
     }
 
     @Test
@@ -75,19 +71,16 @@ public class TestValueSummaries {
         MapVS<Integer, PrimVS<Integer>> map_0 = new MapVS<>(Bdd.constFalse());
         MapVS<Integer, PrimVS<Integer>> map_1 = new MapVS<>(Bdd.constFalse());
 
-        assertTrue(map_0.symbolicEquals(map_1, path).guardedValues
-                .getOrDefault(true, Bdd.constFalse()).isConstTrue());
+        assertTrue(map_0.symbolicEquals(map_1, path).getGuard(true).isConstTrue());
 
         map_0 = map_0.add(var_x0, var_x1);
         map_1 = map_1.add(var_y0, var_y1);
 
-        assertTrue(map_0.symbolicEquals(map_1, path).guardedValues
-                .getOrDefault(true, Bdd.constFalse()).isConstTrue());
+        assertTrue(map_0.symbolicEquals(map_1, path).getGuard(true).isConstTrue());
 
         //map_0 = ops_map.add(map_0, var_y2, var_x0);
         map_1 = map_1.add(var_y2, var_y1);
-        assertTrue(map_0.symbolicEquals(map_1, path).guardedValues
-                .getOrDefault(false, Bdd.constFalse()).isConstTrue());
+        assertTrue(map_0.symbolicEquals(map_1, path).getGuard(false).isConstTrue());
     }
 
     @Test
@@ -106,8 +99,7 @@ public class TestValueSummaries {
         ListVS<PrimVS<Integer>> list_0 = new ListVS<>(path);
         ListVS<PrimVS<Integer>> list_1 = new ListVS<>(path);
 
-        assertTrue(list_0.symbolicEquals(list_1, path).guardedValues
-                .getOrDefault(true, Bdd.constFalse()).isConstTrue());
+        assertTrue(list_0.symbolicEquals(list_1, path).getGuard(true).isConstTrue());
 
         list_0 = list_0.add(var_x0);
         list_0 = list_0.add(var_x1);
@@ -118,13 +110,11 @@ public class TestValueSummaries {
         list_1 = list_1.add(var_y1);
         list_1 = list_1.add(var_y2);
 
-        assertTrue(list_0.symbolicEquals(list_1, path).guardedValues
-                .getOrDefault(false, Bdd.constFalse()).isConstTrue());
+        assertTrue(list_0.symbolicEquals(list_1, path).getGuard(false).isConstTrue());
 
         list_1 = list_1.removeAt(var_y0).unwrapOrThrow();
 
-        assertTrue(list_0.symbolicEquals(list_1, path).guardedValues
-                .getOrDefault(true, Bdd.constFalse()).isConstTrue());
+        assertTrue(list_0.symbolicEquals(list_1, path).getGuard(true).isConstTrue());
     }
 
 }

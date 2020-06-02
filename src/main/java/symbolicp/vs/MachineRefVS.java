@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/** Class for machine ref value summaries */
 public class MachineRefVS implements ValueSummary<MachineRefVS> {
     public final PrimVS<MachineTag> tag;
     public final PrimVS<Integer> id;
@@ -33,8 +34,8 @@ public class MachineRefVS implements ValueSummary<MachineRefVS> {
     }
 
     @Override
-    public boolean isEmpty() {
-            return this.tag.isEmpty();
+    public boolean isEmptyVS() {
+            return this.tag.isEmptyVS();
     }
 
     @Override

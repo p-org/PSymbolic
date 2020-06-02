@@ -85,10 +85,10 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
     }
 
     public void send(Bdd pc, MachineRefVS dest, PrimVS<EventTag> eventTag, ValueSummary payload) {
-        if (eventTag.guardedValues.size() > 1) {
+        if (eventTag.getGuardedValues().size() > 1) {
             throw new NotImplementedException();
         }
-        EventTag concreteTag = eventTag.guardedValues.keySet().iterator().next();
+        EventTag concreteTag = eventTag.getValues().iterator().next();
         Map<EventTag, ValueSummary> payloadMap = new HashMap<>();
         payloadMap.put(concreteTag, payload);
         enqueueEntry(new SendEffect(pc, dest, new UnionVS<EventTag>(eventTag, payloadMap)));

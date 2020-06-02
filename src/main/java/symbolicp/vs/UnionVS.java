@@ -2,10 +2,10 @@ package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.runtime.Tag;
-import symbolicp.util.NotImplementedException;
 
 import java.util.*;
 
+/** Class for union value summaries */
 public class UnionVS<T extends Tag> implements ValueSummary<UnionVS<T>> {
 
     private PrimVS<T> tag;
@@ -36,8 +36,8 @@ public class UnionVS<T extends Tag> implements ValueSummary<UnionVS<T>> {
     }
 
     @Override
-    public boolean isEmpty() {
-        return tag.isEmpty();
+    public boolean isEmptyVS() {
+        return tag.isEmptyVS();
     }
 
     @Override

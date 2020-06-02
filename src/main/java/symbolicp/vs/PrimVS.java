@@ -7,7 +7,11 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/** Class for primitive value summaries */
 public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
+    private List<GuardedValue<T>> guardedValuesList;
+    private Set<T> values;
+
     /** The guards on these values *must* be mutually exclusive.
      *
      * In other words, for any two 'value1', 'value2' of type T, the following must be identically false:
@@ -16,8 +20,11 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
      *
      *  The map 'guardedValues' should never be modified.
      */
-    public final Map<T, Bdd> guardedValues;
+    private final Map<T, Bdd> guardedValues;
 
+    /** Make a new PrimVS with the largest possible universe containing only the specified value
+     * @param value The value that the PrimVS contains
+     */
     public PrimVS(T value) {
         this.guardedValues = Collections.singletonMap(value, Bdd.constTrue());
     }
@@ -27,7 +34,14 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
      * Additionally, the provided map should not be mutated after the object is constructed.
      */
     public PrimVS(Map<T, Bdd> guardedValues) {
-        this.guardedValues = guardedValues;
+        this.guardedValues = new HashMap<>(guardedValues);
+    }
+
+    /** Copy constructor for PrimVS
+     * @param old The PrimVS to copy
+     */
+    public PrimVS(PrimVS old) {
+        this.guardedValues = new HashMap<>(old.guardedValues);
     }
 
     /** Make an empty PrimVS */
@@ -35,8 +49,17 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
 
     /** Get all the different possible guarded values */
     public List<GuardedValue<T>> getGuardedValues() {
-        return guardedValues.entrySet().stream()
-                .map(x -> new GuardedValue<T>(x.getKey(), x.getValue())).collect(Collectors.toList());
+        if (guardedValuesList == null)
+            guardedValuesList = guardedValues.entrySet().stream()
+                    .map(x -> new GuardedValue<T>(x.getKey(), x.getValue())).collect(Collectors.toList());
+        return guardedValuesList;
+    }
+
+    /** Get all the different possible values */
+    public Set<T> getValues() {
+        if (values == null)
+            values = guardedValues.keySet();
+        return values;
     }
 
     @Override
@@ -109,7 +132,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     }
 
     @Override
-    public boolean isEmpty() {
+    public boolean isEmptyVS() {
         return guardedValues.isEmpty();
     }
 
@@ -165,4 +188,5 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     public String toString() {
         return guardedValues.toString();
     }
+
 }

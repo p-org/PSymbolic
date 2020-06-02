@@ -8,9 +8,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/** Class for option value summaries */
 public class OptionalVS<T extends ValueSummary<T>> implements ValueSummary<OptionalVS<T>> {
     /** Invariant: 'present' is true under exactly the conditions where 'item' exists. */
     public final PrimVS<Boolean> present;
+    /** The item that may or not be present */
     private final T item;
 
     /** Caution: The caller must take care to ensure that the invariant stated above is upheld. */
@@ -20,15 +22,18 @@ public class OptionalVS<T extends ValueSummary<T>> implements ValueSummary<Optio
     }
 
     /** Make a new OptionalVS with item present under the conditions that it exists.
-     *
      * @param item The item, which is present.
      */
     public OptionalVS(T item) {
         this(BoolUtils.fromTrueGuard(item.getUniverse()), item);
     }
 
+    /** Make a new empty OptionalVS under the specified universe.
+     * @param universe The universe for the new OptionalVS
+     */
     public OptionalVS(Bdd universe) { this(new PrimVS<>(false).guard(universe), null); }
 
+    /** Make a new empty OptionalVS under the largest possible universe (true). */
     public OptionalVS() {
         this(new PrimVS<>(false), null);
     }
@@ -39,8 +44,8 @@ public class OptionalVS<T extends ValueSummary<T>> implements ValueSummary<Optio
     }
 
     @Override
-    public boolean isEmpty() {
-        return present.isEmpty();
+    public boolean isEmptyVS() {
+        return present.isEmptyVS();
     }
 
     @Override
@@ -103,6 +108,9 @@ public class OptionalVS<T extends ValueSummary<T>> implements ValueSummary<Optio
         return BoolUtils.fromTrueGuard(bothPresent.and(equals).or(bothAbsent).and(pc));
     }
 
+    /** Try to unwrap the OptionalVS, or else throw an exception if the OptionalVS is empty
+     * @return The value inside the OptionalVS
+     */
     public T unwrapOrThrow() {
         final @Nullable Bdd absentCond = present.getGuard(false);
         if ((absentCond != null && absentCond.isConstFalse()) || item == null) {

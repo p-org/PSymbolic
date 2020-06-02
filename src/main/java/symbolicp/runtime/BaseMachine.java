@@ -1,10 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.UnionVS;
-import symbolicp.vs.MachineRefVS;
-import symbolicp.vs.PrimVS;
-import symbolicp.vs.ValueSummary;
+import symbolicp.vs.*;
 
 import java.util.HashMap;
 import java.util.List;
@@ -105,16 +102,16 @@ public abstract class BaseMachine {
             this.state = newState;
         } else {
             PrimVS<StateTag> guardedState = this.state.guard(pc);
-            for (Map.Entry<StateTag, Bdd> entry : guardedState.guardedValues.entrySet()) {
-                states.get(entry.getKey()).exit(entry.getValue(), this);
+            for (GuardedValue<StateTag> entry : guardedState.getGuardedValues()) {
+                states.get(entry.value).exit(entry.guard, this);
             }
 
             this.state = newState.merge(this.state.guard(pc.not()));
         }
 
-        for (Map.Entry<StateTag, Bdd> entry : newState.guardedValues.entrySet()) {
-            StateTag tag = entry.getKey();
-            Bdd transitionCond = entry.getValue();
+        for (GuardedValue<StateTag> entry : newState.getGuardedValues()) {
+            StateTag tag = entry.value;
+            Bdd transitionCond = entry.guard;
             ValueSummary payload = payloads.get(tag);
             states.get(tag).entry(transitionCond, this, gotoOutcome, raiseOutcome, payload);
         }
@@ -129,10 +126,10 @@ public abstract class BaseMachine {
     ) {
         LOGGER.onProcessEvent(pc, this, event);
         PrimVS<StateTag> guardedState = this.state.guard(pc);
-        for (Map.Entry<StateTag, Bdd> entry : guardedState.guardedValues.entrySet()) {
-            Bdd state_pc = entry.getValue();
+        for (GuardedValue<StateTag> entry : guardedState.getGuardedValues()) {
+            Bdd state_pc = entry.guard;
             UnionVS<EventTag> guardedEvent = event.guard(state_pc);
-            states.get(entry.getKey()).handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
+            states.get(entry.value).handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
         }
         LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);
     }

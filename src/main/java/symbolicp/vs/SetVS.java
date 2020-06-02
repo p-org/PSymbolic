@@ -5,6 +5,7 @@ import symbolicp.bdd.Bdd;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/** Class for set value summaries */
 public class SetVS<T> implements ValueSummary<SetVS<T>> {
     /* Invariant: 'size' should be consistent with 'elements', in the sense that for any assignment of concrete Bdd
      * variables, the concrete entry in 'size' whose guard is satisfied, if such an entry exists, should match the
@@ -35,8 +36,8 @@ public class SetVS<T> implements ValueSummary<SetVS<T>> {
     }
 
     @Override
-    public boolean isEmpty() {
-        return size.isEmpty();
+    public boolean isEmptyVS() {
+        return size.isEmptyVS();
     }
 
     @Override
@@ -127,7 +128,7 @@ public class SetVS<T> implements ValueSummary<SetVS<T>> {
 
     public SetVS<T> add(PrimVS<T> itemSummary) {
         // Update size only when item exists
-        final PrimVS<Integer> newSize = size.update(itemSummary.getUniverse(), IntegerUtils.add(size, 1));
+        final PrimVS<Integer> newSize = size.update(itemSummary.getUniverse(), IntUtils.add(size, 1));
 
         final Map<T, Bdd> newElements = new HashMap<>(elements);
         for (GuardedValue<T> entry : itemSummary.getGuardedValues()) {
@@ -141,7 +142,7 @@ public class SetVS<T> implements ValueSummary<SetVS<T>> {
         // Is the item contained?
         final PrimVS<Boolean> contained = contains(itemSummary);
         // Update size only when item contained
-        final PrimVS<Integer> newSize = size.update(BoolUtils.trueCond(contained), IntegerUtils.subtract(size, 1));
+        final PrimVS<Integer> newSize = size.update(BoolUtils.trueCond(contained), IntUtils.subtract(size, 1));
 
         final Map<T, Bdd> newElements = new HashMap<>(elements);
         for (GuardedValue<T> entry : itemSummary.getGuardedValues()) {

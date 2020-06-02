@@ -37,11 +37,11 @@ public class RaiseOutcome {
 
     public void addGuardedRaise(Bdd pc, PrimVS<EventTag> eventTag, ValueSummary payload) {
         // TODO: Handle this in a more principled way
-        if (eventTag.guardedValues.size() != 1) {
+        if (eventTag.getGuardedValues().size() != 1) {
             throw new RuntimeException("Raise statements with symbolically-determined event tags are not yet supported");
         }
 
-        EventTag tag = eventTag.guardedValues.keySet().iterator().next();
+        EventTag tag = eventTag.getValues().iterator().next();
 
         Map<EventTag, ValueSummary> payloads = new HashMap<>();
         payloads.put(tag, payload);

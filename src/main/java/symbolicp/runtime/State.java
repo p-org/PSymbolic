@@ -2,6 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
+import symbolicp.vs.GuardedValue;
 import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
@@ -25,9 +26,9 @@ public abstract class State {
     }
 
     public void handleEvent(UnionVS<EventTag> EventVS, BaseMachine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
-        for (Map.Entry<EventTag, Bdd> entry : EventVS.getTag().guardedValues.entrySet()) {
-            EventTag tag = entry.getKey();
-            Bdd eventPc = entry.getValue();
+        for (GuardedValue<EventTag> entry : EventVS.getTag().getGuardedValues()) {
+            EventTag tag = entry.value;
+            Bdd eventPc = entry.guard;
             if (eventHandlers.containsKey(tag)) {
                 eventHandlers.get(tag).handleEvent(
                         eventPc,

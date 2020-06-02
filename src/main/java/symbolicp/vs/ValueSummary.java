@@ -20,11 +20,45 @@ public interface ValueSummary<T extends ValueSummary> {
         return ((ValueSummary) src.getPayload(typeTag)).guard(pc);
     }
 
-    public boolean isEmpty();
+    /** Check whether a value summary has any values under any path condition
+     * @return Whether the path condition is empty
+     */
+    public boolean isEmptyVS();
+
+    /** Restrict the value summary's universe with a provided guard
+     * @param guard The guard to conjoin to the current value summary's universe
+     * @return The result of restricting the value summary's universe
+     */
     public T guard(Bdd guard);
+
+    /** Merge the value summary with other provided value summaries
+     * @param summaries The summaries to merge the value summary with
+     * @return The result of the merging
+     */
     public T merge(Iterable<T> summaries);
+
+    /** Merge the value summary with another provided value summary
+     * @param summary The summary to merge the value summary with
+     * @return The result of the merging
+     */
     public T merge(T summary);
+
+    /** Update the value summary under the condition that the guard is true
+     * @param guard The condition under which the value summary should be updated
+     * @param update The value to update the value summary to
+     * @return Thee result of the update
+     */
     public T update(Bdd guard, T update);
+
+    /** Check whether the value summary is equal to another value summary
+     * @param cmp The summary to compare the value summary with
+     * @param pc The path condition for the universe of the result
+     * @return Whether or not the value summaries are equal
+     */
     PrimVS<Boolean> symbolicEquals(T cmp, Bdd pc);
+
+    /** Get the universe of the value summary
+     * @return The value summary's universe
+     */
     Bdd getUniverse();
 }

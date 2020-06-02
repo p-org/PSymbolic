@@ -4,27 +4,39 @@ import symbolicp.bdd.Bdd;
 
 import java.util.*;
 
+/** Class for map value summaries */
 public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K,V>> {
+    /** The set of keys */
     public final SetVS<K> keys;
+    /** The mapping from all possible keys to value summaries */
     public final Map<K, V> entries;
 
+    /** Make a new MapVS with the specified set of keys and the specified mapping
+     * @param keys The set of keys
+     * @param entries The mapping from all possible keys to value summaries
+     */
     public MapVS(SetVS<K> keys, Map<K, V> entries) {
         this.keys = keys;
         this.entries = entries;
     }
 
+    /** Make a new MapVS with the specified universe
+     * @param universe The universe for the new MapVS
+     */
     public MapVS(Bdd universe) {
         this.keys = new SetVS<K>(universe);
         this.entries = new HashMap<>();
     }
 
+    /** Get the number of entries in the MapVS
+     * @return The size of the MapVS */
     public PrimVS<Integer> getSize() {
         return keys.size;
     }
 
     @Override
-    public boolean isEmpty() {
-        return keys.isEmpty();
+    public boolean isEmptyVS() {
+        return keys.isEmptyVS();
     }
 
     @Override
@@ -34,7 +46,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
 
         for (Map.Entry<K, V> entry : entries.entrySet()) {
             final V newValue = entry.getValue().guard(guard);
-            if (!newValue.isEmpty()) {
+            if (!newValue.isEmptyVS()) {
                 newEntries.put(entry.getKey(), newValue);
             }
         }
@@ -119,6 +131,11 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
         return keys.getUniverse();
     }
 
+    /** Put a key-value pair into the MapVS
+     * @param keySummary The key value summary
+     * @param valSummary The value value summary
+     * @return The updated MapVS
+     */
     public MapVS<K, V> put(PrimVS<K> keySummary, V valSummary) {
         final SetVS<K> newKeys = keys.add(keySummary);
         final Map<K, V> newEntries = new HashMap<>(entries);
@@ -134,12 +151,21 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
         return new MapVS<>(newKeys, newEntries);
     }
 
+    /** Add a key-value pair into the MapVS
+     * @param keySummary The key value summary
+     * @param valSummary The value value summary
+     * @return The updated MapVS
+     */
     // TODO: Some parts of the non-symbolic P compiler and runtime seem to make a distinction
     //  between 'add' and 'put'.  Should we?
     public MapVS<K, V> add(PrimVS<K> keySummary, V valSummary) {
         return put(keySummary, valSummary);
     }
 
+    /** Remove a key-value pair from the MapVS
+     * @param keySummary The key value summary
+     * @return The updated MapVS
+     */
     public MapVS<K, V> remove(PrimVS<K> keySummary) {
         final SetVS<K> newKeys = keys.remove(keySummary);
 
@@ -151,7 +177,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
             }
 
             final V remainingVal = oldVal.guard(guardedKey.guard.not());
-            if (remainingVal.isEmpty()) {
+            if (remainingVal.isEmptyVS()) {
                 newEntries.remove(guardedKey.value);
             } else {
                 newEntries.put(guardedKey.value, remainingVal);
@@ -161,6 +187,10 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
         return new MapVS<>(newKeys, newEntries);
     }
 
+    /** Get a value from from the MapVS
+     * @param keySummary The key value summary
+     * @return The option containing value corresponding to the key or an empty option if no such value
+     */
     public OptionalVS<V> get(PrimVS<K> keySummary) {
         final PrimVS<Boolean> containsKeySummary = keys.contains(keySummary);
 

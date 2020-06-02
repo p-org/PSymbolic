@@ -1,29 +1,38 @@
 package symbolicp.vs;
 
-import org.checkerframework.checker.units.qual.A;
 import symbolicp.bdd.Bdd;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/** Class for tuple value summaries */
 public class TupleVS implements ValueSummary<TupleVS> {
+    /** The fields of the tuple */
     private final ValueSummary[] fields;
+    /** The classes of the fields of the tuple */
     private final Class[] classes;
 
+    /** Make a new TupleVS from the provided items */
     public TupleVS(ValueSummary... items) {
         this.fields = items;
         this.classes = Arrays.asList(items).stream().map(x -> x.getClass())
                 .collect(Collectors.toList()).toArray(new Class[items.length]);
     }
 
+    /** Get the i-th value in the TupleVS
+     * @param i The index to get from the TupleVS
+     * @result The value at index i */
     public ValueSummary getField(int i) {
         return fields[i];
     }
 
+    /** Set the i-th value in the tuTupleVSple to the provided value
+     * @param i The index to set in the TupleVS
+     * @param val The value to set in the TupleVS
+     * @result The result after updating the TupleVS */
     public TupleVS setField(int i, ValueSummary val) {
         final ValueSummary[] newItems = new ValueSummary[fields.length];
         System.arraycopy(fields, 0, newItems, 0, fields.length);
@@ -33,10 +42,10 @@ public class TupleVS implements ValueSummary<TupleVS> {
     }
 
     @Override
-    public boolean isEmpty() {
+    public boolean isEmptyVS() {
         // Optimization: Tuples should always be nonempty,
         // and all fields should exist under the same conditions
-        return fields[0].isEmpty();
+        return fields[0].isEmptyVS();
     }
 
     @Override

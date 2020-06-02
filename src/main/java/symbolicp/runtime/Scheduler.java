@@ -44,7 +44,7 @@ public class Scheduler {
     public void startWith(MachineTag tag, BaseMachine machine) {
         debug("Start with tag " + tag + ", machine type" + machine.getClass());
         for (PrimVS<Integer> machineCounter : machineCounters.values()) {
-            if (machineCounter.guardedValues.size() != 1 || !machineCounter.guardedValues.containsKey(0)) {
+            if (machineCounter.getGuardedValues().size() != 1 || !machineCounter.hasValue(0)) {
                 throw new RuntimeException("You cannot start the scheduler after it already contains machines");
             }
         }
@@ -117,12 +117,12 @@ public class Scheduler {
         }
 
         OptionalVS<PrimVS<Integer>> candidateGuards = getNondetChoice(candidateConds);
-        for (Map.Entry<Integer, Bdd> entry : candidateGuards.unwrapOrThrow().guardedValues.entrySet()) {
-            MachineTag tag = candidateTags.get(entry.getKey());
-            int id = candidateIds.get(entry.getKey());
+        for (GuardedValue<Integer> entry : candidateGuards.unwrapOrThrow().getGuardedValues()) {
+            MachineTag tag = candidateTags.get(entry.value);
+            int id = candidateIds.get(entry.value);
 
             BaseMachine machine = machines.get(tag).get(id);
-            Bdd guard = entry.getValue();
+            Bdd guard = entry.guard;
             List<EffectQueue.Effect> symbolicEffect = machine.effectQueue.dequeueEntry(guard);
             for (EffectQueue.Effect effect : symbolicEffect) {
                 performEffect(effect);
@@ -138,9 +138,9 @@ public class Scheduler {
 
         List<BaseMachine> machineList = machines.get(tag);
         // TODO: potential off by one error fixed in below two lines. Review required
-        assert guardedCount.guardedValues.keySet().stream().allMatch(i -> i <= machineList.size() + 1);
+        assert guardedCount.getValues().stream().allMatch(i -> i <= machineList.size() + 1);
 
-        if (guardedCount.guardedValues.containsKey(machineList.size() + 1)) {
+        if (guardedCount.hasValue(machineList.size() + 1)) {
             machineList.add(constructor.apply(machineList.size()));
         }
 
@@ -150,11 +150,11 @@ public class Scheduler {
     }
 
     private void performEffect(EffectQueue.Effect effect) {
-        for (Map.Entry<MachineTag, Bdd> tagEntry : effect.target.tag.guardedValues.entrySet()) {
-            for (Map.Entry<Integer, Bdd> idEntry : effect.target.id.guardedValues.entrySet()) {
-                Bdd pc = tagEntry.getValue().and(idEntry.getValue());
+        for (GuardedValue<MachineTag> tagEntry : effect.target.tag.getGuardedValues()) {
+            for (GuardedValue<Integer> idEntry : effect.target.id.getGuardedValues()) {
+                Bdd pc = tagEntry.guard.and(idEntry.guard);
                 if (!pc.isConstFalse()) {
-                    BaseMachine target = machines.get(tagEntry.getKey()).get(idEntry.getKey());
+                    BaseMachine target = machines.get(tagEntry.value).get(idEntry.value);
                     if (effect instanceof EffectQueue.SendEffect) {
                         UnionVS<EventTag> event = ((EffectQueue.SendEffect) effect).event;
                         target.processEventToCompletion(pc, event.guard(pc));
