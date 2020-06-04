@@ -13,7 +13,7 @@ import java.util.List;
  * 2. Synthesize tuples of arbitrary size during codegen in the P compiler.
  * 3. Sacrifice some type safety and create a single N-ary tuple class over dynamically typed value summaries.
  */
-public class PairVS<Left, Right> {
+public class PairVS<Left extends ValueSummary<Left>, Right extends ValueSummary<Right>> implements ValueSummary<PairVS<Left, Right>>{
     /* Invariant: 'left' and 'right' should be "possible under the same conditions."
      *
      * Formally, for any Bdd 'cond' we should have
@@ -34,7 +34,24 @@ public class PairVS<Left, Right> {
         this.right = right;
     }
 
-    public static class Ops<Left, Right> implements ValueSummaryOps<PairVS<Left, Right>> {
+    @Override
+    public PairVS<Left, Right> guard(Bdd cond) {
+        return new PairVS<>(VSOps.guard(left, cond), VSOps.guard(right, cond));
+    }
+
+    @Override
+    public PairVS<Left, Right> merge(PairVS<Left, Right> other) {
+        return new PairVS<>(VSOps.merge2(left, other.left), VSOps.merge2(right, other.right));
+    }
+
+    @Override
+    public PrimVS<Boolean> symbolicEquals(PairVS<Left, Right> other, Bdd pc) {
+        return BoolUtils.fromTrueGuard(VSOps.symbolicEquals(left, other.left, pc).guardedValues.get(Boolean.TRUE).and(
+                VSOps.symbolicEquals(right, other.right, pc).guardedValues.get(Boolean.TRUE)));
+    }
+
+    @Deprecated
+    public static class Ops<Left extends ValueSummary<Left>, Right extends ValueSummary<Right>> implements ValueSummaryOps<PairVS<Left, Right>> {
         private final ValueSummaryOps<Left> leftOps;
         private final ValueSummaryOps<Right> rightOps;
 

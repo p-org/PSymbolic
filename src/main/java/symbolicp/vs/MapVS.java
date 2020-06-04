@@ -4,7 +4,7 @@ import symbolicp.bdd.Bdd;
 
 import java.util.*;
 
-public class MapVS<K, V> {
+public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K, V>>{
     public final SetVS<K> keys;
     public final Map<K, V> entries;
 
@@ -22,7 +22,49 @@ public class MapVS<K, V> {
         return keys.size;
     }
 
-    public static class Ops<K, V> implements ValueSummaryOps<MapVS<K, V>> {
+    @Override
+    public MapVS<K, V> guard(Bdd cond) {
+        final SetVS<K> newKeys = VSOps.guard(keys, cond);
+        final Map<K, V> newEntries = new HashMap<>();
+
+        for (Map.Entry<K, V> entry : entries.entrySet()) {
+            final V newValue = VSOps.guard(entry.getValue(), cond);
+            if (!VSOps.isEmpty(newValue)) {
+                newEntries.put(entry.getKey(), newValue);
+            }
+        }
+
+        return new MapVS<>(newKeys, newEntries);
+    }
+
+    @Override
+    public MapVS<K, V> merge(MapVS<K, V> other) {
+        final Map<K, List<V>> valuesToMerge = new HashMap<>();
+
+        for (Map.Entry<K, V> entry : entries.entrySet()) {
+            valuesToMerge
+                    .computeIfAbsent(entry.getKey(), (key) -> new ArrayList<>())
+                    .add(entry.getValue());
+        }
+        for (Map.Entry<K, V> entry : other.entries.entrySet()) {
+            valuesToMerge
+                    .computeIfAbsent(entry.getKey(), (key) -> new ArrayList<>())
+                    .add(entry.getValue());
+        }
+
+        final SetVS<K> mergedKeys = keys.merge(other.keys);
+
+        final Map<K, V> mergedValues = new HashMap<>();
+        for (Map.Entry<K, List<V>> entriesToMerge : valuesToMerge.entrySet()) {
+            mergedValues.put(entriesToMerge.getKey(), VSOps.merge(entriesToMerge.getValue()));
+        }
+
+        return new MapVS<>(mergedKeys, mergedValues);
+    }
+
+
+    @Deprecated
+    public static class Ops<K, V extends ValueSummary<V>> implements ValueSummaryOps<MapVS<K, V>> {
         private final SetVS.Ops<K> setOps;
         private final ValueSummaryOps<V> valueOps;
 

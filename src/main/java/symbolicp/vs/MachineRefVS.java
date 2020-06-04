@@ -6,7 +6,7 @@ import symbolicp.runtime.MachineTag;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MachineRefVS {
+public class MachineRefVS implements ValueSummary<MachineRefVS>{
     public final PrimVS<MachineTag> tag;
     public final PrimVS<Integer> id;
 
@@ -22,6 +22,17 @@ public class MachineRefVS {
         return nullMachineRef;
     }
 
+    @Override
+    public MachineRefVS guard(Bdd cond) {
+        return new MachineRefVS(VSOps.guard(tag, cond), VSOps.guard(id, cond));
+    }
+
+    @Override
+    public MachineRefVS merge(MachineRefVS other) {
+        return new MachineRefVS(VSOps.merge2(tag, other.tag), VSOps.merge2(id, other.id));
+    }
+
+    @Deprecated
     public static class Ops implements ValueSummaryOps<MachineRefVS> {
         private final PrimVS.Ops<MachineTag> tagOps = new PrimVS.Ops<>();
         private final PrimVS.Ops<Integer> intOps = new PrimVS.Ops<>();

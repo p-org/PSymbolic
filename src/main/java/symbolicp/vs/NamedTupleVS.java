@@ -7,10 +7,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class NamedTupleVS {
-    private final Map<String, Object> fields;
+public class NamedTupleVS implements ValueSummary<NamedTupleVS>{
+    private final Map<String, ValueSummary> fields;
 
-    private NamedTupleVS(Map<String, Object> fields) {
+    private NamedTupleVS(Map<String, ValueSummary> fields) {
         this.fields = fields;
     }
 
@@ -18,7 +18,7 @@ public class NamedTupleVS {
         fields = new HashMap<>();
         for (int i = 0; i < namesAndFields.length; i += 2) {
             String name = (String)namesAndFields[i];
-            Object val = namesAndFields[i + 1];
+            ValueSummary val = (ValueSummary) namesAndFields[i + 1];
             fields.put(name, val);
         }
     }
@@ -30,6 +30,27 @@ public class NamedTupleVS {
     public NamedTupleVS setField(String name, Object val) {
         final HashMap<String, Object> resultFields = new HashMap<>(fields);
         resultFields.put(name, val);
+        return new NamedTupleVS(resultFields);
+    }
+
+    @Override
+    public NamedTupleVS guard(Bdd cond) {
+        final Map<String, Object> resultFields = new HashMap<>();
+        for (Map.Entry<String, ValueSummary> entry : fields.entrySet()) {
+            final ValueSummary unguarded = entry.getValue();
+            final Object guarded = VSOps.guard(unguarded, cond);
+            resultFields.put(entry.getKey(), guarded);
+        }
+        return new NamedTupleVS(resultFields);
+    }
+
+    @Override
+    public NamedTupleVS merge(NamedTupleVS other) {
+        final Map<String, ValueSummary> resultFields = new HashMap<>();
+        for (Map.Entry<String, ValueSummary> entry : fields.entrySet()) {
+            ValueSummary merged = VSOps.merge2(entry.getValue(), other.fields.get(entry.getKey()));
+            resultFields.put(entry.getKey(), merged);
+        }
         return new NamedTupleVS(resultFields);
     }
 
@@ -49,7 +70,7 @@ public class NamedTupleVS {
         public boolean isEmpty(NamedTupleVS namedTupleVS) {
             // Optimization: named tuples should always be nonempty,
             // and all fields should exist under the same conditions.
-            Map.Entry<String, Object> firstEntry = namedTupleVS.fields.entrySet().iterator().next();
+            Map.Entry<String, ValueSummary> firstEntry = namedTupleVS.fields.entrySet().iterator().next();
             return (fieldOps.get(firstEntry.getKey()).isEmpty(firstEntry.getValue()));
         }
 
@@ -81,7 +102,7 @@ public class NamedTupleVS {
             }
 
             for (NamedTupleVS namedTupleVS : namedTuplesToMerge) {
-                for (Map.Entry<String, Object> field : namedTupleVS.fields.entrySet()) {
+                for (Map.Entry<String, ValueSummary> field : namedTupleVS.fields.entrySet()) {
                     resultFieldsToMerge.get(field.getKey()).add(field.getValue());
                 }
             }

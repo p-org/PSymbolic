@@ -103,6 +103,20 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
         return ops.merge(toMerge);
     }
 
+    public <Target extends ValueSummary<Target>>
+    Target flatMapOps(
+            Function<T, Target> function
+    ) {
+        final List<Target> toMerge = new ArrayList<>();
+
+        for (Map.Entry<T, Bdd> guardedValue : guardedValues.entrySet()) {
+            final Target mapped = function.apply(guardedValue.getKey());
+            toMerge.add(VSOps.guard(mapped, guardedValue.getValue()));
+        }
+
+        return VSOps.merge(toMerge);
+    }
+
     public static class Ops<T> implements ValueSummaryOps<PrimVS<T>> {
         public Ops() { }
 
