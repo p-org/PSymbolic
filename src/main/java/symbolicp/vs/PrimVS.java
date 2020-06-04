@@ -88,6 +88,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
         return new PrimVS<>(results);
     }
 
+    @Deprecated
     public <Target>
     Target flatMap(
         ValueSummaryOps<Target> ops,
@@ -117,56 +118,16 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
         return VSOps.merge(toMerge);
     }
 
-    public static class Ops<T> implements ValueSummaryOps<PrimVS<T>> {
-        public Ops() { }
 
-        @Override
-        public boolean isEmpty(PrimVS<T> summary) {
-            return summary.guardedValues.isEmpty();
-        }
-
-        @Override
-        public PrimVS<T> empty() {
-            return new PrimVS<>(new HashMap<>());
-        }
-
-        @Override
-        public PrimVS<T> guard(PrimVS<T> summary, Bdd guard) {
-            final Map<T, Bdd> result = new HashMap<>();
-
-            for (Map.Entry<T, Bdd> entry : summary.guardedValues.entrySet()) {
-                final Bdd newEntryGuard = entry.getValue().and(guard);
-                if (!newEntryGuard.isConstFalse()) {
-                    result.put(entry.getKey(), newEntryGuard);
-                }
+    @Override
+    public PrimVS<Boolean> symbolicEquals(PrimVS<T> other, Bdd pc) {
+        Bdd equalCond = Bdd.constFalse();
+        for (Map.Entry<T, Bdd> entry : guardedValues.entrySet()) {
+            if (other.guardedValues.containsKey(entry.getKey())) {
+                equalCond = equalCond.or(entry.getValue().and(other.guardedValues.get(entry.getKey())));
             }
-
-            return new PrimVS<>(result);
         }
-
-        @Override
-        public PrimVS<T> merge(Iterable<PrimVS<T>> summaries) {
-            final Map<T, Bdd> result = new HashMap<>();
-
-            for (PrimVS<T> summary : summaries) {
-                for (Map.Entry<T, Bdd> entry : summary.guardedValues.entrySet()) {
-                    result.merge(entry.getKey(), entry.getValue(), Bdd::or);
-                }
-            }
-
-            return new PrimVS<>(result);
-        }
-
-        @Override
-        public PrimVS<Boolean> symbolicEquals(PrimVS<T> left, PrimVS<T> right, Bdd pc) {
-            Bdd equalCond = Bdd.constFalse();
-            for (Map.Entry<T, Bdd> entry : left.guardedValues.entrySet()) {
-                if (right.guardedValues.containsKey(entry.getKey())) {
-                    equalCond = equalCond.or(entry.getValue().and(right.guardedValues.get(entry.getKey())));
-                }
-            }
-            return BoolUtils.fromTrueGuard(pc.and(equalCond));
-        }
+        return BoolUtils.fromTrueGuard(pc.and(equalCond));
     }
 
     @Override

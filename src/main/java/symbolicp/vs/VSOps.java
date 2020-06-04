@@ -5,6 +5,7 @@ import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
 
 import java.awt.event.ItemEvent;
+import java.lang.reflect.ParameterizedType;
 import java.util.*;
 
 public class VSOps {
@@ -45,14 +46,19 @@ public class VSOps {
         return left.merge(right);
     }
 
-    public static <VS extends ValueSummary<VS>> PrimVS<Boolean> symbolicEquals(VS left, VS right, Bdd pc) {
+    public static <VSA extends ValueSummary<VSA>, VSB extends ValueSummary<VSB>> PrimVS<Boolean>
+    symbolicEquals(VSA left, VSB right, Bdd pc) {
         PrimVS<Boolean> res;
         if (left == null) {
             if (right == null) res = new PrimVS<>(Boolean.TRUE);
             else res = new PrimVS<>(Boolean.FALSE);
         }
+        else if (right == null || !((ParameterizedType) left.getClass().getGenericSuperclass()).getActualTypeArguments()[0]
+                .equals(((ParameterizedType) right.getClass().getGenericSuperclass()).getActualTypeArguments()[0])){
+            res = new PrimVS<>(Boolean.FALSE);
+        }
         else {
-            res = left.symbolicEquals(right, pc);
+            res = left.symbolicEquals((VSA) right, pc);
         }
         return res.guard(pc);
     }
@@ -62,8 +68,7 @@ public class VSOps {
      */
     /* Set VS */
     public <T> PrimVS<Boolean> contains(SetVS<T> setSummary, PrimVS<T> itemSummary) {
-        return itemSummary.flatMap(
-                new PrimVS.Ops<>(),
+        return itemSummary.flatMapOps(
                 (item) -> {
                     Bdd itemGuard = setSummary.elements.get(item);
                     if (itemGuard == null) {
