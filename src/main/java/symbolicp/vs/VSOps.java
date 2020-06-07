@@ -67,7 +67,7 @@ public class VSOps {
      * Special Value Summary Ops
      */
     /* Set VS */
-    public <T> PrimVS<Boolean> contains(SetVS<T> setSummary, PrimVS<T> itemSummary) {
+    public static <T> PrimVS<Boolean> contains(SetVS<T> setSummary, PrimVS<T> itemSummary) {
         return itemSummary.flatMapOps(
                 (item) -> {
                     Bdd itemGuard = setSummary.elements.get(item);
@@ -79,7 +79,7 @@ public class VSOps {
                 });
     }
 
-    public <T> SetVS<T> add(SetVS<T> setSummary, PrimVS<T> itemSummary) {
+    public static <T> SetVS<T> add(SetVS<T> setSummary, PrimVS<T> itemSummary) {
         final PrimVS<Integer> newSize = setSummary.size.map((sizeVal) -> sizeVal + 1);
 
         final Map<T, Bdd> newElements = new HashMap<>(setSummary.elements);
@@ -90,7 +90,7 @@ public class VSOps {
         return new SetVS<>(newSize, newElements);
     }
 
-    public <T> SetVS<T> remove(SetVS<T> setSummary, PrimVS<T> itemSummary) {
+    public static <T> SetVS<T> remove(SetVS<T> setSummary, PrimVS<T> itemSummary) {
         final PrimVS<Integer> newSize =
                 setSummary.size.map2(
                         contains(setSummary, itemSummary),
@@ -112,7 +112,7 @@ public class VSOps {
     }
 
     /* Optional VS */
-    public <Item extends ValueSummary<Item>> Item unwrapOrThrow(OptionalVS<Item> summary) {
+    public static <Item extends ValueSummary<Item>> Item unwrapOrThrow(OptionalVS<Item> summary) {
         final @Nullable Bdd absentCond = summary.present.guardedValues.get(false);
         if (absentCond != null && !absentCond.isConstFalse()) {
             throw new BugFoundException("Attempt to unwrap an absent optional value", absentCond);
@@ -121,7 +121,7 @@ public class VSOps {
         return summary.item;
     }
 
-    public <Item extends ValueSummary<Item>> OptionalVS<Item> makePresent(Item item) {
+    public static <Item extends ValueSummary<Item>> OptionalVS<Item> makePresent(Item item) {
         /* TODO: Strictly speaking, here we create an optional whose 'present' tag may violate
          *  an implicit invariant by being true under more conditions than we need it
          *  to be.
@@ -132,7 +132,7 @@ public class VSOps {
         );
     }
 
-    public <Item extends ValueSummary<Item>> OptionalVS<Item> makeAbsent() {
+    public static <Item extends ValueSummary<Item>> OptionalVS<Item> makeAbsent() {
         /* TODO: Strictly speaking, here we create an optional whose 'present' tag may violate
          *  an implicit invariant by being false under more conditions than we need it
          *  to be.
@@ -145,7 +145,7 @@ public class VSOps {
 
 
     // FIXME: putting new entries do not update keys.size
-    public <K, V extends ValueSummary<V>> MapVS<K, V>
+    public static <K, V extends ValueSummary<V>> MapVS<K, V>
     put(MapVS<K, V> mapSummary, PrimVS<K> keySummary, V valSummary) {
         final SetVS<K> newKeys = add(mapSummary.keys, keySummary);
 
@@ -166,12 +166,12 @@ public class VSOps {
 
     // TODO: Some parts of the non-symbolic P compiler and runtime seem to make a distinction
     //  between 'add' and 'put'.  Should we?
-    public <K, V extends ValueSummary<V>> MapVS<K, V>
+    public static <K, V extends ValueSummary<V>> MapVS<K, V>
     add(MapVS<K, V> mapSummary, PrimVS<K> keySummary, V valSummary) {
         return put(mapSummary, keySummary, valSummary);
     }
 
-    public <K, V extends ValueSummary<V>> MapVS<K, V>
+    public static <K, V extends ValueSummary<V>> MapVS<K, V>
     remove(MapVS<K, V> mapSummary, PrimVS<K> keySummary) {
         final SetVS<K> newKeys = remove(mapSummary.keys, keySummary);
 
@@ -193,7 +193,7 @@ public class VSOps {
         return new MapVS<>(newKeys, newEntries);
     }
 
-    public <K, V extends ValueSummary<V>> OptionalVS<V>
+    public static <K, V extends ValueSummary<V>> OptionalVS<V>
     get(MapVS<K, V> mapSummary, PrimVS<K> keySummary) {
 
         final PrimVS<Boolean> containsKeySummary = contains(mapSummary.keys, keySummary);
@@ -209,7 +209,7 @@ public class VSOps {
 
     /* ListVS */
     // origList and item should be possible under the same conditions.
-    public <Item extends ValueSummary<Item>> ListVS<Item>
+    public static <Item extends ValueSummary<Item>> ListVS<Item>
     add(ListVS<Item> origList, Item item) {
         final Map<Integer, Bdd> newSizeValues = new HashMap<>();
         final List<Item> newItems = new ArrayList<>(origList.getItems());
@@ -233,7 +233,7 @@ public class VSOps {
     }
 
     // listSummary and indexSummary should be possible under the same conditions
-    public <Item extends ValueSummary<Item>> OptionalVS<Item>
+    public static <Item extends ValueSummary<Item>> OptionalVS<Item>
     get(ListVS<Item> listSummary, PrimVS<Integer> indexSummary) {
         return indexSummary.flatMapOps(
                 (index) -> {
@@ -252,7 +252,7 @@ public class VSOps {
     }
 
     // all arguments should be possible under the same conditions
-    public <Item extends ValueSummary<Item>> OptionalVS<ListVS<Item>>
+    public static <Item extends ValueSummary<Item>> OptionalVS<ListVS<Item>>
     set(ListVS<Item> origList, PrimVS<Integer> indexSummary, Item itemToSet) {
         final PrimVS<Boolean> inRange =
                 origList.getSize().map2(indexSummary, (size, index) -> index < size);
@@ -282,7 +282,7 @@ public class VSOps {
 
     /* TODO 'contains' */
 
-    public <Item extends ValueSummary<Item>> OptionalVS<ListVS<Item>>
+    public static <Item extends ValueSummary<Item>> OptionalVS<ListVS<Item>>
     insert(ListVS<Item> origList, PrimVS<Integer> indexSummary, Item itemToInsert) {
         final PrimVS<Boolean> inRange =
                 origList.getSize().map2(indexSummary, (size, index) -> index <= size);
@@ -335,7 +335,7 @@ public class VSOps {
         );
     }
 
-    public <Item extends ValueSummary<Item>> OptionalVS<ListVS<Item>>
+    public static <Item extends ValueSummary<Item>> OptionalVS<ListVS<Item>>
     removeAt(ListVS<Item> origList, PrimVS<Integer> indexSummary) {
         final PrimVS<Boolean> inRange =
                 origList.getSize().map2(indexSummary, (size, index) -> index < size);

@@ -19,7 +19,7 @@ public class EventVS {
     }
 
     public EventVS(Bdd pc, EventTag tag, Object payload) {
-        this.tag = new PrimVS.Ops<EventTag>().guard(new PrimVS<>(tag), pc);
+        this.tag = VSOps.guard(new PrimVS<>(tag), pc);
         this.payloads = new HashMap<>();
         this.payloads.put(tag, payload);
     }
