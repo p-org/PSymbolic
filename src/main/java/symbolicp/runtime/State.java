@@ -20,8 +20,13 @@ public abstract class State extends HasId {
         super(name, id);
 
         this.eventHandlers = new HashMap<>();
-        for (EventHandler handler : eventHandlers) {
-            this.eventHandlers.put(handler.eventName, handler);
+    }
+
+    public void addHandlers(EventHandler... eventHandlers) {
+        if (this.eventHandlers.size() == 0) {
+            for (EventHandler handler : eventHandlers) {
+                this.eventHandlers.put(handler.eventName, handler);
+            }
         }
     }
 
