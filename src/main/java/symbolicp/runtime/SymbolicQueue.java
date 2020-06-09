@@ -1,13 +1,14 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.vs.ValueSummary;
 
 import java.util.*;
 
-public class SymbolicQueue<T extends SymbolicQueue.Entry<T>> {
+public class SymbolicQueue<T extends SymbolicQueue.Entry> {
     public interface Entry<T> {
-        Bdd getCond();
-        T withCond(Bdd guard);
+        public Bdd getCond();
+        public T withCond(Bdd cond);
     }
 
     private LinkedList<T> entries;
@@ -28,7 +29,7 @@ public class SymbolicQueue<T extends SymbolicQueue.Entry<T>> {
     // TODO: Can/should we optimize this?
     public Bdd enabledCond() {
         Bdd result = Bdd.constFalse();
-        for (Entry<T> entry : entries) {
+        for (T entry : entries) {
             result = result.or(entry.getCond());
         }
         return result;

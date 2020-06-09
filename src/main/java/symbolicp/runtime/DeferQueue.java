@@ -1,29 +1,23 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.vs.PrimVS;
 import symbolicp.vs.UnionVS;
 
-public class DeferQueue extends SymbolicQueue<DeferQueue.Event> {
-    public static class Event implements SymbolicQueue.Entry<Event> {
-        final Bdd cond;
-        final UnionVS<EventTag> event;
+public class DeferQueue extends SymbolicQueue<DeferQueue.Entry> {
+    public static class Entry implements SymbolicQueue.Entry {
+        PrimVS<Event> event;
 
-        public Event(Bdd cond, UnionVS<EventTag> event) {
-            this.cond = cond;
-            this.event = event;
-        }
+        public Entry(Bdd pc, PrimVS<Event> event) { this.event = new PrimVS<Event>(event).guard(pc); }
 
         @Override
         public Bdd getCond() {
-            return cond;
+            return event.getUniverse();
         }
 
         @Override
-        public Event withCond(Bdd guard) {
-            return new Event(
-                    guard,
-                    event.guard(guard)
-            );
+        public Entry withCond(Bdd cond) {
+            return new Entry(cond, event.guard(cond));
         }
     }
 
@@ -31,7 +25,7 @@ public class DeferQueue extends SymbolicQueue<DeferQueue.Event> {
         super();
     }
 
-    public void defer(Bdd pc, UnionVS<EventTag> event) {
-        enqueueEntry(new Event(pc, event));
+    public void defer(Bdd pc, PrimVS<Event> event) {
+        enqueueEntry(new Entry(pc, event));
     }
 }

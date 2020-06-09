@@ -3,43 +3,43 @@ package symbolicp.runtime;
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
 import symbolicp.vs.GuardedValue;
+import symbolicp.vs.PrimVS;
 import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class State {
-    public final StateTag stateTag;
-    private final Map<EventTag, EventHandler> eventHandlers;
+public abstract class State extends HasId {
+    private final Map<EventName, EventHandler> eventHandlers;
 
-    public void entry(Bdd pc, BaseMachine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome, ValueSummary payload) {}
-    public void exit(Bdd pc, BaseMachine machine) {}
+    public void entry(Bdd pc, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome, ValueSummary payload) {}
+    public void exit(Bdd pc, Machine machine) {}
 
-    public State(StateTag stateTag, EventHandler... eventHandlers) {
-        this.stateTag = stateTag;
+    public State(String name, int id, EventHandler... eventHandlers) {
+        super(name, id);
 
         this.eventHandlers = new HashMap<>();
         for (EventHandler handler : eventHandlers) {
-            this.eventHandlers.put(handler.eventTag, handler);
+            this.eventHandlers.put(handler.eventName, handler);
         }
     }
 
-    public void handleEvent(UnionVS<EventTag> EventVS, BaseMachine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
-        for (GuardedValue<EventTag> entry : EventVS.getTag().getGuardedValues()) {
-            EventTag tag = entry.value;
+    public void handleEvent(PrimVS<Event> EventVS, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
+        for (GuardedValue<Event> entry : EventVS.getGuardedValues()) {
+            Event event = entry.value;
             Bdd eventPc = entry.guard;
-            if (eventHandlers.containsKey(tag)) {
-                eventHandlers.get(tag).handleEvent(
+            if (eventHandlers.containsKey(event.name)) {
+                eventHandlers.get(event.name).handleEvent(
                         eventPc,
-                        EventVS.getPayload(tag),
+                        event.payload,
                         machine,
                         gotoOutcome,
                         raiseOutcome
                         );
             }
             else {
-                throw new BugFoundException("Missing handler for event: " + tag, eventPc);
+                throw new BugFoundException("Missing handler for event: " + event, eventPc);
             }
         }
     }

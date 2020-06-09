@@ -14,25 +14,22 @@ public class Scheduler {
         System.err.println("[SCHEDULER]: " + str);
     }
 
-    final Map<MachineTag, List<BaseMachine>> machines;
-
-    /** Refs to machines are represented by integer IDs
-     * for a given Machine declaration in the P file, each machine type
-     * has its own space of ids
-     * MachineTag is PType of machine
-     * machineCounters are used to get the next ID
-     * each tag's counter gives how many of that instances tag there are */
-    final Map<MachineTag, PrimVS<Integer>> machineCounters;
+    final List<Machine> machines;
+    final Map<Class<? extends Machine>, PrimVS<Integer>> machineCounters;
 
     private int step_count = 0;
 
-    public Scheduler(MachineTag... machineTags) {
-        this.machines = new HashMap<>();
+    public Scheduler(Machine... machines) {
+        this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
 
-        for (MachineTag tag : machineTags) {
-            this.machines.put(tag, new ArrayList<>());
-            this.machineCounters.put(tag, new PrimVS<>(0));
+        for (Machine machine : machines) {
+            this.machines.add(machine);
+            if (this.machineCounters.containsKey(machine.getClass())) {
+                this.machineCounters.putIfAbsent(machine.getClass(),
+                        IntUtils.add(this.machineCounters.get(machine.getClass()), 1));
+            }
+            this.machineCounters.put(machine.getClass(), new PrimVS<>(0));
         }
     }
 
@@ -41,27 +38,27 @@ public class Scheduler {
      * by other machines' sender queues)
      * but can't do this for the very first machine
      */
-    public void startWith(MachineTag tag, BaseMachine machine) {
-        debug("Start with tag " + tag + ", machine type" + machine.getClass());
+    public void startWith(Machine machine) {
+        debug("Start with tag " + machine.getClass() + ", machine type" + machine.getClass());
         for (PrimVS<Integer> machineCounter : machineCounters.values()) {
             if (machineCounter.getGuardedValues().size() != 1 || !machineCounter.hasValue(0)) {
                 throw new RuntimeException("You cannot start the scheduler after it already contains machines");
             }
         }
 
-        machineCounters.put(tag, new PrimVS<>(1));
-        machines.get(tag).add(machine);
+        machineCounters.put(machine.getClass(), new PrimVS<>(1));
+        machines.add(machine);
 
         performEffect(
             new EffectQueue.InitEffect(
                     Bdd.constTrue(),
-                    new MachineRefVS(new PrimVS<>(tag), new PrimVS<>(0))
+                    new PrimVS<Machine>(machine)
             )
         );
     }
 
 
-    private OptionalVS<PrimVS<Integer>> getNondetChoice(List<Bdd> candidateConds) {
+    private PrimVS<Integer> getNondetChoice(List<Bdd> candidateConds) {
 
         List<PrimVS<Integer>> results = new ArrayList<>();
 
@@ -89,39 +86,30 @@ public class Scheduler {
         PrimVS<Boolean> isPresent = BoolUtils.fromTrueGuard(noneEnabledCond.not());
 
         assert(Checks.sameUniverse(noneEnabledCond, new PrimVS<Integer>().merge(results).getUniverse()));
-        return new OptionalVS<>(new PrimVS<Integer>().merge(results));
+        return new PrimVS<Integer>().merge(results);
     }
 
     public boolean step() {
-        List<MachineTag> candidateTags = new ArrayList<>();
-        List<Integer> candidateIds = new ArrayList<>();
+        List<Machine> candidateMachines = new ArrayList<>();
         List<Bdd> candidateConds = new ArrayList<>();
         step_count++;
 
-        for (Map.Entry<MachineTag, List<BaseMachine>> entry : machines.entrySet()) {
-            List<BaseMachine> machinesForTag = entry.getValue();
-            for (int i = 0; i < machinesForTag.size(); i++) {
-                BaseMachine machine = machinesForTag.get(i);
-                debug("machine with tag " + entry.getValue() + ", machine type" + machine.getClass());
-                if (!machine.effectQueue.isEmpty()) {
-                    candidateTags.add(entry.getKey());
-                    candidateIds.add(i);
-                    candidateConds.add(machine.effectQueue.enabledCond());
-                }
+        for (Machine machine : machines) {
+            debug("machine with name " + machine.name + "machine type" + machine.getClass());
+            if (!machine.effectQueue.isEmpty()) {
+                candidateMachines.add(machine);
+                candidateConds.add(machine.effectQueue.enabledCond());
             }
         }
 
-        if (candidateTags.isEmpty()) {
+        if (candidateMachines.isEmpty()) {
             RuntimeLogger.log(String.format("Execution finished in %d steps", step_count));
             return true;
         }
 
-        OptionalVS<PrimVS<Integer>> candidateGuards = getNondetChoice(candidateConds);
-        for (GuardedValue<Integer> entry : candidateGuards.unwrapOrThrow().getGuardedValues()) {
-            MachineTag tag = candidateTags.get(entry.value);
-            int id = candidateIds.get(entry.value);
-
-            BaseMachine machine = machines.get(tag).get(id);
+        PrimVS<Integer> candidateGuards = getNondetChoice(candidateConds);
+        for (GuardedValue<Integer> entry : candidateGuards.getGuardedValues()) {
+            Machine machine = candidateMachines.get(entry.value);
             Bdd guard = entry.guard;
             List<EffectQueue.Effect> symbolicEffect = machine.effectQueue.dequeueEntry(guard);
             for (EffectQueue.Effect effect : symbolicEffect) {
@@ -132,50 +120,42 @@ public class Scheduler {
         return false;
     }
 
-    public MachineRefVS allocateMachineId(Bdd pc, MachineTag tag, Function<Integer, BaseMachine> constructor) {
-        PrimVS<Integer> guardedCount = machineCounters.get(tag).guard(pc);
-        guardedCount = guardedCount.apply(i -> i + 1);
+    public PrimVS<Machine> allocateMachine(Bdd pc, Class<? extends Machine> machineType,
+                                           Function<Integer, ? extends Machine> constructor) {
+        PrimVS<Integer> guardedCount = machineCounters.get(machineType).guard(pc);
+        guardedCount = IntUtils.add(guardedCount, 1);
 
-        List<BaseMachine> machineList = machines.get(tag);
-        // TODO: potential off by one error fixed in below two lines. Review required
-        assert guardedCount.getValues().stream().allMatch(i -> i <= machineList.size() + 1);
+        Machine newMachine;
+        newMachine = constructor.apply(IntUtils.maxValue(guardedCount));
 
-        if (guardedCount.hasValue(machineList.size() + 1)) {
-            machineList.add(constructor.apply(machineList.size()));
+        if (!machines.contains(newMachine)) {
+            machines.add(newMachine);
         }
 
-        PrimVS<Integer> mergedCount = guardedCount.merge(machineCounters.get(tag).guard(pc.not()));
-        machineCounters.put(tag, mergedCount);
-        return new MachineRefVS(new PrimVS<>(tag).guard(pc), guardedCount.apply(i -> i - 1));
+        PrimVS<Integer> mergedCount = machineCounters.get(machineType).update(pc, guardedCount);
+        machineCounters.put(machineType, mergedCount);
+        return new PrimVS<>(newMachine).guard(pc);
     }
 
     private void performEffect(EffectQueue.Effect effect) {
-        for (GuardedValue<MachineTag> tagEntry : effect.target.tag.getGuardedValues()) {
-            for (GuardedValue<Integer> idEntry : effect.target.id.getGuardedValues()) {
-                Bdd pc = tagEntry.guard.and(idEntry.guard);
-                if (!pc.isConstFalse()) {
-                    BaseMachine target = machines.get(tagEntry.value).get(idEntry.value);
-                    if (effect instanceof EffectQueue.SendEffect) {
-                        UnionVS<EventTag> event = ((EffectQueue.SendEffect) effect).event;
-                        target.processEventToCompletion(pc, event.guard(pc));
-                    } else if (effect instanceof EffectQueue.InitEffect) {
-                        target.start(pc, ((EffectQueue.InitEffect) effect).payload);
-                    } else {
-                        throw new NotImplementedException();
-                    }
+        for (GuardedValue<Machine> target : effect.target.getGuardedValues()) {
+            Bdd pc = target.guard;
+            if (!pc.isConstFalse()) {
+                if (effect instanceof EffectQueue.SendEffect) {
+                    PrimVS<Event> event = ((EffectQueue.SendEffect) effect).event;
+                    target.value.processEventToCompletion(pc, event.guard(pc));
+                } else if (effect instanceof EffectQueue.InitEffect) {
+                    target.value.start(pc, ((EffectQueue.InitEffect) effect).payload);
+                } else {
+                    throw new NotImplementedException();
                 }
             }
         }
     }
 
     public void logState() {
-        for (Map.Entry<MachineTag, List<BaseMachine>> entry : machines.entrySet()) {
-            List<BaseMachine> machinesWithTag = entry.getValue();
-            for (int i = 0; i < machinesWithTag.size(); i++) {
-                RuntimeLogger.log(
-                        String.format("Machine (tag: %s, index: %d): %s", entry.getKey(), i, machinesWithTag.get(i))
-                );
-            }
+        for (Machine machine : machines) {
+            RuntimeLogger.log(String.format("Machine %s:", machine.toString()));
         }
     }
 

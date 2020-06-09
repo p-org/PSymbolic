@@ -11,11 +11,11 @@ import java.util.Map;
 public class RaiseOutcome {
 
     private Bdd cond;
-    private UnionVS<EventTag> event;
+    private PrimVS<Event> event;
 
     public RaiseOutcome() {
         cond = Bdd.constFalse();
-        event = new UnionVS<>();
+        event = new PrimVS<>();
     }
 
     public boolean isEmpty() {
@@ -26,31 +26,27 @@ public class RaiseOutcome {
         return cond;
     }
 
-    public UnionVS<EventTag> getEventSummary() {
+    public PrimVS<Event> getEventSummary() {
         return event;
     }
 
-    public void addGuardedRaise(Bdd pc, UnionVS<EventTag> newEvent) {
+    public void addGuardedRaiseEvent(Bdd pc, PrimVS<Event> newEvent) {
         cond = cond.or(pc);
         event = event.merge(newEvent);
     }
 
-    public void addGuardedRaise(Bdd pc, PrimVS<EventTag> eventTag, ValueSummary payload) {
+    public void addGuardedRaise(Bdd pc, PrimVS<EventName> eventName, ValueSummary payload) {
         // TODO: Handle this in a more principled way
-        if (eventTag.getGuardedValues().size() != 1) {
+        if (eventName.getGuardedValues().size() != 1) {
             throw new RuntimeException("Raise statements with symbolically-determined event tags are not yet supported");
         }
 
-        EventTag tag = eventTag.getValues().iterator().next();
+        EventName nextEventName = eventName.getValues().iterator().next();
 
-        Map<EventTag, ValueSummary> payloads = new HashMap<>();
-        payloads.put(tag, payload);
-
-        UnionVS<EventTag> EventVS = new UnionVS<EventTag>(eventTag, payloads);
-        addGuardedRaise(pc, EventVS);
+        addGuardedRaiseEvent(pc, new PrimVS<>(new Event(nextEventName, payload)));
     }
 
-    public void addGuardedRaise(Bdd pc, PrimVS<EventTag> eventTag) {
-        addGuardedRaise(pc, eventTag, null);
+    public void addGuardedRaise(Bdd pc, PrimVS<EventName> eventName) {
+        addGuardedRaise(pc, eventName, null);
     }
 }

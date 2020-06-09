@@ -112,7 +112,7 @@ public class TestValueSummaries {
 
         assertTrue(list_0.symbolicEquals(list_1, path).getGuard(false).isConstTrue());
 
-        list_1 = list_1.removeAt(var_y0).unwrapOrThrow();
+        list_1 = list_1.removeAt(var_y0);
 
         assertTrue(list_0.symbolicEquals(list_1, path).getGuard(true).isConstTrue());
     }

@@ -4,17 +4,17 @@ import symbolicp.bdd.Bdd;
 import symbolicp.vs.ValueSummary;
 
 public class GotoEventHandler extends EventHandler {
-    public final StateTag dest;
+    public final State dest;
 
-    public GotoEventHandler(EventTag eventTag, StateTag dest) {
-        super(eventTag);
+    public GotoEventHandler(EventName eventName, State dest) {
+        super(eventName);
         this.dest = dest;
     }
 
-    public void transitionAction(Bdd pc, BaseMachine machine, Object payload) {}
+    public void transitionAction(Bdd pc, Machine machine, Object payload) {}
 
     @Override
-    public void handleEvent(Bdd pc, ValueSummary payload, BaseMachine machine, GotoOutcome gotoOutcome,
+    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome,
                             RaiseOutcome raiseOutcome) {
         transitionAction(pc, machine, payload);
         assert payload == null;

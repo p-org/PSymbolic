@@ -2,6 +2,7 @@ package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
 
+import java.security.KeyException;
 import java.util.*;
 
 /** Class for map value summaries */
@@ -188,18 +189,24 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
     }
 
     /** Get a value from from the MapVS
-     * @param keySummary The key value summary
+     * @param keySummary The key value summary.
      * @return The option containing value corresponding to the key or an empty option if no such value
      */
-    public OptionalVS<V> get(PrimVS<K> keySummary) {
+    public V get(PrimVS<K> keySummary) {
         final PrimVS<Boolean> containsKeySummary = keys.contains(keySummary);
+        if (!containsKeySummary.getGuard(false).isConstFalse()) {
+            // there is a possibility that the key is not present
+            throw new NoSuchElementException();
+        }
 
-        return containsKeySummary.applyVS(new OptionalVS<>(), (containsKey) -> {
-            if (containsKey) {
-                return keySummary.applyVS(new OptionalVS<>(), (key) -> new OptionalVS<V>(entries.get(key)));
-            } else {
-                return new OptionalVS<V>(Bdd.constFalse());
-            }
-        });
+        V merger = null;
+        List<V> toMerge = new ArrayList<>();
+        for (K key : keySummary.getValues()) {
+            if (merger == null)
+                merger = entries.get(key);
+            toMerge.add(entries.get(key));
+        }
+
+        return merger.merge(toMerge);
     }
 }

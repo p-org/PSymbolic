@@ -72,4 +72,16 @@ public class IntUtils {
         return a.apply(x -> x < b);
     }
 
+    /** Get the maximum value that an Integer value summary may take on
+     *
+     * @return The maximum possible value
+     */
+    public static Integer maxValue(PrimVS<Integer> a) {
+        Integer max = null;
+        for (int val : a.getValues()) {
+            if (max == null) max = val;
+            else if (max < val) max = val;
+        }
+        return max;
+    }
 }

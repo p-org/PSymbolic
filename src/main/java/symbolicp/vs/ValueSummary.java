@@ -1,7 +1,6 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.runtime.TypeTag;
 
 public interface ValueSummary<T extends ValueSummary> {
 
@@ -10,14 +9,14 @@ public interface ValueSummary<T extends ValueSummary> {
      * constantly false path constraint under which the current pc is defined but not the guard
      * corresponding to the specified type, the function throws a ClassCastException.
      */
-    default ValueSummary fromAny(Bdd pc, TypeTag typeTag, UnionVS<TypeTag> src) {
-        Bdd typeGuard = src.getTag().getGuard(typeTag);
+    default ValueSummary fromAny(Bdd pc, Class<? extends ValueSummary> type, UnionVS src) {
+        Bdd typeGuard = src.getType().getGuard(type);
         Bdd pcNotDefined = pc.and(typeGuard.not());
         if (!pcNotDefined.isConstFalse()) {
             throw new ClassCastException(String.format("Symbolic casting under path constraint %s is not defined",
                     pcNotDefined));
         }
-        return ((ValueSummary) src.getPayload(typeTag)).guard(pc);
+        return ((ValueSummary) src.getPayload(type)).guard(pc);
     }
 
     /** Check whether a value summary has any values under any path condition

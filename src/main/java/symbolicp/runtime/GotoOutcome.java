@@ -10,8 +10,8 @@ import java.util.Map;
 public class GotoOutcome {
 
     private Bdd cond;
-    private PrimVS<StateTag> dest;
-    private Map<StateTag, ValueSummary> payloads;
+    private PrimVS<State> dest;
+    private Map<State, ValueSummary> payloads;
 
     public GotoOutcome() {
 
@@ -28,15 +28,15 @@ public class GotoOutcome {
         return cond;
     }
 
-    public PrimVS<StateTag> getStateSummary() {
+    public PrimVS<State> getStateSummary() {
         return dest;
     }
 
-    public Map<StateTag, ValueSummary> getPayloads() {
+    public Map<State, ValueSummary> getPayloads() {
         return payloads;
     }
 
-    public void addGuardedGoto(Bdd pc, StateTag newDest, ValueSummary newPayload) {
+    public void addGuardedGoto(Bdd pc, State newDest, ValueSummary newPayload) {
         cond = cond.or(pc);
         dest = dest.merge(new PrimVS<>(newDest).guard(pc));
 
@@ -45,7 +45,7 @@ public class GotoOutcome {
         }
     }
 
-    public void addGuardedGoto(Bdd pc, StateTag newDest) {
+    public void addGuardedGoto(Bdd pc, State newDest) {
         addGuardedGoto(pc, newDest, null);
     }
 }

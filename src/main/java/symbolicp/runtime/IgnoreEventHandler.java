@@ -5,12 +5,12 @@ import symbolicp.vs.ValueSummary;
 
 public class IgnoreEventHandler extends EventHandler {
 
-    public IgnoreEventHandler(EventTag eventTag) {
-        super(eventTag);
+    public IgnoreEventHandler(EventName eventName) {
+        super(eventName);
     }
 
     @Override
-    public void handleEvent(Bdd pc, ValueSummary payload, BaseMachine machine, GotoOutcome gotoOutcome,
+    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome,
                             RaiseOutcome raiseOutcome) {
         // Ignore
     }

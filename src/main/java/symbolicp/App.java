@@ -2,7 +2,6 @@ package symbolicp;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.ListVS;
-import symbolicp.vs.OptionalVS;
 import symbolicp.vs.PrimVS;
 
 import java.util.*;
@@ -28,9 +27,7 @@ public class App {
         myList = myList.add(val2);
         myList = myList.add(val3);
 
-        final OptionalVS<PrimVS<Integer>> dependentItem =
-            myList.get(val1);
-        System.out.println("Dependent item present: " + dependentItem.present.getGuardedValues());
-        System.out.println("Dependent item content: " + dependentItem.unwrapOrThrow().getGuardedValues());
+        final PrimVS<Integer> dependentItem = myList.get(val1);
+        System.out.println("Dependent item content: " + dependentItem.getGuardedValues());
     }
 }

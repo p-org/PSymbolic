@@ -1,6 +1,6 @@
 package symbolicp;
 
-import symbolicp.runtime.MachineTag;
+import symbolicp.runtime.Machine;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -9,17 +9,18 @@ import java.nio.file.Paths;
 import java.util.stream.StreamSupport;
 
 public class Utils {
-    public static MachineTag[] getMachineTags(Class<?> wrapper_class, Object wrapper) throws IllegalAccessException {
-        ArrayList<MachineTag> machineTags = new ArrayList<>();
+
+    public static Machine[] getMachines(Class<?> wrapper_class, Object wrapper) throws IllegalAccessException {
+        ArrayList<Machine> machines = new ArrayList<>();
         // Collect all machine tag fields from the class
         for (Field field : wrapper_class.getFields()) {
-            if (field.getName().startsWith("machineTag")) {
-                machineTags.add((MachineTag) field.get(wrapper));
+            if (field.getType().isInstance(Machine.class)) {
+                machines.add((Machine) field.get(wrapper));
             }
         }
-        MachineTag[] machineTags1 = new MachineTag[machineTags.size()];
-        machineTags.toArray(machineTags1);
-        return machineTags1;
+        Machine[] machinesArr = new Machine[machines.size()];
+        machines.toArray(machinesArr);
+        return machinesArr;
     }
 
     public static String[] splitPath(String pathString) {

@@ -167,23 +167,26 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
     /** Get an item from the ListVS
      * @param indexSummary The index to take from the ListVS. Should be possible under the same conditions as the ListVS.
      */
-    public OptionalVS<T> get(PrimVS<Integer> indexSummary) {
-        return indexSummary.applyVS(
-                new OptionalVS<>(),
-                 // for each possible index value
-                 index -> {
-                     // see if it is in range
-                     final PrimVS<Boolean> inRange = inRange(index);
-                     // for each possibility about it being in range
-                     return inRange.applyVS(new OptionalVS<>(), isInRange ->
-                     {
-                         if (isInRange) {
-                             return new OptionalVS<>(items.get(index));
-                         } else {
-                             return new OptionalVS<>();
-                         }
-                     } );
-                 } );
+    public T get(PrimVS<Integer> indexSummary) {
+        final PrimVS<Boolean> inRange = inRange(indexSummary);
+        // make sure it is always in range
+        if (!inRange.getGuard(false).isConstFalse()) {
+            // there is a possibility that the index is out-of-bounds
+            throw new IndexOutOfBoundsException();
+        }
+
+        T merger = null;
+        List<T> toMerge = new ArrayList<>();
+        // for each possible index value
+        for (GuardedValue<Integer> index : indexSummary.getGuardedValues()) {
+            T item = items.get(index.value).guard(index.guard);
+            if (merger == null)
+                merger = item;
+            else
+                toMerge.add(item);
+        }
+
+        return merger.merge(toMerge);
     }
 
     /** Set an item in the ListVS
@@ -191,31 +194,30 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
      * @param itemToSet The item to put in the ListVS. Should be possible under the same conditions as the ListVS
      * @return The result of setting the ListVS
      */
-    public OptionalVS<ListVS<T>> set(PrimVS<Integer> indexSummary, T itemToSet) {
-        return indexSummary.applyVS(
-                new OptionalVS<>(),
-                // for each possible index value
-                index -> {
-                    // see if it is in range
-                    final PrimVS<Boolean> inRange = inRange(index);
-                    // for each possibility about it being in range
-                    return inRange.applyVS(new OptionalVS<>(), isInRange ->
-                    {
-                        if (isInRange) {
-                            final List<T> newItems = new ArrayList<>(items);
-                            // The guard under which indexSummary has this index
-                            Bdd guard = indexSummary.getGuard(index);
-                            // the original item remains in the case that the index does not match
-                            final T originalEntry = newItems.get(index).guard(guard.not());
-                            // otherwise, the new item should be set
-                            final T newEntry = itemToSet.guard(guard);
-                            newItems.set(index, originalEntry.merge(Collections.singletonList(newEntry)));
-                            return new OptionalVS<>(new ListVS<>(size, newItems));
-                        } else {
-                            return new OptionalVS<>();
-                        }
-                    });
-                });
+    public ListVS<T> set(PrimVS<Integer> indexSummary, T itemToSet) {
+        final PrimVS<Boolean> inRange = inRange(indexSummary);
+        // make sure it is always in range
+        if (!inRange.getGuard(false).isConstFalse()) {
+            // there is a possibility that the index is out-of-bounds
+            throw new IndexOutOfBoundsException();
+        }
+
+        ListVS<T> merger = null;
+        List<ListVS<T>> toMerge = new ArrayList<>();
+        // for each possible index value
+        for (GuardedValue<Integer> index : indexSummary.getGuardedValues()) {
+            final List<T> newItems = new ArrayList<>(items);
+            // the original item is updated when this is the index (i.e., index.guard holds)
+            final T newEntry = newItems.get(index.value).update(index.guard, itemToSet);
+            newItems.set(index.value, newEntry);
+            ListVS<T> newList = new ListVS<>(size, newItems);
+            if (merger == null)
+                merger = newList;
+            else
+                toMerge.add(newList);
+        }
+
+        return merger.merge(toMerge);
     }
 
     /** Check whether the ListVS contains an element
@@ -228,7 +230,7 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
         PrimVS<Boolean> contains = new PrimVS<>(false).guard(getUniverse());
 
         while (!BoolUtils.isFalse(IntUtils.lessThan(i, size)))  {
-            contains = BoolUtils.or(contains, element.symbolicEquals(get(i).unwrapOrThrow(), getUniverse()));
+            contains = BoolUtils.or(contains, element.symbolicEquals(get(i), getUniverse()));
             i = IntUtils.add(i, 1);
         }
 
@@ -236,82 +238,89 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
     }
 
 
-    /** Insert an item in the ListVS. Inserting at the end will produce an empty option rather than adding to the end.
+    /** Insert an item in the ListVS. Inserting at the end will produce an IndexOutOfBoundsException.
      * @param indexSummary The index to insert at in the ListVS. Should be possible under the same conditions as the ListVS.
      * @param itemToInsert The item to put in the ListVS. Should be possible under the same conditions as the ListVS
      * @return The result of inserting into the ListVS
      */
-    public OptionalVS<ListVS<T>> insert(PrimVS<Integer> indexSummary, T itemToInsert) {
+    public ListVS<T> insert(PrimVS<Integer> indexSummary, T itemToInsert) {
         final PrimVS<Boolean> inRange = inRange(indexSummary);
-        return inRange.applyVS(
-                new OptionalVS<>(),
-                isInRange ->
-                {
-                    // since it's in range,  all the OptionVS results should be present
-                    if (isInRange) {
-                        // 1. add a new entry (we'll re-add the last entry)
-                        ListVS<T> newList = new ListVS<>(this);
-                        newList = newList.add(newList.get(IntUtils.subtract(size, 1)).unwrapOrThrow());
+        // make sure it is always in range
+        if (!inRange.getGuard(false).isConstFalse()) {
+            // there is a possibility that the index is out-of-bounds
+            throw new IndexOutOfBoundsException();
+        }
 
-                        // 2. setting at the insertion index
-                        PrimVS<Integer> current = indexSummary;
-                        T prev = newList.get(current).unwrapOrThrow();
-                        newList = newList.set(indexSummary, itemToInsert).unwrapOrThrow();
-                        current = IntUtils.add(current, 1);
+        ListVS<T> merger = null;
+        List<ListVS<T>> toMerge = new ArrayList<>();
+        for (GuardedValue<Integer> index : indexSummary.getGuardedValues()) {
+            // 1. add a new entry (we'll re-add the last entry)
+            ListVS<T> newList = new ListVS<>(this);
+            newList = newList.add(newList.get(IntUtils.subtract(size, 1)));
 
-                        // 3. setting everything after insertion index to be the previous element
-                        // (but we can skip the very last one, since we've already added it)
-                        while (!BoolUtils.isFalse(IntUtils.lessThan(current, IntUtils.subtract(size, 1)))) {
-                            T old = newList.get(current).unwrapOrThrow();
-                            T update = old.update(BoolUtils.trueCond(IntUtils.lessThan(current, size)), prev);
-                            newList = newList.set(current, update).unwrapOrThrow();
-                            prev = old;
-                            current = IntUtils.add(current, 1);
-                        }
+            // 2. setting at the insertion index
+            PrimVS<Integer> current = indexSummary;
+            T prev = newList.get(current);
+            newList = newList.set(indexSummary, itemToInsert);
+            current = IntUtils.add(current, 1);
 
-                        return new OptionalVS<>(newList);
-                    } else {
-                        return new OptionalVS<>();
-                    }
-                }
-        );
+            // 3. setting everything after insertion index to be the previous element
+            // (but we can skip the very last one, since we've already added it)
+            while (!BoolUtils.isFalse(IntUtils.lessThan(current, IntUtils.subtract(size, 1)))) {
+                T old = newList.get(current);
+                T update = old.update(BoolUtils.trueCond(IntUtils.lessThan(current, size)), prev);
+                newList = newList.set(current, update);
+                prev = old;
+                current = IntUtils.add(current, 1);
+            }
+
+            if (merger == null)
+                merger = newList;
+            else
+                toMerge.add(newList);
+        }
+
+        return merger.merge(toMerge);
     }
 
     /** Remove an item from the ListVS.
      * @param indexSummary The index to insert at in the ListVS. Should be possible under the same conditions as the ListVS.
      * @return The result of removing from the ListVS
      */
-    public OptionalVS<ListVS<T>> removeAt(PrimVS<Integer> indexSummary) {
-            final PrimVS<Boolean> inRange = inRange(indexSummary);
+    public ListVS<T> removeAt(PrimVS<Integer> indexSummary) {
+        final PrimVS<Boolean> inRange = inRange(indexSummary);
+        // make sure it is always in range
+        if (!inRange.getGuard(false).isConstFalse()) {
+            // there is a possibility that the index is out-of-bounds
+            throw new IndexOutOfBoundsException();
+        }
 
-            return inRange.applyVS(
-                    new OptionalVS<>(),
-                    (isInRange) -> {
-                        // since it's in range, we require that all the OptionVS results are present
-                        // TODO: add explicit checks for this
-                        if (isInRange) {
-                            // want to update size if it is greater than 0
-                            Bdd updateSizeCond = BoolUtils.trueCond(IntUtils.lessThan(0, size));
-                            // new size
-                            PrimVS<Integer> newSize = size.update(updateSizeCond, IntUtils.subtract(size, 1));
+        ListVS<T> merger = null;
+        List<ListVS<T>> toMerge = new ArrayList<>();
+        for (GuardedValue<Integer> index : indexSummary.getGuardedValues()) {
+            // want to update size if it is greater than 0
+            Bdd updateSizeCond = BoolUtils.trueCond(IntUtils.lessThan(0, size));
+            // new size
+            PrimVS<Integer> newSize = size.update(updateSizeCond, IntUtils.subtract(size, 1));
 
-                            ListVS<T> newList = new ListVS<>(newSize, items.subList(0, items.size() - 1));
-                            PrimVS<Integer> current = indexSummary;
+            ListVS<T> newList = new ListVS<>(newSize, items.subList(0, items.size() - 1));
+            PrimVS<Integer> current = indexSummary;
 
-                            // Setting everything after removal index to be the next element
-                            while (!BoolUtils.isFalse(IntUtils.lessThan(current, newSize))) {
-                                T old = get(current).unwrapOrThrow();
-                                T next = get(IntUtils.add(current, 1)).unwrapOrThrow();
-                                T update = old.update(BoolUtils.trueCond(IntUtils.lessThan(current, size)), next);
-                                newList = newList.set(current, update).unwrapOrThrow();
-                                current = IntUtils.add(current, 1);
-                            }
+            // Setting everything after removal index to be the next element
+            while (!BoolUtils.isFalse(IntUtils.lessThan(current, newSize))) {
+                T old = get(current);
+                T next = get(IntUtils.add(current, 1));
+                T update = old.update(BoolUtils.trueCond(IntUtils.lessThan(current, size)), next);
+                newList = newList.set(current, update);
+                current = IntUtils.add(current, 1);
+            }
 
-                            return new OptionalVS<>(newList);
-                        } else {
-                            return new OptionalVS<>();
-                        }
-                    }
-            );
+            if (merger == null)
+                merger = newList;
+            else
+                toMerge.add(newList);
+        }
+
+        return merger.merge(toMerge);
     }
 }

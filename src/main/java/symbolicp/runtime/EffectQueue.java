@@ -9,26 +9,24 @@ import java.util.Map;
 import java.util.function.Function;
 
 public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
-    public abstract static class Effect implements SymbolicQueue.Entry<Effect> {
-        final Bdd cond;
-        final MachineRefVS target;
+    public abstract static class Effect implements SymbolicQueue.Entry {
+        final PrimVS<Machine> target;
 
-        public Effect(Bdd cond, MachineRefVS target) {
-            this.cond = cond;
+        public Effect(PrimVS<Machine> target) {
             this.target = target;
         }
 
         @Override
         public Bdd getCond() {
-            return cond;
+            return target.getUniverse();
         }
     }
 
     public static class SendEffect extends Effect {
-        final UnionVS<EventTag> event;
+        final PrimVS<Event> event;
 
-        public SendEffect(Bdd cond, MachineRefVS target, UnionVS<EventTag> event) {
-            super(cond, target);
+        public SendEffect(Bdd cond, PrimVS<Machine> target, PrimVS<Event> event) {
+            super(target);
             this.event = event;
         }
 
@@ -53,13 +51,14 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
     public static class InitEffect extends Effect {
         final ValueSummary payload;
 
-        public InitEffect(Bdd cond, MachineRefVS machine, ValueSummary payload) {
-            super(cond, machine);
-            this.payload = payload;
+        public InitEffect(Bdd cond, PrimVS<Machine> machine, ValueSummary payload) {
+            super(machine.guard(cond));
+            this.payload = payload.guard(cond);
         }
 
-        public InitEffect(Bdd cond, MachineRefVS machine) {
-            this(cond, machine, null);
+        public InitEffect(Bdd cond, PrimVS<Machine> machine) {
+            super(machine.guard(cond));
+            payload = null;
         }
 
         @Override
@@ -84,29 +83,28 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         super();
     }
 
-    public void send(Bdd pc, MachineRefVS dest, PrimVS<EventTag> eventTag, ValueSummary payload) {
-        if (eventTag.getGuardedValues().size() > 1) {
+    public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, ValueSummary payload) {
+        if (eventName.getGuardedValues().size() > 1) {
             throw new NotImplementedException();
         }
-        EventTag concreteTag = eventTag.getValues().iterator().next();
-        Map<EventTag, ValueSummary> payloadMap = new HashMap<>();
-        payloadMap.put(concreteTag, payload);
-        enqueueEntry(new SendEffect(pc, dest, new UnionVS<EventTag>(eventTag, payloadMap)));
+        PrimVS<Event> event = new PrimVS<Event>(new Event(eventName.getGuardedValues().get(0).value, payload));
+        enqueueEntry(new SendEffect(pc, dest, event));
     }
 
-    public MachineRefVS create(
+    public PrimVS<Machine> create(
             Bdd pc,
             Scheduler scheduler,
-            MachineTag tag,
             ValueSummary payload,
-            Function<Integer, BaseMachine> constructor
+            Class<? extends Machine> machineType,
+            Function<Integer, ? extends Machine> constructor
     ) {
-        MachineRefVS ref = scheduler.allocateMachineId(pc, tag, constructor);
-        enqueueEntry(new InitEffect(pc, ref, payload));
-        return ref;
+        PrimVS<Machine> machine = scheduler.allocateMachine(pc, machineType, constructor);
+        enqueueEntry(new InitEffect(pc, machine, payload));
+        return machine;
     }
 
-    public MachineRefVS create(Bdd pc, Scheduler scheduler, MachineTag tag, Function<Integer, BaseMachine> constructor) {
-        return create(pc, scheduler, tag, null, constructor);
+    public PrimVS<Machine> create(Bdd pc, Scheduler scheduler, Class<? extends Machine> machineType,
+                                  Function<Integer, ? extends Machine> constructor) {
+        return create(pc, scheduler, null, machineType, constructor);
     }
 }

@@ -1,10 +1,8 @@
 package symbolicp;
 import org.junit.jupiter.api.Test;
-import symbolicp.runtime.BaseMachine;
-import symbolicp.runtime.MachineTag;
+import symbolicp.runtime.Machine;
 import symbolicp.runtime.Scheduler;
-import symbolicp.vs.UnionVS;
-import symbolicp.runtime.EventTag;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
@@ -22,15 +20,13 @@ public class TestExecutorDemo {
         Class<?> wrapper_class =  Class.forName("symbolicp.testCase.accumulatortest");
         Object wrapper = wrapper_class.getConstructor().newInstance();
 
-        MachineTag machineTag_Main = (MachineTag) wrapper_class.getField("machineTag_Main").get(wrapper);
-
         Constructor constructor = mainMachineClass.getConstructor(int.class);
-        BaseMachine main = (BaseMachine) constructor.newInstance(0);
+        Machine main = (Machine) constructor.newInstance(0);
 
-        Scheduler scheduler = new Scheduler(Utils.getMachineTags(wrapper_class, wrapper));
+        Scheduler scheduler = new Scheduler(Utils.getMachines(wrapper_class, wrapper));
         wrapper_class.getField("scheduler").set(wrapper, scheduler);
         scheduler.disableLogging();
-        scheduler.startWith(machineTag_Main, main);
+        scheduler.startWith(main);
 
         int max_depth = 100;
         for (int i = 0; i < max_depth; ++i) {

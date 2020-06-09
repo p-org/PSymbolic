@@ -95,4 +95,5 @@ public final class BoolUtils {
     public static boolean isFalse(PrimVS<Boolean> b) {
         return falseCond(b).isConstTrue();
     }
+
 }
