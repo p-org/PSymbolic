@@ -40,6 +40,15 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         }
 
         @Override
+        public Bdd getCond() {
+            Bdd startedCond = Bdd.constFalse();
+            for (GuardedValue<Machine> m : target.getGuardedValues()) {
+                startedCond.or(m.value.hasStarted().getGuard(true).and(m.guard));
+            }
+            return startedCond;
+        }
+
+        @Override
         public String toString() {
             return "SendEffect{" +
                     "target=" + target +
@@ -53,7 +62,8 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
 
         public InitEffect(Bdd cond, PrimVS<Machine> machine, ValueSummary payload) {
             super(machine.guard(cond));
-            this.payload = payload.guard(cond);
+            if (payload == null) this.payload = null;
+            else this.payload = payload.guard(cond);
         }
 
         public InitEffect(Bdd cond, PrimVS<Machine> machine) {
@@ -94,8 +104,8 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
     public PrimVS<Machine> create(
             Bdd pc,
             Scheduler scheduler,
-            ValueSummary payload,
             Class<? extends Machine> machineType,
+            ValueSummary payload,
             Function<Integer, ? extends Machine> constructor
     ) {
         PrimVS<Machine> machine = scheduler.allocateMachine(pc, machineType, constructor);
@@ -105,6 +115,6 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
 
     public PrimVS<Machine> create(Bdd pc, Scheduler scheduler, Class<? extends Machine> machineType,
                                   Function<Integer, ? extends Machine> constructor) {
-        return create(pc, scheduler, null, machineType, constructor);
+        return create(pc, scheduler, machineType, null, constructor);
     }
 }

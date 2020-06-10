@@ -34,6 +34,7 @@ public abstract class State extends HasId {
         for (GuardedValue<Event> entry : EventVS.getGuardedValues()) {
             Event event = entry.value;
             Bdd eventPc = entry.guard;
+            RuntimeLogger.log("State " + name + ", handling event of type " + event.name);
             if (eventHandlers.containsKey(event.name)) {
                 eventHandlers.get(event.name).handleEvent(
                         eventPc,
@@ -44,7 +45,7 @@ public abstract class State extends HasId {
                         );
             }
             else {
-                throw new BugFoundException("Missing handler for event: " + event, eventPc);
+                throw new BugFoundException("State " + name + " missing handler for event: " + event.name, eventPc);
             }
         }
     }

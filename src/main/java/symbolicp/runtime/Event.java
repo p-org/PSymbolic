@@ -1,7 +1,6 @@
 package symbolicp.runtime;
 
 import symbolicp.vs.BoolUtils;
-import symbolicp.vs.PrimVS;
 import symbolicp.vs.ValueSummary;
 
 public class Event {
@@ -15,18 +14,18 @@ public class Event {
 
     public Event(EventName name) {
         this.name = name;
-        this.payload = new PrimVS<>();
+        this.payload = null;
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Event) {
             Event e = (Event) obj;
-            return this.name.equals(e.name) &&
-                    e.payload.getUniverse().implies(this.payload.getUniverse()).isConstTrue() &&
-                    this.payload.getUniverse()
+            return this.name.equals(e.name) && ((this.payload == null && e.payload == null) ||
+                    (e.payload.getUniverse().implies(this.payload.getUniverse()).isConstTrue() &&
+                            this.payload.getUniverse()
                             .implies(BoolUtils.trueCond(this.payload.symbolicEquals(e.payload, payload.getUniverse())))
-                            .isConstTrue();
+                            .isConstTrue()));
         }
         return false;
     }
@@ -34,5 +33,10 @@ public class Event {
     @Override
     public int hashCode() {
         return name.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return this.name.toString();
     }
 }

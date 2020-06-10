@@ -625,6 +625,9 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
 
                 case AssertStmt assertStmt:
+                    context.Write(output, "System.out.println(");
+                    WriteExpr(context, output, flowContext.pcScope, assertStmt.Assertion);
+                    context.Write(output, ".getValues());");
                     context.Write(output, "assert !(");
                     WriteExpr(context, output, flowContext.pcScope, assertStmt.Assertion);
                     context.Write(output, ").getValues().contains(Boolean.FALSE);");
@@ -1374,7 +1377,7 @@ namespace Plang.Compiler.Backend.Symbolic
                 $"{CompilationContext.EffectQueueVar}.create(" +
                 $"{pcScope.PathConstraintVar}, " +
                 $"{CompilationContext.SchedulerVar}, " +
-                $"{context.GetNameForDecl(ctorInterface)}, ");
+                $"{context.GetNameForDecl(ctorInterface)}.class, ");
 
             if (ctorArguments.Count > 0)
             {

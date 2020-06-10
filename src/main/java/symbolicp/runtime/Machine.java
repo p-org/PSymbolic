@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.bdd.Checks;
 import symbolicp.vs.*;
 
 import java.util.*;
@@ -9,13 +10,17 @@ public abstract class Machine extends HasId {
     private final State startState;
     private final Set<State> states;
     private static final RuntimeLogger LOGGER = new RuntimeLogger();
+    private PrimVS<Boolean> started = new PrimVS<>(false);
 
     private PrimVS<State> state;
     public final EffectQueue effectQueue;
     public final DeferQueue deferredQueue;
 
-    public Machine(String name, int id, State startState, State... states) {
+    public PrimVS<Boolean> hasStarted() {
+        return started;
+    }
 
+    public Machine(String name, int id, State startState, State... states) {
         super(name, id);
 
         this.startState = startState;
@@ -31,8 +36,8 @@ public abstract class Machine extends HasId {
     }
 
     public void start(Bdd pc, ValueSummary payload) {
-        System.out.println("machine start");
         this.state = this.state.guard(pc.not()).merge(new PrimVS<>(startState).guard(pc));
+        this.started.update(pc, new PrimVS<Boolean>(true));
 
         GotoOutcome initGotoOutcome = new GotoOutcome();
         RaiseOutcome initRaiseOutcome = new RaiseOutcome();
@@ -120,6 +125,7 @@ public abstract class Machine extends HasId {
         for (GuardedValue<State> entry : guardedState.getGuardedValues()) {
             Bdd state_pc = entry.guard;
             PrimVS<Event> guardedEvent = event.guard(state_pc);
+            if (state_pc.and(pc).isConstFalse()) continue;
             entry.value.handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
         }
         LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);

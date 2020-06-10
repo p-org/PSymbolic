@@ -1,6 +1,7 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.bdd.Checks;
 
 import java.util.*;
 import java.util.function.BiFunction;
@@ -153,6 +154,10 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     @Override
     public PrimVS<T> update(Bdd guard, PrimVS<T> update) {
         return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
+    }
+
+    public void check() {
+        assert (Checks.disjointUnion(guardedValues.values()));
     }
 
     @Override

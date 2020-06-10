@@ -10,10 +10,6 @@ import java.util.function.Function;
 
 public class Scheduler {
 
-    public static void debug(String str) {
-        System.err.println("[SCHEDULER]: " + str);
-    }
-
     final List<Machine> machines;
     final Map<Class<? extends Machine>, PrimVS<Integer>> machineCounters;
 
@@ -39,7 +35,7 @@ public class Scheduler {
      * but can't do this for the very first machine
      */
     public void startWith(Machine machine) {
-        debug("Start with tag " + machine.getClass() + ", machine type" + machine.getClass());
+        RuntimeLogger.log("Start with tag " + machine.getClass() + ", machine type" + machine.getClass());
         for (PrimVS<Integer> machineCounter : machineCounters.values()) {
             if (machineCounter.getGuardedValues().size() != 1 || !machineCounter.hasValue(0)) {
                 throw new RuntimeException("You cannot start the scheduler after it already contains machines");
@@ -85,7 +81,7 @@ public class Scheduler {
         final Bdd noneEnabledCond = residualPc;
         PrimVS<Boolean> isPresent = BoolUtils.fromTrueGuard(noneEnabledCond.not());
 
-        assert(Checks.sameUniverse(noneEnabledCond, new PrimVS<Integer>().merge(results).getUniverse()));
+        assert(Checks.sameUniverse(noneEnabledCond.not(), new PrimVS<Integer>().merge(results).getUniverse()));
         return new PrimVS<Integer>().merge(results);
     }
 
@@ -95,7 +91,7 @@ public class Scheduler {
         step_count++;
 
         for (Machine machine : machines) {
-            debug("machine with name " + machine.name + "machine type" + machine.getClass());
+            RuntimeLogger.log("Machine with name " + machine.name + "machine type" + machine.getClass());
             if (!machine.effectQueue.isEmpty()) {
                 candidateMachines.add(machine);
                 candidateConds.add(machine.effectQueue.enabledCond());

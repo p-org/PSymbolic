@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.vs.PrimVS;
 import symbolicp.vs.ValueSummary;
 
 public class GotoEventHandler extends EventHandler {
@@ -17,7 +18,7 @@ public class GotoEventHandler extends EventHandler {
     public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome,
                             RaiseOutcome raiseOutcome) {
         transitionAction(pc, machine, payload);
-        assert payload == null;
+        //assert payload == null;
         gotoOutcome.addGuardedGoto(pc, dest, payload);
     }
 }
