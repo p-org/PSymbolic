@@ -4,7 +4,6 @@ import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
 import symbolicp.vs.GuardedValue;
 import symbolicp.vs.PrimVS;
-import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
 import java.util.HashMap;
@@ -34,7 +33,7 @@ public abstract class State extends HasId {
         for (GuardedValue<Event> entry : EventVS.getGuardedValues()) {
             Event event = entry.value;
             Bdd eventPc = entry.guard;
-            RuntimeLogger.log("State " + name + ", handling event of type " + event.name);
+            ScheduleLogger.handle(this, event);
             if (eventHandlers.containsKey(event.name)) {
                 eventHandlers.get(event.name).handleEvent(
                         eventPc,
@@ -45,8 +44,14 @@ public abstract class State extends HasId {
                         );
             }
             else {
-                throw new BugFoundException("State " + name + " missing handler for event: " + event.name, eventPc);
+                throw new BugFoundException("State " + name + " missing handler for event: " + event.name +
+                        System.lineSeparator() + Scheduler.schedule.singleScheduleToString(eventPc) , eventPc);
             }
         }
+    }
+
+    @Override
+    public String toString() {
+        return String.format("State %s#%d", name, id);
     }
 }

@@ -625,9 +625,6 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
 
                 case AssertStmt assertStmt:
-                    context.Write(output, "System.out.println(");
-                    WriteExpr(context, output, flowContext.pcScope, assertStmt.Assertion);
-                    context.Write(output, ".getValues());");
                     context.Write(output, "assert !(");
                     WriteExpr(context, output, flowContext.pcScope, assertStmt.Assertion);
                     context.Write(output, ").getValues().contains(Boolean.FALSE);");
@@ -636,7 +633,8 @@ namespace Plang.Compiler.Backend.Symbolic
                 case ReturnStmt returnStmt:
                     if (!(returnStmt.ReturnValue is null))
                     {
-                        context.Write(output, $"{CompilationContext.ReturnValue} = {CompilationContext.ReturnValue}.merge( ");
+                        context.Write(output, $"{CompilationContext.ReturnValue} = {CompilationContext.ReturnValue}.update(");
+                        context.Write(output, $"{flowContext.pcScope.PathConstraintVar}, ");
                         WriteExpr(context, output, flowContext.pcScope, returnStmt.ReturnValue);
                         context.WriteLine(output, $");");
                     }
@@ -705,7 +703,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
 
                 case CompoundStmt compoundStmt:
-                    // Used to deermine the number of closing braces to add at the end of the block
+                    // Used to determine the number of closing braces to add at the end of the block
                     var nestedEarlyExitCheckCount = 0;
 
                     foreach (var subStmt in compoundStmt.Statements)
@@ -1182,7 +1180,7 @@ namespace Plang.Compiler.Backend.Symbolic
 
                     context.WriteLine(output,
                         $"{unguarded} = " +
-                        $"{unguarded}.guard({pcScope.PathConstraintVar}.not()).merge(" +
+                        $"{unguarded}.update({pcScope.PathConstraintVar}, " +
                         $"{guardedTemp});");
 
                     break;
@@ -1631,12 +1629,18 @@ namespace Plang.Compiler.Backend.Symbolic
                 context.WriteLine(output, "// TODO: Make maxDepth configurable");
                 context.WriteLine(output, "int maxDepth = 13;");
 
+                /*
                 foreach (Machine machine in globalScope.Machines)
                 {
                     context.WriteLine(output, $"Machine instance_machine_{machine.Name} = new {context.GetNameForDecl(machine)}(0);");
                 }
+                */
+                context.WriteLine(output, $"Machine instance_machine_{mainMachine.Name} = new {context.GetNameForDecl(mainMachine)}(0);");
 
                 context.Write(output, "scheduler = new Scheduler(");
+
+                /*
+                context.WriteLine(output, $"instance_machine_{mainMachine.Name}");
                 bool first = true;
                 foreach (Machine machine in globalScope.Machines)
                 {
@@ -1652,6 +1656,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     context.Write(output, $"instance_{context.GetMachineName(machine)}");
 
                 }
+                */
                 context.WriteLine(output, ");");
                 context.WriteLine(output, $"scheduler.startWith(instance_{context.GetMachineName(mainMachine)});");
 

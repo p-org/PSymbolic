@@ -18,5 +18,7 @@ public interface BddLib<Bdd> {
     Bdd ifThenElse(Bdd cond, Bdd thenClause, Bdd elseClause);
 
     Bdd newVar();
+
+    String toString(Bdd bdd);
 }
 

@@ -13,6 +13,8 @@ public class SymbolicQueue<T extends SymbolicQueue.Entry> {
 
     private LinkedList<T> entries;
 
+    LinkedList<T> getEntries () { return entries; }
+
     public SymbolicQueue() {
         this.entries = new LinkedList<>();
     }

@@ -10,12 +10,16 @@ import java.util.function.Function;
 
 public class Scheduler {
 
+    public static Schedule schedule;
+
     final List<Machine> machines;
     final Map<Class<? extends Machine>, PrimVS<Integer>> machineCounters;
 
     private int step_count = 0;
+    private boolean done = false;
 
     public Scheduler(Machine... machines) {
+        schedule = new Schedule();
         this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
 
@@ -35,7 +39,6 @@ public class Scheduler {
      * but can't do this for the very first machine
      */
     public void startWith(Machine machine) {
-        RuntimeLogger.log("Start with tag " + machine.getClass() + ", machine type" + machine.getClass());
         for (PrimVS<Integer> machineCounter : machineCounters.values()) {
             if (machineCounter.getGuardedValues().size() != 1 || !machineCounter.hasValue(0)) {
                 throw new RuntimeException("You cannot start the scheduler after it already contains machines");
@@ -89,9 +92,10 @@ public class Scheduler {
         List<Machine> candidateMachines = new ArrayList<>();
         List<Bdd> candidateConds = new ArrayList<>();
         step_count++;
+        schedule.step();
+        if (done == true) return true;
 
         for (Machine machine : machines) {
-            RuntimeLogger.log("Machine with name " + machine.name + "machine type" + machine.getClass());
             if (!machine.effectQueue.isEmpty()) {
                 candidateMachines.add(machine);
                 candidateConds.add(machine.effectQueue.enabledCond());
@@ -99,7 +103,8 @@ public class Scheduler {
         }
 
         if (candidateMachines.isEmpty()) {
-            RuntimeLogger.log(String.format("Execution finished in %d steps", step_count));
+            ScheduleLogger.finished(step_count);
+            done = true;
             return true;
         }
 
@@ -108,6 +113,8 @@ public class Scheduler {
             Machine machine = candidateMachines.get(entry.value);
             Bdd guard = entry.guard;
             List<EffectQueue.Effect> symbolicEffect = machine.effectQueue.dequeueEntry(guard);
+            ScheduleLogger.schedule(symbolicEffect, machines);
+            schedule.addToSchedule(guard, symbolicEffect, machines);
             for (EffectQueue.Effect effect : symbolicEffect) {
                 performEffect(effect);
             }
@@ -118,6 +125,9 @@ public class Scheduler {
 
     public PrimVS<Machine> allocateMachine(Bdd pc, Class<? extends Machine> machineType,
                                            Function<Integer, ? extends Machine> constructor) {
+        if (!machineCounters.containsKey(machineType)) {
+            machineCounters.put(machineType, new PrimVS<>(0));
+        }
         PrimVS<Integer> guardedCount = machineCounters.get(machineType).guard(pc);
         guardedCount = IntUtils.add(guardedCount, 1);
 
@@ -151,15 +161,15 @@ public class Scheduler {
 
     public void logState() {
         for (Machine machine : machines) {
-            RuntimeLogger.log(String.format("Machine %s:", machine.toString()));
+            ScheduleLogger.machineState(machine);
         }
     }
 
     public void disableLogging() {
-        RuntimeLogger.disableInfo();
+        ScheduleLogger.disableInfo();
     }
 
     public void enableLogging() {
-        RuntimeLogger.enableInfo();
+        ScheduleLogger.enableInfo();
     }
 }

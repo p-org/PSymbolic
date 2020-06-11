@@ -1,7 +1,6 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.bdd.Checks;
 import symbolicp.vs.*;
 
 import java.util.*;
@@ -9,8 +8,8 @@ import java.util.*;
 public abstract class Machine extends HasId {
     private final State startState;
     private final Set<State> states;
-    private static final RuntimeLogger LOGGER = new RuntimeLogger();
     private PrimVS<Boolean> started = new PrimVS<>(false);
+    int update = 0;
 
     private PrimVS<State> state;
     public final EffectQueue effectQueue;
@@ -18,6 +17,10 @@ public abstract class Machine extends HasId {
 
     public PrimVS<Boolean> hasStarted() {
         return started;
+    }
+
+    public PrimVS<State> getState() {
+        return state;
     }
 
     public Machine(String name, int id, State startState, State... states) {
@@ -36,8 +39,10 @@ public abstract class Machine extends HasId {
     }
 
     public void start(Bdd pc, ValueSummary payload) {
+        ScheduleLogger.onMachineStart(pc, this);
+        update++;
         this.state = this.state.guard(pc.not()).merge(new PrimVS<>(startState).guard(pc));
-        this.started.update(pc, new PrimVS<Boolean>(true));
+        this.started = this.started.update(pc, new PrimVS<>(true));
 
         GotoOutcome initGotoOutcome = new GotoOutcome();
         RaiseOutcome initRaiseOutcome = new RaiseOutcome();
@@ -47,6 +52,7 @@ public abstract class Machine extends HasId {
     }
 
     void runOutcomesToCompletion(Bdd pc, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
+        ScheduleLogger.machineState(this);
         // Outer loop: process sequences of 'goto's, 'raise's, and events from the deferred queue.
         while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
             // TODO: Determine if this can be safely optimized into a concrete boolean
@@ -58,6 +64,7 @@ public abstract class Machine extends HasId {
                 RaiseOutcome nextRaiseOutcome = new RaiseOutcome();
                 if (!gotoOutcome.isEmpty()) {
                     performedTransition = performedTransition.or(gotoOutcome.getGotoCond());
+                    Scheduler.schedule.withinStep(state.guard(pc).guard(gotoOutcome.getGotoCond()));
                     processStateTransition(
                             gotoOutcome.getGotoCond(),
                             nextGotoOutcome,
@@ -67,8 +74,13 @@ public abstract class Machine extends HasId {
                     );
                 }
                 if (!raiseOutcome.isEmpty()) {
+                    Scheduler.schedule.runEvent(raiseOutcome.getEventSummary().guard(raiseOutcome.getRaiseCond()));
                     processEvent(raiseOutcome.getRaiseCond(), nextGotoOutcome, nextRaiseOutcome, raiseOutcome.getEventSummary());
                 }
+                PrimVS<Event> eventVS = raiseOutcome.getEventSummary();
+                eventVS.check();
+                this.state.check();
+
                 gotoOutcome = nextGotoOutcome;
                 raiseOutcome = nextRaiseOutcome;
             }
@@ -93,7 +105,10 @@ public abstract class Machine extends HasId {
             PrimVS<State> newState,
             Map<State, ValueSummary> payloads
     ) {
-        LOGGER.onProcessStateTransition(pc, this, newState);
+        ScheduleLogger.onProcessStateTransition(pc, this, newState);
+        Scheduler.schedule.withinStep(newState.guard(pc));
+        this.state.check();
+
         if (this.state == null) {
             this.state = newState;
         } else {
@@ -105,13 +120,14 @@ public abstract class Machine extends HasId {
             this.state = newState.merge(this.state.guard(pc.not()));
         }
 
-        for (GuardedValue<State> entry : newState.getGuardedValues()) {
+        this.state.check();
+
+        for (GuardedValue<State> entry : newState.guard(pc).getGuardedValues()) {
             State state = entry.value;
             Bdd transitionCond = entry.guard;
             ValueSummary payload = payloads.get(state);
             state.entry(transitionCond, this, gotoOutcome, raiseOutcome, payload);
         }
-        LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);
     }
 
     void processEvent(
@@ -120,7 +136,7 @@ public abstract class Machine extends HasId {
             RaiseOutcome raiseOutcome, // 'out' parameter
             PrimVS<Event> event
     ) {
-        LOGGER.onProcessEvent(pc, this, event);
+        ScheduleLogger.onProcessEvent(pc, this, event);
         PrimVS<State> guardedState = this.state.guard(pc);
         for (GuardedValue<State> entry : guardedState.getGuardedValues()) {
             Bdd state_pc = entry.guard;
@@ -128,7 +144,6 @@ public abstract class Machine extends HasId {
             if (state_pc.and(pc).isConstFalse()) continue;
             entry.value.handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
         }
-        LOGGER.summarizeOutcomes(this, gotoOutcome, raiseOutcome);
     }
 
     /*

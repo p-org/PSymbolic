@@ -12,7 +12,7 @@ public class Checks {
         for (Bdd bdd : bdds) {
             if (!acc.and(bdd).isConstFalse())
                 return false;
-            acc.or(bdd);
+            acc = acc.or(bdd);
         }
         return true;
     }

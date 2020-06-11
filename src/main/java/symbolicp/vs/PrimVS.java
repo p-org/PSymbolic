@@ -35,7 +35,12 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
      * Additionally, the provided map should not be mutated after the object is constructed.
      */
     public PrimVS(Map<T, Bdd> guardedValues) {
-        this.guardedValues = new HashMap<>(guardedValues);
+        this.guardedValues = new HashMap<>();
+        for (Map.Entry<T, Bdd> entry : guardedValues.entrySet()) {
+            if (!entry.getValue().isConstFalse()) {
+                this.guardedValues.put(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     /** Copy constructor for PrimVS
@@ -158,6 +163,9 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
 
     public void check() {
         assert (Checks.disjointUnion(guardedValues.values()));
+        for (Bdd guard : guardedValues.values()) {
+            assert(!guard.isConstFalse());
+        }
     }
 
     @Override
@@ -165,16 +173,24 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
         final Map<T, Bdd> result = new HashMap<>(guardedValues);
 
         for (PrimVS<T> summary : summaries) {
+            summary.check();
             for (Map.Entry<T, Bdd> entry : summary.guardedValues.entrySet()) {
                 result.merge(entry.getKey(), entry.getValue(), Bdd::or);
             }
         }
 
-        return new PrimVS<>(result);
+        PrimVS<T> res = new PrimVS<>(result);
+        res.check();
+        return res;
     }
 
     @Override
     public PrimVS<T> merge(PrimVS<T> summary) {
+        if (!this.getUniverse().and(summary.getUniverse()).isConstFalse()) {
+            System.out.println(getUniverse());
+            System.out.println(summary.getUniverse());
+
+        }
         return merge(Collections.singletonList(summary));
     }
 
@@ -191,7 +207,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
 
     @Override
     public String toString() {
-        return guardedValues.toString();
+        return getValues().toString();
     }
 
 }

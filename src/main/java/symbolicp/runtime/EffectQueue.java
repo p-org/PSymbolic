@@ -4,8 +4,6 @@ import symbolicp.bdd.Bdd;
 import symbolicp.util.NotImplementedException;
 import symbolicp.vs.*;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
@@ -43,7 +41,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         public Bdd getCond() {
             Bdd startedCond = Bdd.constFalse();
             for (GuardedValue<Machine> m : target.getGuardedValues()) {
-                startedCond.or(m.value.hasStarted().getGuard(true).and(m.guard));
+                startedCond = startedCond.or(m.value.hasStarted().getGuard(true).and(m.guard));
             }
             return startedCond;
         }
@@ -97,7 +95,8 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         if (eventName.getGuardedValues().size() > 1) {
             throw new NotImplementedException();
         }
-        PrimVS<Event> event = new PrimVS<Event>(new Event(eventName.getGuardedValues().get(0).value, payload));
+        if (payload != null) payload = payload.guard(pc);
+        PrimVS<Event> event = new PrimVS<Event>(new Event(eventName.getGuardedValues().get(0).value, payload)).guard(pc);
         enqueueEntry(new SendEffect(pc, dest, event));
     }
 
@@ -109,6 +108,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
             Function<Integer, ? extends Machine> constructor
     ) {
         PrimVS<Machine> machine = scheduler.allocateMachine(pc, machineType, constructor);
+        if (payload != null) payload = payload.guard(pc);
         enqueueEntry(new InitEffect(pc, machine, payload));
         return machine;
     }

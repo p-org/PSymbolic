@@ -43,7 +43,8 @@ public class RaiseOutcome {
 
         EventName nextEventName = eventName.getValues().iterator().next();
 
-        addGuardedRaiseEvent(pc, new PrimVS<>(new Event(nextEventName, payload)));
+        if (payload != null) payload = payload.guard(pc);
+        addGuardedRaiseEvent(pc, new PrimVS<>(new Event(nextEventName, payload)).guard(pc));
     }
 
     public void addGuardedRaise(Bdd pc, PrimVS<EventName> eventName) {

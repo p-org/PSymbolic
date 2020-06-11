@@ -67,6 +67,6 @@ public final class Bdd {
 
     @Override
     public String toString() {
-        return wrappedBdd.toString();
+        return globalBddLib.toString(wrappedBdd);
     }
 }

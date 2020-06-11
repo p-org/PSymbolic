@@ -1,5 +1,6 @@
 package symbolicp.runtime;
 
+import symbolicp.bdd.Checks;
 import symbolicp.vs.BoolUtils;
 import symbolicp.vs.ValueSummary;
 
@@ -15,6 +16,11 @@ public class Event {
     public Event(EventName name) {
         this.name = name;
         this.payload = null;
+    }
+
+    public boolean matches(Event e) {
+        return this.name.equals(e.name) && ((this.payload == null && e.payload == null) ||
+                this.payload.getUniverse().and(e.payload.getUniverse()).isConstFalse());
     }
 
     @Override

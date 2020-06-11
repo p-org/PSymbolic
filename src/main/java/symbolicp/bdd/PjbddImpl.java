@@ -3,12 +3,16 @@ package symbolicp.bdd;
 import org.sosy_lab.pjbdd.Builders;
 import org.sosy_lab.pjbdd.creator.bdd.Creator;
 import org.sosy_lab.pjbdd.node.BDD;
+import org.sosy_lab.pjbdd.util.parser.BDDStringExporter;
+import org.sosy_lab.pjbdd.util.parser.Exporter;
 
 public class PjbddImpl implements BddLib<BDD> {
     final private Creator c;
+    final private Exporter e;
 
     public PjbddImpl() {
         c = Builders.newBDDBuilder().build();
+        e = new BDDStringExporter(c);
     }
 
     @Override
@@ -54,5 +58,13 @@ public class PjbddImpl implements BddLib<BDD> {
     @Override
     public BDD newVar() {
         return c.makeVariable();
+    }
+
+    @Override
+    public String toString(BDD bdd) {
+        if (bdd == null) return "null";
+        if (bdd.isFalse()) return "false";
+        if (bdd.isTrue()) return "true";
+        return e.bddToString(bdd);
     }
 }

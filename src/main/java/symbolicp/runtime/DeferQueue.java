@@ -26,6 +26,6 @@ public class DeferQueue extends SymbolicQueue<DeferQueue.Entry> {
     }
 
     public void defer(Bdd pc, PrimVS<Event> event) {
-        enqueueEntry(new Entry(pc, event));
+        enqueueEntry(new Entry(pc, event.guard(pc)));
     }
 }

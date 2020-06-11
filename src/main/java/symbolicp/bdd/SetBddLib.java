@@ -89,4 +89,11 @@ public class SetBddLib<T> implements BddLib<Set<T>> {
     public Set<T> newVar() {
         throw new NotImplementedException();
     }
+
+    @Override
+    public String toString(Set<T> ts) {
+        return ts.toString();
+    }
+
+    public String toString(SetBddLib<T> s) { return s.toString(); }
 }
