@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.util.Checks;
 import symbolicp.vs.*;
 
 import java.util.*;
@@ -89,10 +90,8 @@ public abstract class Machine extends HasId {
             pc = performedTransition.and(deferredQueue.enabledCond());
             if (!pc.isConstFalse()) {
                 RaiseOutcome deferredRaiseOutcome = new RaiseOutcome();
-                List<DeferQueue.Entry> deferredEvents = deferredQueue.dequeueEntry(pc);
-                for (DeferQueue.Entry event : deferredEvents) {
-                    deferredRaiseOutcome.addGuardedRaiseEvent(event.getCond(), event.event);
-                }
+                PrimVS<Event> deferredEvent = deferredQueue.dequeueEntry(pc);
+                deferredRaiseOutcome.addGuardedRaiseEvent(deferredEvent);
                 raiseOutcome = deferredRaiseOutcome;
             }
         }
@@ -136,6 +135,7 @@ public abstract class Machine extends HasId {
             RaiseOutcome raiseOutcome, // 'out' parameter
             PrimVS<Event> event
     ) {
+        assert(Checks.includedIn(pc));
         ScheduleLogger.onProcessEvent(pc, this, event);
         PrimVS<State> guardedState = this.state.guard(pc);
         for (GuardedValue<State> entry : guardedState.getGuardedValues()) {
@@ -153,9 +153,10 @@ public abstract class Machine extends HasId {
     */
 
     void processEventToCompletion(Bdd pc, PrimVS<Event> event) {
+        assert(Checks.includedIn(pc));
         final GotoOutcome emptyGotoOutcome = new GotoOutcome();
         final RaiseOutcome eventRaiseOutcome = new RaiseOutcome();
-        eventRaiseOutcome.addGuardedRaiseEvent(pc, event);
+        eventRaiseOutcome.addGuardedRaiseEvent(event);
         runOutcomesToCompletion(pc, emptyGotoOutcome, eventRaiseOutcome);
     }
 

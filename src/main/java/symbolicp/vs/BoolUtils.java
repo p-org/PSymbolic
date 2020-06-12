@@ -96,4 +96,20 @@ public final class BoolUtils {
         return falseCond(b).isConstTrue();
     }
 
+    /** Get whether or not a Boolean value summary is ever true
+     *
+     * @param b The Boolean value summary
+     * @return Whether or not the provided value summary can be true
+     */
+    public static boolean isEverTrue(PrimVS<Boolean> b) {
+        return !trueCond(b).isConstFalse();
+    }
+
+    /** Get whether or not a Boolean value summary is ever false
+     *
+     * @param b The Boolean value summary
+     * @return Whether or not the provided value summary can be false
+     */
+    public static boolean isEverFalse(PrimVS<Boolean> b) { return !falseCond(b).isConstFalse(); }
+
 }

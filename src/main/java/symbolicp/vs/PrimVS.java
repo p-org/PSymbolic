@@ -1,7 +1,7 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.bdd.Checks;
+import symbolicp.util.Checks;
 
 import java.util.*;
 import java.util.function.BiFunction;
@@ -11,7 +11,10 @@ import java.util.stream.Collectors;
 /** Class for primitive value summaries */
 public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     private List<GuardedValue<T>> guardedValuesList;
+    /** Cached set of values */
     private Set<T> values;
+    /** Cached universe */
+    private Bdd universe;
 
     /** The guards on these values *must* be mutually exclusive.
      *
@@ -70,7 +73,9 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
 
     @Override
     public Bdd getUniverse() {
-        return Bdd.orMany(guardedValues.values().stream().collect(Collectors.toList()));
+        if (universe == null)
+            universe = Bdd.orMany(guardedValues.values().stream().collect(Collectors.toList()));
+        return universe;
     }
 
     /** Get whether or not the provided value is a possibility
@@ -201,6 +206,9 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
             if (cmp.guardedValues.containsKey(entry.getKey())) {
                 equalCond = equalCond.or(entry.getValue().and(cmp.guardedValues.get(entry.getKey())));
             }
+        }
+        if (this.getUniverse().isConstFalse() && cmp.getUniverse().isConstFalse()) {
+            return BoolUtils.fromTrueGuard(pc);
         }
         return BoolUtils.fromTrueGuard(pc.and(equalCond));
     }

@@ -1,16 +1,18 @@
 package symbolicp.runtime;
 
-import symbolicp.bdd.Checks;
+import symbolicp.util.Checks;
 import symbolicp.util.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.*;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class Scheduler {
 
     public static Schedule schedule;
+    public static Bdd universe;
 
     final List<Machine> machines;
     final Map<Class<? extends Machine>, PrimVS<Integer>> machineCounters;
@@ -19,6 +21,7 @@ public class Scheduler {
     private boolean done = false;
 
     public Scheduler(Machine... machines) {
+        universe = Bdd.constTrue();
         schedule = new Schedule();
         this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
@@ -39,6 +42,7 @@ public class Scheduler {
      * but can't do this for the very first machine
      */
     public void startWith(Machine machine) {
+        assert(universe.isConstTrue());
         for (PrimVS<Integer> machineCounter : machineCounters.values()) {
             if (machineCounter.getGuardedValues().size() != 1 || !machineCounter.hasValue(0)) {
                 throw new RuntimeException("You cannot start the scheduler after it already contains machines");
@@ -51,14 +55,13 @@ public class Scheduler {
         performEffect(
             new EffectQueue.InitEffect(
                     Bdd.constTrue(),
-                    new PrimVS<Machine>(machine)
+                    new PrimVS<>(machine)
             )
         );
     }
 
 
     private PrimVS<Integer> getNondetChoice(List<Bdd> candidateConds) {
-
         List<PrimVS<Integer>> results = new ArrayList<>();
 
         Bdd residualPc = Bdd.constTrue();
@@ -112,14 +115,20 @@ public class Scheduler {
         for (GuardedValue<Integer> entry : candidateGuards.getGuardedValues()) {
             Machine machine = candidateMachines.get(entry.value);
             Bdd guard = entry.guard;
-            List<EffectQueue.Effect> symbolicEffect = machine.effectQueue.dequeueEntry(guard);
-            ScheduleLogger.schedule(symbolicEffect, machines);
+            universe = guard;
+            List<EffectQueue.Effect> symbolicEffect = machine.effectQueue.dequeueEntry(guard).getValues().stream().collect(Collectors.toList());
+            assert(Checks.noRepeats(symbolicEffect));
+            ScheduleLogger.schedule(step_count, symbolicEffect, machines);
             schedule.addToSchedule(guard, symbolicEffect, machines);
+            PrimVS<State> oldState = machine.getState();
             for (EffectQueue.Effect effect : symbolicEffect) {
+                assert(effect.getGuard().implies(guard).isConstTrue());
                 performEffect(effect);
+                // After the effect is performed, the machine state should be the same under all other path conditions
+                assert(Checks.equalUnder(oldState, machine.getState(), machine.getState().guard(guard.not()).getUniverse()));
             }
         }
-
+        universe = Bdd.constTrue();
         return false;
     }
 
@@ -144,6 +153,7 @@ public class Scheduler {
     }
 
     private void performEffect(EffectQueue.Effect effect) {
+        assert(Checks.includedIn(effect.target.getUniverse()));
         for (GuardedValue<Machine> target : effect.target.getGuardedValues()) {
             Bdd pc = target.guard;
             if (!pc.isConstFalse()) {

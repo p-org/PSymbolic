@@ -1,68 +1,85 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.ValueSummary;
+import symbolicp.util.Checks;
+import symbolicp.vs.GuardedValue;
+import symbolicp.vs.ListVS;
+import symbolicp.vs.PrimVS;
 
 import java.util.*;
+import java.util.function.Predicate;
 
-public class SymbolicQueue<T extends SymbolicQueue.Entry> {
-    public interface Entry<T> {
-        public Bdd getCond();
-        public T withCond(Bdd cond);
+public class SymbolicQueue<T extends SymbolicQueue.canGuard<T>> {
+
+    public static interface canGuard<T> {
+        public T guard(Bdd pc);
     }
 
-    private LinkedList<T> entries;
-
-    LinkedList<T> getEntries () { return entries; }
+    private ListVS<PrimVS<T>> entries;
 
     public SymbolicQueue() {
-        this.entries = new LinkedList<>();
+        this.entries = new ListVS<>(Bdd.constTrue());
+        assert(entries.getUniverse().isConstTrue());
     }
 
-    public void enqueueEntry(T entry) {
-        // TODO: We could do some merging here in the future
-        entries.addLast(entry);
+    public PrimVS<Integer> size() { return entries.size(); }
+
+    public void enqueueEntry(PrimVS<T> entry) {
+        assert(Checks.includedIn(entry.getUniverse()));
+        //Checks.check(Scheduler.schedule.singleScheduleToString(entry.getUniverse()) + System.lineSeparator() + entries,
+        //        entries.size().guard(entry.getUniverse()).getValues().size() <= 1);
+        entries = entries.add(entry);
     }
 
     public boolean isEmpty() {
         return entries.isEmpty();
     }
 
-    // TODO: Can/should we optimize this?
     public Bdd enabledCond() {
-        Bdd result = Bdd.constFalse();
-        for (T entry : entries) {
-            result = result.or(entry.getCond());
-        }
-        return result;
+        return entries.getNonEmptyUniverse();
     }
 
-    public List<T> dequeueEntry(Bdd pc) {
-        List<T> result = new ArrayList<>();
-
-        ListIterator<T> candidateIter = entries.listIterator();
-        while (candidateIter.hasNext() && !pc.isConstFalse()) {
-            Entry<T> entry = candidateIter.next();
-            Bdd dequeueCond = entry.getCond().and(pc);
-            if (!dequeueCond.isConstFalse()) {
-                Bdd remainCond = entry.getCond().and(pc.not());
-                if (remainCond.isConstFalse()) {
-                    candidateIter.remove();
-                } else {
-                    T remainingEntry = entry.withCond(remainCond);
-                    candidateIter.set(remainingEntry);
-                }
-                result.add(entry.withCond(dequeueCond));
-
-                // We only want to pop the first entry from the queue.  However, which entry is "first" is
-                // symbolically determined.  Even if the entry we just popped was first under the path constraint
-                // 'dequeueCond', there may be a "residual" path constraint under which it does not exist, and
-                // therefore a different entry is first in the queue.
-                pc = pc.and(entry.getCond().not());
+    /** Get the condition under which the first queue entry obeys the provided predicate
+     * @param pred The filtering predicate
+     * @return The condition under which the first queue entry obeys pred
+     */
+    public Bdd enabledCond(Predicate<T> pred) {
+        Bdd cond = enabledCond();
+        PrimVS<T> top = peek(cond);
+        for (GuardedValue<T> guardedValue : top.getGuardedValues()) {
+            if (!pred.test(guardedValue.value)) {
+                cond = cond.and(guardedValue.guard.not());
             }
         }
+        return cond;
+    }
 
-        return result;
+    public PrimVS<T> dequeueEntry(Bdd pc) {
+        return peekOrDequeueHelper(pc, true);
+    }
+
+    public PrimVS<T> peek(Bdd pc) {
+        return peekOrDequeueHelper(pc, false);
+    }
+
+    private PrimVS<T> peekOrDequeueHelper(Bdd pc, boolean dequeue) {
+        assert(entries.getUniverse().isConstTrue());
+        ListVS<PrimVS<T>> filtered = entries.guard(pc);
+        if (!filtered.isEmpty()) {
+            assert(Checks.sameUniverse(filtered.getUniverse(), filtered.getNonEmptyUniverse()));
+            PrimVS<T> res = filtered.get(new PrimVS<>(0).guard(pc)).guard(pc);
+            if (dequeue)
+                entries = entries.update(pc, filtered.removeAt(new PrimVS<>(0).guard(pc)));
+            Map<T, Bdd> newMapping = new HashMap<>();
+            for (GuardedValue<T> guardedValue : res.getGuardedValues()) {
+                newMapping.put(guardedValue.value.guard(guardedValue.guard), guardedValue.guard);
+            }
+            res = new PrimVS<>(newMapping);
+            res.check();
+            assert(entries.getUniverse().isConstTrue());
+            return res;
+        }
+        return new PrimVS<>();
     }
 
     @Override

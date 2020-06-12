@@ -18,7 +18,6 @@ public class GotoEventHandler extends EventHandler {
     public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome,
                             RaiseOutcome raiseOutcome) {
         transitionAction(pc, machine, payload);
-        //assert payload == null;
         gotoOutcome.addGuardedGoto(pc, dest, payload);
     }
 }

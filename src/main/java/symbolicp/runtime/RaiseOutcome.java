@@ -30,8 +30,8 @@ public class RaiseOutcome {
         return event;
     }
 
-    public void addGuardedRaiseEvent(Bdd pc, PrimVS<Event> newEvent) {
-        cond = cond.or(pc);
+    public void addGuardedRaiseEvent(PrimVS<Event> newEvent) {
+        cond = cond.or(newEvent.getUniverse());
         event = event.merge(newEvent);
     }
 
@@ -44,7 +44,7 @@ public class RaiseOutcome {
         EventName nextEventName = eventName.getValues().iterator().next();
 
         if (payload != null) payload = payload.guard(pc);
-        addGuardedRaiseEvent(pc, new PrimVS<>(new Event(nextEventName, payload)).guard(pc));
+        addGuardedRaiseEvent(new PrimVS<>(new Event(nextEventName, payload)).guard(pc));
     }
 
     public void addGuardedRaise(Bdd pc, PrimVS<EventName> eventName) {

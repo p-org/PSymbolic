@@ -1,23 +1,24 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.util.Checks;
 import symbolicp.util.NotImplementedException;
 import symbolicp.vs.*;
 
 import java.util.function.Function;
 
 public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
-    public abstract static class Effect implements SymbolicQueue.Entry {
+    public abstract static class Effect implements SymbolicQueue.canGuard<Effect> {
         final PrimVS<Machine> target;
 
         public Effect(PrimVS<Machine> target) {
             this.target = target;
         }
 
-        @Override
-        public Bdd getCond() {
+        public Bdd getGuard() {
             return target.getUniverse();
-        }
+        };
+
     }
 
     public static class SendEffect extends Effect {
@@ -29,7 +30,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         }
 
         @Override
-        public Effect withCond(Bdd guard) {
+        public Effect guard(Bdd guard) {
             return new SendEffect(
                     guard,
                     target.guard(guard),
@@ -38,13 +39,29 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         }
 
         @Override
-        public Bdd getCond() {
+        public Bdd getGuard() {
             Bdd startedCond = Bdd.constFalse();
             for (GuardedValue<Machine> m : target.getGuardedValues()) {
                 startedCond = startedCond.or(m.value.hasStarted().getGuard(true).and(m.guard));
             }
             return startedCond;
         }
+
+        /*
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof SendEffect) {
+                SendEffect effect = (SendEffect) o;
+                System.out.println("is " + this + " equal to " + effect + "? " + (this.event.equals(effect.event) && this.target.equals(effect.target)));
+                if (this.event.toString().equals(effect.event.toString()) && !(this.event.equals(effect.event) && this.target.equals(effect.target))) {
+                    System.out.println("events equal? " + event.equals(effect.event));
+                    assert(false);
+                }
+                return (this.event.equals(effect.event) && this.target.equals(effect.target));
+            }
+            return false;
+        }
+        */
 
         @Override
         public String toString() {
@@ -70,7 +87,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
         }
 
         @Override
-        public Effect withCond(Bdd guard) {
+        public Effect guard(Bdd guard) {
                 return new InitEffect(
                         guard,
                         target.guard(guard),
@@ -84,6 +101,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
                     "target=" + target +
                     '}';
         }
+
     }
 
 
@@ -92,12 +110,13 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
     }
 
     public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, ValueSummary payload) {
+        assert(Checks.includedIn(pc));
         if (eventName.getGuardedValues().size() > 1) {
             throw new NotImplementedException();
         }
         if (payload != null) payload = payload.guard(pc);
         PrimVS<Event> event = new PrimVS<Event>(new Event(eventName.getGuardedValues().get(0).value, payload)).guard(pc);
-        enqueueEntry(new SendEffect(pc, dest, event));
+        enqueueEntry(new PrimVS<Effect>(new SendEffect(pc, dest, event)).guard(pc));
     }
 
     public PrimVS<Machine> create(
@@ -109,7 +128,7 @@ public class EffectQueue extends SymbolicQueue<EffectQueue.Effect> {
     ) {
         PrimVS<Machine> machine = scheduler.allocateMachine(pc, machineType, constructor);
         if (payload != null) payload = payload.guard(pc);
-        enqueueEntry(new InitEffect(pc, machine, payload));
+        enqueueEntry(new PrimVS<Effect>(new InitEffect(pc, machine, payload)).guard(pc));
         return machine;
     }
 

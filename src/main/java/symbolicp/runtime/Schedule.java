@@ -29,7 +29,7 @@ public class Schedule {
 
     public void addToSchedule(Bdd pc, List<EffectQueue.Effect> effects, List<Machine> machines) {
         for (EffectQueue.Effect effect : effects) {
-            this.schedule.set(size - 1, schedule.get(schedule.size() - 1).merge((new PrimVS<>(effect)).guard(effect.getCond())));
+            this.schedule.set(size - 1, schedule.get(size - 1).merge((new PrimVS<>(effect)).guard(effect.getGuard())));
         }
         for (Machine m : machines) {
             this.machines.get(size - 1).put(m, this.machines.get(size - 1).getOrDefault(m, new PrimVS<>()).update(pc, m.getState()));
@@ -62,8 +62,8 @@ public class Schedule {
                     currentPc = currentPc.and(steps.get(0).guard);
                 }
             }
-            substep += System.lineSeparator();
         }
+        substep += System.lineSeparator();
         return new GuardedValue<>(substep, currentPc);
     }
 
@@ -72,33 +72,37 @@ public class Schedule {
         Bdd currentPc = pc;
 
         for (int i = 0; i <= size; i++) {
-            scheduleString += ("Substeps at " + (i - 1) + ": ");
+            scheduleString += "Substeps at " + (i - 1) + ": ";
             List<PrimVS> subSteps = withinStep.get(i);
             GuardedValue<String> withinStepResult = getSingleSubStep(currentPc, subSteps);
             scheduleString += withinStepResult.value;
             currentPc = withinStepResult.guard;
 
-            System.out.println("Event ran at " + (i - 1) + ": ");
+            scheduleString += "Event ran at " + (i - 1) + ": ";
             List<PrimVS> ran = ranEvent.get(i);
             GuardedValue<String> ranEventResult = getSingleSubStep(currentPc, ran);
-            scheduleString += withinStepResult.value;
+            scheduleString += ranEventResult.value;
             currentPc = withinStepResult.guard;
 
             if (i == size) break;
             scheduleString += "State at " + i + ": ";
+            scheduleString += System.lineSeparator();
             for (Map.Entry<Machine, PrimVS<State>> entry : this.machines.get(i).entrySet()) {
                 List<GuardedValue<State>> statesOnPath = entry.getValue().guard(currentPc).getGuardedValues();
                 if (statesOnPath.size() > 0) {
                     GuardedValue<State> guardedValue = statesOnPath.get(0);
-                    scheduleString += "    " + entry.getKey() + "@" + guardedValue.value.name;
+                    scheduleString += "    " + entry.getKey() + "@" + guardedValue.value.name + "(" + statesOnPath.size() + ")";
+                    scheduleString += System.lineSeparator();
                     currentPc = currentPc.and(guardedValue.guard);
                 }
             }
             scheduleString += "Schedule step " + i + ": ";
+            scheduleString += System.lineSeparator();
             List<GuardedValue<EffectQueue.Effect>> effects = schedule.get(i).guard(currentPc).getGuardedValues();
             if (effects.size() > 0) {
                 GuardedValue<EffectQueue.Effect> guardedValue = effects.get(0);
                 scheduleString +=  "    " + guardedValue.value;
+                scheduleString += System.lineSeparator();
                 currentPc = currentPc.and(guardedValue.guard);
             }
         }

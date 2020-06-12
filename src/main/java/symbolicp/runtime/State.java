@@ -2,6 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
+import symbolicp.util.Checks;
 import symbolicp.vs.GuardedValue;
 import symbolicp.vs.PrimVS;
 import symbolicp.vs.ValueSummary;

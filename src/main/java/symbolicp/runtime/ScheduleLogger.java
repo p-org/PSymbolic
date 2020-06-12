@@ -56,6 +56,7 @@ public class ScheduleLogger {
 
     public static void finished(int steps) {
         log.info(String.format("Execution finished in %d steps", steps));
+        log.info(Scheduler.schedule.singleScheduleToString(Bdd.constTrue()));
     }
 
     public static void handle(State st, Event event) {
@@ -70,11 +71,16 @@ public class ScheduleLogger {
         log.setLevel(Level.INFO);
     }
 
-    public static void schedule(List<EffectQueue.Effect> symbolicEffect, List<Machine> machines) {
-        String msg = "Schedule: \n";
+    public static void schedule(int step, List<EffectQueue.Effect> symbolicEffect, List<Machine> machines) {
+        log.info("Schedule at step " + step);
+        String msg = "Schedule at " + step + ": " + System.lineSeparator();
         for (EffectQueue.Effect effect : symbolicEffect) {
-            msg += "    " + effect + "\n";
+            msg += "    " + effect + System.lineSeparator();
         }
+        log.info(msg);
+    }
+
+    public static void log(String msg) {
         log.info(msg);
     }
 }

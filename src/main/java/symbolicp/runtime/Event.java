@@ -1,10 +1,10 @@
 package symbolicp.runtime;
 
-import symbolicp.bdd.Checks;
+import symbolicp.bdd.Bdd;
 import symbolicp.vs.BoolUtils;
 import symbolicp.vs.ValueSummary;
 
-public class Event {
+public class Event implements SymbolicQueue.canGuard<Event> {
     public final EventName name;
     public final ValueSummary payload; // TODO: dynamic type checking
 
@@ -43,6 +43,13 @@ public class Event {
 
     @Override
     public String toString() {
-        return this.name.toString();
+        return this.name.toString() + ", payload: " + payload;
     }
+
+    @Override
+    public Event guard(Bdd pc) {
+        if (payload == null) return this;
+        return new Event(name, payload.guard(pc));
+    }
+
 }
