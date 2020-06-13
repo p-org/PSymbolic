@@ -5,13 +5,13 @@ import symbolicp.bdd.Bdd;
 import java.util.*;
 
 /** Class for named tuple value summaries */
-public class NamedTupleVS implements ValueSummary<NamedTupleVS> {
+public class NamedTupleVS<T> implements ValueSummary<NamedTupleVS<T>> {
     /** Mapping from names of the fields to their index in the underlying representation */
-    private final Map<String, Integer> names;
+    private final Map<T, Integer> names;
     /** Underlying representation as a TupleVS */
     private final TupleVS tuple;
 
-    private NamedTupleVS(Map<String, Integer> names, TupleVS tuple) {
+    private NamedTupleVS(Map<T, Integer> names, TupleVS tuple) {
         this.names = names;
         this.tuple = tuple;
     }
@@ -23,7 +23,7 @@ public class NamedTupleVS implements ValueSummary<NamedTupleVS> {
         names = new HashMap<>();
         ValueSummary[] vs = new ValueSummary[namesAndFields.length/ 2];
         for (int i = 0; i < namesAndFields.length; i += 2) {
-            String name = (String)namesAndFields[i];
+            T name = (T)namesAndFields[i];
             vs[i / 2] = (ValueSummary)namesAndFields[i + 1];
             names.put(name, i / 2);
         }
@@ -43,7 +43,7 @@ public class NamedTupleVS implements ValueSummary<NamedTupleVS> {
      * @param val The value to set the specified field to
      * @return The result of updating the field
      */
-    public NamedTupleVS setField(String name, ValueSummary val) {
+    public NamedTupleVS<T> setField(String name, ValueSummary val) {
         return new NamedTupleVS(names, tuple.setField(names.get(name), val));
     }
 
@@ -53,33 +53,33 @@ public class NamedTupleVS implements ValueSummary<NamedTupleVS> {
     }
 
     @Override
-    public NamedTupleVS guard(Bdd guard) {
+    public NamedTupleVS<T> guard(Bdd guard) {
         return new NamedTupleVS(names, tuple.guard(guard));
     }
 
     @Override
-    public NamedTupleVS merge(Iterable<NamedTupleVS> summaries) {
+    public NamedTupleVS<T> merge(Iterable<NamedTupleVS<T>> summaries) {
         final List<TupleVS> tuples = new ArrayList<TupleVS>();
 
-        for (NamedTupleVS summary : summaries) {
+        for (NamedTupleVS<T> summary : summaries) {
             tuples.add(summary.tuple);
         }
 
-        return new NamedTupleVS(names, tuple.merge(tuples));
+        return new NamedTupleVS<>(names, tuple.merge(tuples));
     }
 
     @Override
-    public NamedTupleVS merge(NamedTupleVS summaries) {
+    public NamedTupleVS<T> merge(NamedTupleVS<T> summaries) {
         return merge(Collections.singletonList(summaries));
     }
 
     @Override
-    public NamedTupleVS update(Bdd guard, NamedTupleVS update) {
+    public NamedTupleVS<T> update(Bdd guard, NamedTupleVS<T> update) {
         return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
     }
 
     @Override
-    public PrimVS<Boolean> symbolicEquals(NamedTupleVS cmp, Bdd pc) {
+    public PrimVS<Boolean> symbolicEquals(NamedTupleVS<T> cmp, Bdd pc) {
         if (names.equals(cmp.names)) {
             return new PrimVS<>(false).guard(pc);
         }

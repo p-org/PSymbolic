@@ -6,8 +6,6 @@ import java.util.*;
 
 /** Class for union value summaries */
 public class UnionVS implements ValueSummary<UnionVS> {
-    // TODO: T should be a Class<? extends ValueSummary>
-
     private PrimVS<Class<? extends ValueSummary>> type;
     private Map<Class<? extends ValueSummary>, ValueSummary> payloads;
 
@@ -20,14 +18,17 @@ public class UnionVS implements ValueSummary<UnionVS> {
         this.type = new PrimVS<Class<? extends ValueSummary>>(type).guard(pc);
         this.payloads = new HashMap<>();
         this.payloads.put(type, payloads);
+        assert(this.type != null);
     }
 
     public UnionVS() {
         this.type = new PrimVS<>();
-        payloads = new HashMap<>();
+        this.payloads = new HashMap<>();
+        assert(this.type != null);
     }
 
     public UnionVS(ValueSummary vs) {
+        assert(vs.getClass() != null);
         new UnionVS(vs.getUniverse(), vs.getClass(), vs);
     }
 
@@ -46,6 +47,7 @@ public class UnionVS implements ValueSummary<UnionVS> {
 
     @Override
     public UnionVS guard(Bdd guard) {
+        assert(type != null);
         final PrimVS<Class<? extends ValueSummary>> newTag = type.guard(guard);
         final Map<Class<? extends ValueSummary>, ValueSummary> newPayloads = new HashMap<>();
         for (Map.Entry<Class<? extends ValueSummary>, ValueSummary> entry : payloads.entrySet()) {
@@ -60,6 +62,7 @@ public class UnionVS implements ValueSummary<UnionVS> {
 
     @Override
     public UnionVS merge(Iterable<UnionVS> summaries) {
+        assert(type != null);
         final List<PrimVS<Class<? extends ValueSummary>>> tagsToMerge = new ArrayList<>();
         final Map<Class<? extends ValueSummary>, List<ValueSummary>> valuesToMerge = new HashMap<>();
         for (UnionVS union : summaries) {
@@ -71,8 +74,11 @@ public class UnionVS implements ValueSummary<UnionVS> {
             }
         }
 
+        if (valuesToMerge.size() == 0) return new UnionVS();
+
         final PrimVS<Class<? extends ValueSummary>> newTag = type.merge(tagsToMerge);
         final Map<Class<? extends ValueSummary>, ValueSummary> newPayloads = new HashMap<>();
+
         for (Map.Entry<Class<? extends ValueSummary>, List<ValueSummary>> entry : valuesToMerge.entrySet()) {
             Class<? extends ValueSummary> tag = entry.getKey();
             List<ValueSummary> entryPayload = entry.getValue();
@@ -97,6 +103,7 @@ public class UnionVS implements ValueSummary<UnionVS> {
 
     @Override
     public PrimVS<Boolean> symbolicEquals(UnionVS cmp, Bdd pc) {
+        assert(type != null);
         PrimVS<Boolean> res = type.symbolicEquals(cmp.type, pc);
         for (Map.Entry<Class<? extends ValueSummary>, ValueSummary> payload : cmp.payloads.entrySet()) {
             if (!payloads.containsKey(payload.getKey())) {

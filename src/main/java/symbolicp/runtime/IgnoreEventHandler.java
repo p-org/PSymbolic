@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
 public class IgnoreEventHandler extends EventHandler {

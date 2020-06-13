@@ -2,6 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
 public class GotoEventHandler extends EventHandler {
@@ -12,7 +13,7 @@ public class GotoEventHandler extends EventHandler {
         this.dest = dest;
     }
 
-    public void transitionAction(Bdd pc, Machine machine, Object payload) {}
+    public void transitionAction(Bdd pc, Machine machine, ValueSummary payload) {}
 
     @Override
     public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome,

@@ -1,13 +1,11 @@
 package symbolicp.runtime;
 
 import symbolicp.util.Checks;
-import symbolicp.util.NotImplementedException;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.*;
 
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class Scheduler {
 
@@ -53,9 +51,10 @@ public class Scheduler {
         machines.add(machine);
 
         performEffect(
-            new EffectQueue.InitEffect(
-                    Bdd.constTrue(),
-                    new PrimVS<>(machine)
+            new Event(
+                    EventName.Init.instance,
+                    new PrimVS<>(machine),
+                    null
             )
         );
     }
@@ -96,12 +95,12 @@ public class Scheduler {
         List<Bdd> candidateConds = new ArrayList<>();
         step_count++;
         schedule.step();
-        if (done == true) return true;
+        if (done) return true;
 
         for (Machine machine : machines) {
             if (!machine.effectQueue.isEmpty()) {
                 candidateMachines.add(machine);
-                candidateConds.add(machine.effectQueue.enabledCond());
+                candidateConds.add(machine.effectQueue.enabledCond(Event::canRun).getGuard(true));
             }
         }
 
@@ -112,21 +111,19 @@ public class Scheduler {
         }
 
         PrimVS<Integer> candidateGuards = getNondetChoice(candidateConds);
+
         for (GuardedValue<Integer> entry : candidateGuards.getGuardedValues()) {
             Machine machine = candidateMachines.get(entry.value);
             Bdd guard = entry.guard;
             universe = guard;
-            List<EffectQueue.Effect> symbolicEffect = machine.effectQueue.dequeueEntry(guard).getValues().stream().collect(Collectors.toList());
-            assert(Checks.noRepeats(symbolicEffect));
-            ScheduleLogger.schedule(step_count, symbolicEffect, machines);
-            schedule.addToSchedule(guard, symbolicEffect, machines);
+            Event effect = machine.effectQueue.dequeueEntry(guard);
+            ScheduleLogger.schedule(step_count, effect, machines);
+            schedule.addToSchedule(guard, effect, machines);
             PrimVS<State> oldState = machine.getState();
-            for (EffectQueue.Effect effect : symbolicEffect) {
-                assert(effect.getGuard().implies(guard).isConstTrue());
-                performEffect(effect);
-                // After the effect is performed, the machine state should be the same under all other path conditions
-                assert(Checks.equalUnder(oldState, machine.getState(), machine.getState().guard(guard.not()).getUniverse()));
-            }
+            assert(effect.getUniverse().implies(guard).isConstTrue());
+            performEffect(effect);
+            // After the effect is performed, the machine state should be the same under all other path conditions
+            assert(Checks.equalUnder(oldState, machine.getState(), machine.getState().guard(guard.not()).getUniverse()));
         }
         universe = Bdd.constTrue();
         return false;
@@ -152,20 +149,9 @@ public class Scheduler {
         return new PrimVS<>(newMachine).guard(pc);
     }
 
-    private void performEffect(EffectQueue.Effect effect) {
-        assert(Checks.includedIn(effect.target.getUniverse()));
-        for (GuardedValue<Machine> target : effect.target.getGuardedValues()) {
-            Bdd pc = target.guard;
-            if (!pc.isConstFalse()) {
-                if (effect instanceof EffectQueue.SendEffect) {
-                    PrimVS<Event> event = ((EffectQueue.SendEffect) effect).event;
-                    target.value.processEventToCompletion(pc, event.guard(pc));
-                } else if (effect instanceof EffectQueue.InitEffect) {
-                    target.value.start(pc, ((EffectQueue.InitEffect) effect).payload);
-                } else {
-                    throw new NotImplementedException();
-                }
-            }
+    private void performEffect(Event event) {
+        for (GuardedValue<Machine> target : event.getMachine().getGuardedValues()) {
+            target.value.processEventToCompletion(target.guard, event.guard(target.guard));
         }
     }
 

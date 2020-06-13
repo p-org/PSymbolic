@@ -14,6 +14,6 @@ public class DeferEventHandler extends EventHandler {
     @Override
     public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome,
                             RaiseOutcome raiseOutcome) {
-        machine.deferredQueue.defer(pc, new PrimVS<>(makeEvent(payload)).guard(pc));
+        machine.deferredQueue.defer(pc, makeEvent(payload).guard(pc));
     }
 }

@@ -15,9 +15,9 @@ public class ScheduleLogger {
     /* If turned on, logs the path constraints and goto/raise outcomes */
     private static boolean isVerbose = false;
 
-    public static void onProcessEvent(Bdd pc, Machine machine, PrimVS<Event> EventVS)
+    public static void onProcessEvent(Bdd pc, Machine machine, Event event)
     {
-        String msg = String.format("Machine %s processing event: %s", machine.toString(), EventVS);
+        String msg = String.format("Machine %s processing event: %s", machine.toString(), event);
         if (isVerbose) msg = String.format("under path %s ", pc) + msg;
         log.fine(msg);
     }
@@ -60,7 +60,7 @@ public class ScheduleLogger {
     }
 
     public static void handle(State st, Event event) {
-        log.fine("State " + st.name + ", handling event of type " + event.name);
+        log.fine("State " + st.name + ", handling event of type " + event);
     }
 
     public static void disableInfo() {
@@ -71,12 +71,9 @@ public class ScheduleLogger {
         log.setLevel(Level.INFO);
     }
 
-    public static void schedule(int step, List<EffectQueue.Effect> symbolicEffect, List<Machine> machines) {
+    public static void schedule(int step, Event effect, List<Machine> machines) {
         log.info("Schedule at step " + step);
-        String msg = "Schedule at " + step + ": " + System.lineSeparator();
-        for (EffectQueue.Effect effect : symbolicEffect) {
-            msg += "    " + effect + System.lineSeparator();
-        }
+        String msg = "Schedule at " + step + ": " + effect + System.lineSeparator();
         log.info(msg);
     }
 

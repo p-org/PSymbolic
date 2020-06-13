@@ -5,6 +5,7 @@ import symbolicp.bdd.BugFoundException;
 import symbolicp.util.Checks;
 import symbolicp.vs.GuardedValue;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
 import java.util.HashMap;
@@ -23,29 +24,27 @@ public abstract class State extends HasId {
     }
 
     public void addHandlers(EventHandler... eventHandlers) {
-        if (this.eventHandlers.size() == 0) {
-            for (EventHandler handler : eventHandlers) {
-                this.eventHandlers.put(handler.eventName, handler);
-            }
+        for (EventHandler handler : eventHandlers) {
+            this.eventHandlers.put(handler.eventName, handler);
         }
     }
 
-    public void handleEvent(PrimVS<Event> EventVS, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
-        for (GuardedValue<Event> entry : EventVS.getGuardedValues()) {
-            Event event = entry.value;
+    public void handleEvent(Event event, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
+        for (GuardedValue<EventName> entry : event.getName().getGuardedValues()) {
+            EventName name = entry.value;
             Bdd eventPc = entry.guard;
             ScheduleLogger.handle(this, event);
-            if (eventHandlers.containsKey(event.name)) {
-                eventHandlers.get(event.name).handleEvent(
+            if (eventHandlers.containsKey(name)) {
+                eventHandlers.get(name).handleEvent(
                         eventPc,
-                        event.payload,
+                        event.guard(eventPc).getPayload(),
                         machine,
                         gotoOutcome,
                         raiseOutcome
                         );
             }
             else {
-                throw new BugFoundException("State " + name + " missing handler for event: " + event.name +
+                throw new BugFoundException("State " + this.name + " missing handler for event: " + name +
                         System.lineSeparator() + Scheduler.schedule.singleScheduleToString(eventPc) , eventPc);
             }
         }

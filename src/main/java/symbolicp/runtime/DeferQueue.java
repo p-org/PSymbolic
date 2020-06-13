@@ -1,7 +1,6 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.PrimVS;
 
 public class DeferQueue extends SymbolicQueue<Event> {
 
@@ -9,7 +8,7 @@ public class DeferQueue extends SymbolicQueue<Event> {
         super();
     }
 
-    public void defer(Bdd pc, PrimVS<Event> event) {
+    public void defer(Bdd pc, Event event) {
         enqueueEntry(event.guard(pc));
     }
 }

@@ -191,11 +191,6 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
 
     @Override
     public PrimVS<T> merge(PrimVS<T> summary) {
-        if (!this.getUniverse().and(summary.getUniverse()).isConstFalse()) {
-            System.out.println(getUniverse());
-            System.out.println(summary.getUniverse());
-
-        }
         return merge(Collections.singletonList(summary));
     }
 

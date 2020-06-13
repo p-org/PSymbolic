@@ -2,6 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
 import java.util.HashMap;
@@ -14,7 +15,6 @@ public class GotoOutcome {
     private Map<State, ValueSummary> payloads;
 
     public GotoOutcome() {
-
         cond = Bdd.constFalse();
         dest = new PrimVS<>();
         payloads = new HashMap<>();

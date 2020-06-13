@@ -2,9 +2,11 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.util.Checks;
+import symbolicp.util.NotImplementedException;
 import symbolicp.vs.*;
 
 import java.util.*;
+import java.util.function.Function;
 
 public abstract class Machine extends HasId {
     private final State startState;
@@ -32,6 +34,16 @@ public abstract class Machine extends HasId {
         this.deferredQueue = new DeferQueue();
 
         this.state = new PrimVS<>(startState);
+
+        startState.addHandlers(
+                new EventHandler(EventName.Init.instance) {
+                    @Override
+                    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
+                        assert(!BoolUtils.isEverTrue(hasStarted().guard(pc)));
+                        machine.start(pc, payload);
+                    }
+                }
+        );
 
         this.states = new HashSet<>();
         for (State state : states) {
@@ -78,8 +90,7 @@ public abstract class Machine extends HasId {
                     Scheduler.schedule.runEvent(raiseOutcome.getEventSummary().guard(raiseOutcome.getRaiseCond()));
                     processEvent(raiseOutcome.getRaiseCond(), nextGotoOutcome, nextRaiseOutcome, raiseOutcome.getEventSummary());
                 }
-                PrimVS<Event> eventVS = raiseOutcome.getEventSummary();
-                eventVS.check();
+                Event eventVS = raiseOutcome.getEventSummary();
                 this.state.check();
 
                 gotoOutcome = nextGotoOutcome;
@@ -90,7 +101,7 @@ public abstract class Machine extends HasId {
             pc = performedTransition.and(deferredQueue.enabledCond());
             if (!pc.isConstFalse()) {
                 RaiseOutcome deferredRaiseOutcome = new RaiseOutcome();
-                PrimVS<Event> deferredEvent = deferredQueue.dequeueEntry(pc);
+                Event deferredEvent = deferredQueue.dequeueEntry(pc);
                 deferredRaiseOutcome.addGuardedRaiseEvent(deferredEvent);
                 raiseOutcome = deferredRaiseOutcome;
             }
@@ -133,26 +144,20 @@ public abstract class Machine extends HasId {
             Bdd pc,
             GotoOutcome gotoOutcome, // 'out' parameter
             RaiseOutcome raiseOutcome, // 'out' parameter
-            PrimVS<Event> event
+            Event event
     ) {
         assert(Checks.includedIn(pc));
+        assert(event.getMachine().guard(pc).getValues().size() <= 1);
         ScheduleLogger.onProcessEvent(pc, this, event);
         PrimVS<State> guardedState = this.state.guard(pc);
         for (GuardedValue<State> entry : guardedState.getGuardedValues()) {
             Bdd state_pc = entry.guard;
-            PrimVS<Event> guardedEvent = event.guard(state_pc);
             if (state_pc.and(pc).isConstFalse()) continue;
-            entry.value.handleEvent(guardedEvent, this, gotoOutcome, raiseOutcome);
+            entry.value.handleEvent(event.guard(state_pc), this, gotoOutcome, raiseOutcome);
         }
     }
 
-    /*
-    public MachineRefVS getMachineRef() {
-        return new MachineRefVS(new PrimVS<>(getMachineTag()), new PrimVS<>(getMachineId()));
-    }
-    */
-
-    void processEventToCompletion(Bdd pc, PrimVS<Event> event) {
+    void processEventToCompletion(Bdd pc, Event event) {
         assert(Checks.includedIn(pc));
         final GotoOutcome emptyGotoOutcome = new GotoOutcome();
         final RaiseOutcome eventRaiseOutcome = new RaiseOutcome();

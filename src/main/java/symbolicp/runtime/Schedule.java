@@ -8,10 +8,10 @@ import symbolicp.vs.ValueSummary;
 import java.util.*;
 
 public class Schedule {
-    List<PrimVS<EffectQueue.Effect>> schedule = new ArrayList<>();
+    List<Event> schedule = new ArrayList<>();
     List<Map<Machine, PrimVS<State>>> machines = new ArrayList<>();
-    List<List<PrimVS>> withinStep = new ArrayList<>();
-    List<List<PrimVS>> ranEvent = new ArrayList<>();
+    List<List<PrimVS<State>>> withinStep = new ArrayList<>();
+    List<List<Event>> ranEvent = new ArrayList<>();
     int size = 0;
 
     public Schedule() {
@@ -20,17 +20,15 @@ public class Schedule {
     }
 
     public void step() {
-        schedule.add(new PrimVS<>());
+        schedule.add(new Event());
         this.machines.add(new HashMap<>());
         this.withinStep.add(new ArrayList<>());
         this.ranEvent.add(new ArrayList<>());
         size++;
     }
 
-    public void addToSchedule(Bdd pc, List<EffectQueue.Effect> effects, List<Machine> machines) {
-        for (EffectQueue.Effect effect : effects) {
-            this.schedule.set(size - 1, schedule.get(size - 1).merge((new PrimVS<>(effect)).guard(effect.getGuard())));
-        }
+    public void addToSchedule(Bdd pc, Event effect, List<Machine> machines) {
+        this.schedule.set(size - 1, schedule.get(size - 1).merge(effect));
         for (Machine m : machines) {
             this.machines.get(size - 1).put(m, this.machines.get(size - 1).getOrDefault(m, new PrimVS<>()).update(pc, m.getState()));
         }
@@ -39,23 +37,22 @@ public class Schedule {
     public void withinStep(PrimVS<State> state) {
         this.withinStep.get(size).add(state);
     }
-    public void runEvent(PrimVS<Event> event) {
+    public void runEvent(Event event) {
         this.ranEvent.get(size).add(event);
     }
 
-    public GuardedValue<String> getSingleSubStep(Bdd pc, List<PrimVS> subSteps) {
+    public GuardedValue<String> getSingleSubStep(Bdd pc, List<PrimVS<State>> subSteps) {
         String substep = "";
         Bdd currentPc = pc;
         if (subSteps.size() > 0) {
             boolean first = true;
-            for (PrimVS step : subSteps) {
-                List<GuardedValue> steps = step.guard(currentPc).getGuardedValues();
+            for (PrimVS<State> step : subSteps) {
+                List<GuardedValue<State>> steps = step.guard(currentPc).getGuardedValues();
                 if (steps.size() > 0) {
                     if (!first) {
                         substep += "->";
                     } else {
                         first = false;
-                        substep += "    ";
                     }
                     substep += steps.get(0).value;
                     substep += "(" + steps.size() + ")";
@@ -73,16 +70,17 @@ public class Schedule {
 
         for (int i = 0; i <= size; i++) {
             scheduleString += "Substeps at " + (i - 1) + ": ";
-            List<PrimVS> subSteps = withinStep.get(i);
+            List<PrimVS<State>> subSteps = withinStep.get(i);
             GuardedValue<String> withinStepResult = getSingleSubStep(currentPc, subSteps);
             scheduleString += withinStepResult.value;
             currentPc = withinStepResult.guard;
 
-            scheduleString += "Event ran at " + (i - 1) + ": ";
-            List<PrimVS> ran = ranEvent.get(i);
-            GuardedValue<String> ranEventResult = getSingleSubStep(currentPc, ran);
-            scheduleString += ranEventResult.value;
-            currentPc = withinStepResult.guard;
+            List<Event> ran = ranEvent.get(i);
+            scheduleString += "Events ran at " + (i - 1) + ": " + System.lineSeparator();
+            for (Event e : ran) {
+                if (!e.guard(currentPc).isEmptyVS())
+                    scheduleString += "    " + e.guard(currentPc) + System.lineSeparator();
+            }
 
             if (i == size) break;
             scheduleString += "State at " + i + ": ";
@@ -98,12 +96,11 @@ public class Schedule {
             }
             scheduleString += "Schedule step " + i + ": ";
             scheduleString += System.lineSeparator();
-            List<GuardedValue<EffectQueue.Effect>> effects = schedule.get(i).guard(currentPc).getGuardedValues();
-            if (effects.size() > 0) {
-                GuardedValue<EffectQueue.Effect> guardedValue = effects.get(0);
-                scheduleString +=  "    " + guardedValue.value;
+            Event effects = schedule.get(i).guard(currentPc);
+            if (!effects.isEmptyVS()) {
+                scheduleString +=  "    " + effects.toString();
                 scheduleString += System.lineSeparator();
-                currentPc = currentPc.and(guardedValue.guard);
+                currentPc = currentPc.and(effects.getUniverse());
             }
         }
 

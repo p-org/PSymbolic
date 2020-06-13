@@ -5,17 +5,15 @@ import symbolicp.util.Checks;
 import symbolicp.vs.GuardedValue;
 import symbolicp.vs.ListVS;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.ValueSummary;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class SymbolicQueue<T extends SymbolicQueue.canGuard<T>> {
+public class SymbolicQueue<T extends ValueSummary<T>> {
 
-    public static interface canGuard<T> {
-        public T guard(Bdd pc);
-    }
-
-    private ListVS<PrimVS<T>> entries;
+    private ListVS<T> entries;
 
     public SymbolicQueue() {
         this.entries = new ListVS<>(Bdd.constTrue());
@@ -24,7 +22,7 @@ public class SymbolicQueue<T extends SymbolicQueue.canGuard<T>> {
 
     public PrimVS<Integer> size() { return entries.size(); }
 
-    public void enqueueEntry(PrimVS<T> entry) {
+    public void enqueueEntry(T entry) {
         assert(Checks.includedIn(entry.getUniverse()));
         //Checks.check(Scheduler.schedule.singleScheduleToString(entry.getUniverse()) + System.lineSeparator() + entries,
         //        entries.size().guard(entry.getUniverse()).getValues().size() <= 1);
@@ -43,43 +41,27 @@ public class SymbolicQueue<T extends SymbolicQueue.canGuard<T>> {
      * @param pred The filtering predicate
      * @return The condition under which the first queue entry obeys pred
      */
-    public Bdd enabledCond(Predicate<T> pred) {
+    public PrimVS<Boolean> enabledCond(Function<T, PrimVS<Boolean>> pred) {
         Bdd cond = enabledCond();
-        PrimVS<T> top = peek(cond);
-        for (GuardedValue<T> guardedValue : top.getGuardedValues()) {
-            if (!pred.test(guardedValue.value)) {
-                cond = cond.and(guardedValue.guard.not());
-            }
-        }
-        return cond;
+        T top = peek(cond);
+        return pred.apply(top);
     }
 
-    public PrimVS<T> dequeueEntry(Bdd pc) {
+    public T dequeueEntry(Bdd pc) {
         return peekOrDequeueHelper(pc, true);
     }
 
-    public PrimVS<T> peek(Bdd pc) {
+    public T peek(Bdd pc) {
         return peekOrDequeueHelper(pc, false);
     }
 
-    private PrimVS<T> peekOrDequeueHelper(Bdd pc, boolean dequeue) {
+    private T peekOrDequeueHelper(Bdd pc, boolean dequeue) {
         assert(entries.getUniverse().isConstTrue());
-        ListVS<PrimVS<T>> filtered = entries.guard(pc);
-        if (!filtered.isEmpty()) {
-            assert(Checks.sameUniverse(filtered.getUniverse(), filtered.getNonEmptyUniverse()));
-            PrimVS<T> res = filtered.get(new PrimVS<>(0).guard(pc)).guard(pc);
-            if (dequeue)
-                entries = entries.update(pc, filtered.removeAt(new PrimVS<>(0).guard(pc)));
-            Map<T, Bdd> newMapping = new HashMap<>();
-            for (GuardedValue<T> guardedValue : res.getGuardedValues()) {
-                newMapping.put(guardedValue.value.guard(guardedValue.guard), guardedValue.guard);
-            }
-            res = new PrimVS<>(newMapping);
-            res.check();
-            assert(entries.getUniverse().isConstTrue());
-            return res;
+        ListVS<T> filtered = entries.guard(pc);
+        if (dequeue) {
+            entries = entries.update(pc, filtered.removeAt(new PrimVS<>(0).guard(pc)));
         }
-        return new PrimVS<>();
+        return filtered.get(new PrimVS<>(0).guard(pc)).guard(pc);
     }
 
     @Override
