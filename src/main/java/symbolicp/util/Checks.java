@@ -56,14 +56,6 @@ public class Checks {
         return !BoolUtils.isEverFalse(a.guard(guard).symbolicEquals(b.guard(guard), guard).guard(guard));
     }
 
-    /** Is the provided Bdd inside the Scheduler's current universe?
-     * @param bdd The Bdd
-     * @return Whether or not the Bdd is included in the Scheduler's universe
-     */
-    public static boolean includedIn(Bdd bdd) {
-        return bdd.implies(Scheduler.universe).isConstTrue();
-    }
-
     /** Is the provided Bdd inside another?
      * @param a The Bdd
      * @param b The envlosing Bdd

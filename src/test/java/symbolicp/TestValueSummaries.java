@@ -42,11 +42,11 @@ public class TestValueSummaries {
         PrimVS<Integer> var_x1 = new PrimVS<Integer>(1).guard(path);
         PrimVS<Integer> var_y1 = new PrimVS<Integer>(1).guard(path);
 
-        SetVS<Integer> set_0 = new SetVS<>(path);
+        SetVS<PrimVS<Integer>> set_0 = new SetVS<>(path);
         set_0 = set_0.add(var_x0);
         set_0 = set_0.add(var_x1);
 
-        SetVS<Integer> set_1 = new SetVS<>(path);
+        SetVS<PrimVS<Integer>> set_1 = new SetVS<>(path);
         set_1 = set_1.add(var_y0);
         set_1 = set_1.add(var_y1);
 
@@ -68,8 +68,8 @@ public class TestValueSummaries {
         PrimVS<Integer> var_y1 = new PrimVS<Integer>(1).guard(path);
         PrimVS<Integer> var_y2 = new PrimVS<Integer>(2).guard(path);
 
-        MapVS<Integer, PrimVS<Integer>> map_0 = new MapVS<>(Bdd.constFalse());
-        MapVS<Integer, PrimVS<Integer>> map_1 = new MapVS<>(Bdd.constFalse());
+        MapVS<Integer, PrimVS<Integer>> map_0 = new MapVS<>(Bdd.constTrue());
+        MapVS<Integer, PrimVS<Integer>> map_1 = new MapVS<>(Bdd.constTrue());
 
         assertTrue(map_0.symbolicEquals(map_1, path).getGuard(true).isConstTrue());
 

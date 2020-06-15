@@ -10,8 +10,6 @@ import java.util.function.Function;
 public class Scheduler {
 
     public static Schedule schedule;
-    public static Bdd universe;
-
     final List<Machine> machines;
     final Map<Class<? extends Machine>, PrimVS<Integer>> machineCounters;
 
@@ -19,7 +17,6 @@ public class Scheduler {
     private boolean done = false;
 
     public Scheduler(Machine... machines) {
-        universe = Bdd.constTrue();
         schedule = new Schedule();
         this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
@@ -40,7 +37,6 @@ public class Scheduler {
      * but can't do this for the very first machine
      */
     public void startWith(Machine machine) {
-        assert(universe.isConstTrue());
         for (PrimVS<Integer> machineCounter : machineCounters.values()) {
             if (machineCounter.getGuardedValues().size() != 1 || !machineCounter.hasValue(0)) {
                 throw new RuntimeException("You cannot start the scheduler after it already contains machines");
@@ -59,64 +55,33 @@ public class Scheduler {
         );
     }
 
-
-    private PrimVS<Integer> getNondetChoice(List<Bdd> candidateConds) {
-        List<PrimVS<Integer>> results = new ArrayList<>();
-
-        Bdd residualPc = Bdd.constTrue();
-        for (int i = 0; i < candidateConds.size(); i++) {
-            Bdd enabledCond = candidateConds.get(i);
-            Bdd choiceCond = Bdd.newVar().and(enabledCond);
-
-            Bdd returnPc = residualPc.and(choiceCond);
-            results.add(new PrimVS<>(i).guard(returnPc));
-
-            residualPc = residualPc.and(choiceCond.not());
-        }
-
-        for (int i = 0; i < candidateConds.size(); i++) {
-            Bdd enabledCond = candidateConds.get(i);
-
-            Bdd returnPc = residualPc.and(enabledCond);
-            results.add(new PrimVS<>(i).guard(returnPc));
-
-            residualPc = residualPc.and(enabledCond.not());
-        }
-
-        final Bdd noneEnabledCond = residualPc;
-        PrimVS<Boolean> isPresent = BoolUtils.fromTrueGuard(noneEnabledCond.not());
-
-        assert(Checks.sameUniverse(noneEnabledCond.not(), new PrimVS<Integer>().merge(results).getUniverse()));
-        return new PrimVS<Integer>().merge(results);
-    }
-
     public boolean step() {
-        List<Machine> candidateMachines = new ArrayList<>();
-        List<Bdd> candidateConds = new ArrayList<>();
+        List<PrimVS> candidateSenders = new ArrayList<>();
         step_count++;
         schedule.step();
         if (done) return true;
 
         for (Machine machine : machines) {
-            if (!machine.effectQueue.isEmpty()) {
-                candidateMachines.add(machine);
-                candidateConds.add(machine.effectQueue.enabledCond(Event::canRun).getGuard(true));
+            if (!machine.sendEffects.isEmpty()) {
+                Bdd canRun = machine.sendEffects.enabledCond(Event::canRun).getGuard(true);
+                if (!canRun.isConstFalse()) {
+                    candidateSenders.add(new PrimVS<>(machine).guard(canRun));
+                }
             }
         }
 
-        if (candidateMachines.isEmpty()) {
+        if (candidateSenders.isEmpty()) {
             ScheduleLogger.finished(step_count);
             done = true;
             return true;
         }
 
-        PrimVS<Integer> candidateGuards = getNondetChoice(candidateConds);
+        PrimVS<Machine> choices = (PrimVS<Machine>) NondetUtil.getNondetChoice(candidateSenders);
 
-        for (GuardedValue<Integer> entry : candidateGuards.getGuardedValues()) {
-            Machine machine = candidateMachines.get(entry.value);
-            Bdd guard = entry.guard;
-            universe = guard;
-            Event effect = machine.effectQueue.dequeueEntry(guard);
+        for (GuardedValue<Machine> sender : choices.getGuardedValues()) {
+            Machine machine = sender.value;
+            Bdd guard = sender.guard;
+            Event effect = machine.sendEffects.remove(guard);
             ScheduleLogger.schedule(step_count, effect, machines);
             schedule.addToSchedule(guard, effect, machines);
             PrimVS<State> oldState = machine.getState();
@@ -125,8 +90,9 @@ public class Scheduler {
             // After the effect is performed, the machine state should be the same under all other path conditions
             assert(Checks.equalUnder(oldState, machine.getState(), machine.getState().guard(guard.not()).getUniverse()));
         }
-        universe = Bdd.constTrue();
+
         return false;
+
     }
 
     public PrimVS<Machine> allocateMachine(Bdd pc, Class<? extends Machine> machineType,

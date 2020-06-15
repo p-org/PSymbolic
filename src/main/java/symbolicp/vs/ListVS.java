@@ -252,21 +252,8 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
      * @return Whether or not the ListVS contains an element
      */
     public PrimVS<Boolean> contains(T element) {
-        assert(Checks.includedIn(element.getUniverse(), getUniverse()));
-        PrimVS<Integer> i = new PrimVS<>(0).guard(element.getUniverse());
-
-        PrimVS<Boolean> contains = new PrimVS<>(false).guard(element.getUniverse());
-        ListVS<T> guarded = this.guard(element.getUniverse());
-
-        while (BoolUtils.isEverTrue(IntUtils.lessThan(i, guarded.size)))  {
-            Bdd cond = BoolUtils.trueCond(IntUtils.lessThan(i, guarded.size));
-            contains = BoolUtils.or(contains, element.guard(cond).symbolicEquals(guarded.guard(cond).get(i), cond));
-            i = IntUtils.add(i, 1);
-        }
-
-        return contains;
+        return BoolUtils.fromTrueGuard(indexOf(element).getUniverse());
     }
-
 
     /** Insert an item in the ListVS. Inserting at the end will produce an IndexOutOfBoundsException.
      * @param indexSummary The index to insert at in the ListVS. Should be possible under a subset of the ListVS's conditions.
@@ -370,6 +357,29 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
         return merger.merge(toMerge);
     }
 
+    /** Get the index of an element in the ListVS
+     * @param element The element to check for. Should be possible under a subset of the ListVS's conditions.
+     * @return The index of the element under the universe in which it is present
+     */
+    public PrimVS<Integer> indexOf(T element) {
+        assert(Checks.includedIn(element.getUniverse(), getUniverse()));
+        PrimVS<Integer> i = new PrimVS<>(0).guard(element.getUniverse());
+
+        PrimVS<Integer> index = new PrimVS<>();
+        ListVS<T> guarded = this.guard(element.getUniverse());
+
+        while (BoolUtils.isEverTrue(IntUtils.lessThan(i, guarded.size)))  {
+            Bdd cond = BoolUtils.trueCond(IntUtils.lessThan(i, guarded.size));
+            Bdd contains = BoolUtils.trueCond(element.guard(cond).symbolicEquals(guarded.guard(cond).get(i), cond));
+            index = index.merge(i.guard(contains));
+            i = IntUtils.add(i, 1);
+        }
+
+        return index;
+    }
+
+    /** Get the universe under which the data structure is nonempty
+     * @return The universe under which the data structure is nonempty */
     public Bdd getNonEmptyUniverse() {
         return getUniverse().and(size.getGuard(0).not());
     }

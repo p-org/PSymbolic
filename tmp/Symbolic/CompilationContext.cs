@@ -75,7 +75,7 @@ namespace Plang.Compiler.Backend.Symbolic
 
         internal static string SchedulerVar => "scheduler";
 
-        internal static string EffectQueueVar => "effects";
+        internal static string EffectCollectionVar => "effects";
 
         internal static string GetVar(string rawName)
         {

@@ -7,14 +7,13 @@ import symbolicp.vs.*;
 
 import java.util.function.Function;
 
-public class EffectQueue extends SymbolicQueue<Event> implements SenderCollection {
+public class EffectQueue extends SymbolicQueue<Event> implements EffectCollection {
 
     public EffectQueue() {
         super();
     }
 
     public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, ValueSummary payload) {
-        assert(Checks.includedIn(pc));
         if (eventName.getGuardedValues().size() > 1) {
             throw new NotImplementedException();
         }
@@ -32,6 +31,16 @@ public class EffectQueue extends SymbolicQueue<Event> implements SenderCollectio
         if (payload != null) payload = payload.guard(pc);
         enqueueEntry(new Event(EventName.Init.instance, machine, payload).guard(pc));
         return machine;
+    }
+
+    @Override
+    public void add(Event e) {
+        this.enqueueEntry(e);
+    }
+
+    @Override
+    public Event remove(Bdd pc) {
+        return this.dequeueEntry(pc);
     }
 
 }

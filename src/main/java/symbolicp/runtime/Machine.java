@@ -1,12 +1,10 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.util.Checks;
-import symbolicp.util.NotImplementedException;
 import symbolicp.vs.*;
 
 import java.util.*;
-import java.util.function.Function;
+import java.util.logging.Logger;
 
 public abstract class Machine extends HasId {
     private final State startState;
@@ -15,7 +13,7 @@ public abstract class Machine extends HasId {
     int update = 0;
 
     private PrimVS<State> state;
-    public final EffectQueue effectQueue;
+    public final EffectCollection sendEffects;
     public final DeferQueue deferredQueue;
 
     public PrimVS<Boolean> hasStarted() {
@@ -30,7 +28,7 @@ public abstract class Machine extends HasId {
         super(name, id);
 
         this.startState = startState;
-        this.effectQueue = new EffectQueue();
+        this.sendEffects = new EffectQueue();
         this.deferredQueue = new DeferQueue();
 
         this.state = new PrimVS<>(startState);
@@ -70,6 +68,7 @@ public abstract class Machine extends HasId {
         while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
             // TODO: Determine if this can be safely optimized into a concrete boolean
             Bdd performedTransition = Bdd.constFalse();
+            Logger.getLogger("run again");
 
             // Inner loop: process sequences of 'goto's and 'raise's.
             while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
@@ -146,7 +145,6 @@ public abstract class Machine extends HasId {
             RaiseOutcome raiseOutcome, // 'out' parameter
             Event event
     ) {
-        assert(Checks.includedIn(pc));
         assert(event.getMachine().guard(pc).getValues().size() <= 1);
         ScheduleLogger.onProcessEvent(pc, this, event);
         PrimVS<State> guardedState = this.state.guard(pc);
@@ -158,7 +156,6 @@ public abstract class Machine extends HasId {
     }
 
     void processEventToCompletion(Bdd pc, Event event) {
-        assert(Checks.includedIn(pc));
         final GotoOutcome emptyGotoOutcome = new GotoOutcome();
         final RaiseOutcome eventRaiseOutcome = new RaiseOutcome();
         eventRaiseOutcome.addGuardedRaiseEvent(event);

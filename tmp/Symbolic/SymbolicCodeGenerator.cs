@@ -178,7 +178,7 @@ namespace Plang.Compiler.Backend.Symbolic
                 context.WriteLine(output, $"@Override public void entry(Bdd {entryPcScope.PathConstraintVar}, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome, ValueSummary payload) {{");
 
                 var entryFunc = state.Entry;
-                context.Write(output, $"(({context.GetNameForDecl(entryFunc.Owner)})machine).{context.GetNameForDecl(entryFunc)}({entryPcScope.PathConstraintVar}, machine.effectQueue");
+                context.Write(output, $"(({context.GetNameForDecl(entryFunc.Owner)})machine).{context.GetNameForDecl(entryFunc)}({entryPcScope.PathConstraintVar}, machine.sendEffects");
                 if (entryFunc.CanChangeState ?? false)
                     context.Write(output, ", gotoOutcome");
                 if (entryFunc.CanRaiseEvent ?? false)
@@ -204,7 +204,7 @@ namespace Plang.Compiler.Backend.Symbolic
                 Debug.Assert(!(exitFunc.CanRaiseEvent ?? false));
                 if (exitFunc.Signature.Parameters.Count() != 0)
                     throw new NotImplementedException("Exit functions with payloads are not yet supported");
-                context.WriteLine(output, $"(({context.GetNameForDecl(exitFunc.Owner)})machine).{context.GetNameForDecl(exitFunc)}(pc, machine.effectQueue);");
+                context.WriteLine(output, $"(({context.GetNameForDecl(exitFunc.Owner)})machine).{context.GetNameForDecl(exitFunc)}(pc, machine.sendEffects);");
 
                 context.WriteLine(output, "}");
             }
@@ -223,7 +223,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     context.WriteLine(output, $"new EventHandler({eventTag}) {{");
                     context.WriteLine(output, "@Override public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {");
                     var actionFunc = action.Target;
-                    context.Write(output, $"(({context.GetNameForDecl(actionFunc.Owner)})machine).{context.GetNameForDecl(actionFunc)}(pc, machine.effectQueue");
+                    context.Write(output, $"(({context.GetNameForDecl(actionFunc.Owner)})machine).{context.GetNameForDecl(actionFunc)}(pc, machine.sendEffects");
                     if (actionFunc.CanChangeState ?? false)
                         context.Write(output, ", gotoOutcome");
                     if (actionFunc.CanRaiseEvent ?? false)
@@ -256,7 +256,7 @@ namespace Plang.Compiler.Backend.Symbolic
                         Debug.Assert(!(transitionFunc.CanChangeState ?? false));
                         Debug.Assert(!(transitionFunc.CanRaiseEvent ?? false));
 
-                        context.Write(output, $"(({context.GetNameForDecl(transitionFunc.Owner)})machine).{context.GetNameForDecl(transitionFunc)}(pc, machine.effectQueue");
+                        context.Write(output, $"(({context.GetNameForDecl(transitionFunc.Owner)})machine).{context.GetNameForDecl(transitionFunc)}(pc, machine.sendEffects");
                         if (transitionFunc.Signature.Parameters.Count() == 1)
                         {
                             Debug.Assert(!handler.Key.PayloadType.IsSameTypeAs(PrimitiveType.Null));
@@ -374,7 +374,7 @@ namespace Plang.Compiler.Backend.Symbolic
 
             context.WriteLine(output, $"(");
             context.WriteLine(output, $"Bdd {rootPCScope.PathConstraintVar},");
-            context.Write(output, $"EffectQueue {CompilationContext.EffectQueueVar}");
+            context.Write(output, $"EffectCollection {CompilationContext.EffectCollectionVar}");
             if (function.CanChangeState ?? false)
             {
                 Debug.Assert(function.Owner != null);
@@ -814,7 +814,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
 
                 case SendStmt sendStmt:
-                    context.Write(output, $"{CompilationContext.EffectQueueVar}.send({flowContext.pcScope.PathConstraintVar}, ");
+                    context.Write(output, $"{CompilationContext.EffectCollectionVar}.send({flowContext.pcScope.PathConstraintVar}, ");
                     WriteExpr(context, output, flowContext.pcScope, sendStmt.MachineExpr);
                     context.Write(output, ", ");
                     WriteExpr(context, output, flowContext.pcScope, sendStmt.Evt);
@@ -953,7 +953,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
             }
 
-            context.Write(output, $"{context.GetNameForDecl(function)}({flowContext.pcScope.PathConstraintVar}, {CompilationContext.EffectQueueVar}");
+            context.Write(output, $"{context.GetNameForDecl(function)}({flowContext.pcScope.PathConstraintVar}, {CompilationContext.EffectCollectionVar}");
 
             if (function.CanChangeState ?? false)
                 context.Write(output, ", gotoOutcome");
@@ -1372,7 +1372,7 @@ namespace Plang.Compiler.Backend.Symbolic
             // TODO: Is it safe to take an interface's name and treat it as if it were a machine's name?
             context.Write(
                 output,
-                $"{CompilationContext.EffectQueueVar}.create(" +
+                $"{CompilationContext.EffectCollectionVar}.create(" +
                 $"{pcScope.PathConstraintVar}, " +
                 $"{CompilationContext.SchedulerVar}, " +
                 $"{context.GetNameForDecl(ctorInterface)}.class, ");
@@ -1516,7 +1516,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     unguarded = $"new {GetSymbolicType(type)}()";
                     break;
                 case SequenceType _:
-                    unguarded = $"new {GetSymbolicType(type)}()";
+                    unguarded = $"new {GetSymbolicType(type)}(Bdd.constTrue())";
                     break;
                 case MapType _:
                     unguarded = $"new {GetSymbolicType(type)}(Bdd.constTrue())";
@@ -1600,10 +1600,15 @@ namespace Plang.Compiler.Backend.Symbolic
             context.WriteLine(output, "import symbolicp.bdd.*;");
             context.WriteLine(output, "import symbolicp.vs.*;");
             context.WriteLine(output, "import symbolicp.runtime.*;");
+            context.WriteLine(output, "import symbolicp.run.*;");
             context.WriteLine(output);
-            context.WriteLine(output, $"public class {context.MainClassName} {{");
+            context.WriteLine(output, $"public class {context.MainClassName} implements Program {{");
             context.WriteLine(output);
             context.WriteLine(output, $"public static Scheduler {CompilationContext.SchedulerVar};");
+            context.WriteLine(output);
+            context.WriteLine(output, "@Override");
+            context.WriteLine(output, $"public void setScheduler (Scheduler s) {{ this.{CompilationContext.SchedulerVar} = s; }}");
+            context.WriteLine(output);
         }
 
         private void WriteMainDriver(CompilationContext context, StringWriter output, Scope globalScope)
@@ -1624,47 +1629,11 @@ namespace Plang.Compiler.Backend.Symbolic
 
             if (mainMachine != null)
             {
-                context.WriteLine(output, "public static void main(String[] args) {");
-
-                context.WriteLine(output, "// TODO: Make maxDepth configurable");
-                context.WriteLine(output, "int maxDepth = 13;");
-
-                /*
-                foreach (Machine machine in globalScope.Machines)
-                {
-                    context.WriteLine(output, $"Machine instance_machine_{machine.Name} = new {context.GetNameForDecl(machine)}(0);");
-                }
-                */
-                context.WriteLine(output, $"Machine instance_machine_{mainMachine.Name} = new {context.GetNameForDecl(mainMachine)}(0);");
-
-                context.Write(output, "scheduler = new Scheduler(");
-
-                /*
-                context.WriteLine(output, $"instance_machine_{mainMachine.Name}");
-                bool first = true;
-                foreach (Machine machine in globalScope.Machines)
-                {
-                    if (first)
-                    {
-                        first = false;
-                    }
-                    else
-                    {
-                        context.Write(output, ",");
-                    }
-
-                    context.Write(output, $"instance_{context.GetMachineName(machine)}");
-
-                }
-                */
-                context.WriteLine(output, ");");
-                context.WriteLine(output, $"scheduler.startWith(instance_{context.GetMachineName(mainMachine)});");
-
-                context.WriteLine(output, "for (int i = 0; i < maxDepth; i++) {");
-                context.WriteLine(output, "scheduler.step();");
-                context.WriteLine(output, "}");
-
-                context.WriteLine(output, "}");
+                context.WriteLine(output, $"private static Machine start = new {context.GetNameForDecl(mainMachine)}(0);");
+                context.WriteLine(output);
+                context.WriteLine(output, "@Override");
+                context.WriteLine(output, "public Machine getStart() { return start; }");
+                context.WriteLine(output);
             }
         }
 

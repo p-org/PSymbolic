@@ -1,6 +1,16 @@
 package symbolicp;
 import org.joor.Reflect;
+import symbolicp.run.CompilerLogger;
+import symbolicp.run.EntryPoint;
+import symbolicp.run.Program;
+
+import javax.tools.JavaCompiler;
+import javax.tools.ToolProvider;
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -91,25 +101,35 @@ public class TestCaseExecutor {
         String[] path_split = Utils.splitPath(testCasePath);
         String class_name = path_split[path_split.length-1].split("\\.")[0].toLowerCase();
         String outputPath = outputDirectory + File.separator + class_name + ".java";
-        String fileContent = prependPackageDeclarationAndRead(outputPackage, outputPath);
-        Reflect r;
-        try{
-            r = Reflect.compile(outputPackage + "." + class_name, fileContent);
-        }
-        catch (Exception e) {
-            // Dynamic compilation exceptions are considered as Static Errors
-            System.out.println("compilation failure");
+
+        // Program to run
+        Program p = null;
+
+        // Try to compile the file
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        compiler.run(null, null, null, outputPath);
+
+        // Load and instantiate compiled class
+        try {
+            URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{new File(outputDirectory).toURI().toURL()});
+            Class<?> cls = Class.forName(class_name, true, classLoader);
+            Object instance = cls.getDeclaredConstructor().newInstance();
+            p = (Program) instance;
+        } catch (InstantiationException | MalformedURLException | IllegalAccessException | ClassNotFoundException |
+                NoSuchMethodException | InvocationTargetException e) {
+            CompilerLogger.log("Compilation failure.");
             e.printStackTrace();
             return 1;
         }
-        try{
-            r.call("main", (Object) new String[] {});
-        }
-        catch (Exception | AssertionError e) {
-            System.out.println("call failure");
+        try {
+            EntryPoint.run(p, 13);
+        } catch (Exception | AssertionError e) {
             e.printStackTrace();
             return 2;
+        } finally {
+            new File(outputDirectory + File.separator + class_name + ".class").delete();
         }
+
         return 0;
     }
 

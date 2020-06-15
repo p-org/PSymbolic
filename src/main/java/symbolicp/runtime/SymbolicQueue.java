@@ -2,14 +2,11 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.util.Checks;
-import symbolicp.vs.GuardedValue;
 import symbolicp.vs.ListVS;
 import symbolicp.vs.PrimVS;
 import symbolicp.vs.ValueSummary;
 
-import java.util.*;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 public class SymbolicQueue<T extends ValueSummary<T>> {
 
@@ -23,9 +20,6 @@ public class SymbolicQueue<T extends ValueSummary<T>> {
     public PrimVS<Integer> size() { return entries.size(); }
 
     public void enqueueEntry(T entry) {
-        assert(Checks.includedIn(entry.getUniverse()));
-        //Checks.check(Scheduler.schedule.singleScheduleToString(entry.getUniverse()) + System.lineSeparator() + entries,
-        //        entries.size().guard(entry.getUniverse()).getValues().size() <= 1);
         entries = entries.add(entry);
     }
 

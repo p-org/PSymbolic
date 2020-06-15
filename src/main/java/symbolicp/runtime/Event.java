@@ -30,6 +30,11 @@ public class Event implements ValueSummary<Event> {
         return BoolUtils.fromTrueGuard(cond);
     }
 
+    public Event getForMachine(Machine machine) {
+        Bdd cond = this.machine.getGuard(machine);
+        return this.guard(cond);
+    }
+
     private Event(PrimVS<EventName> names, PrimVS<Machine> machine, Map<EventName, ValueSummary> map) {
         this.name = names;
         this.machine = machine;
@@ -154,10 +159,9 @@ public class Event implements ValueSummary<Event> {
 
     @Override
     public String toString() {
-        String str = "";
+        String str = "[";
         int i = 0;
         for (GuardedValue<EventName> name : getName().getGuardedValues()) {
-            str += name.value + ": ";
             //ScheduleLogger.log("name: " + name.value + " mach: " + this.guard(name.guard).getMachine());
             //if (getMachine().guard(name.guard).getGuardedValues().size() > 1) assert(false);
             str += getMachine().guard(name.guard);
@@ -168,7 +172,7 @@ public class Event implements ValueSummary<Event> {
             if (i < getName().getGuardedValues().size() - 1)
                 str += System.lineSeparator();
         }
-        return str;
+        return str + "]";
     }
 
 }

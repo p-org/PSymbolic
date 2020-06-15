@@ -9,7 +9,7 @@ import symbolicp.vs.ValueSummary;
 
 import java.util.function.Function;
 
-public interface SenderCollection {
+public interface EffectCollection {
     public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, ValueSummary payload);
 
     public PrimVS<Machine> create(
@@ -19,6 +19,14 @@ public interface SenderCollection {
             ValueSummary payload,
             Function<Integer, ? extends Machine> constructor
     );
+
+    public boolean isEmpty();
+
+    public void add(Event e);
+
+    public Event remove(Bdd pc);
+
+    public PrimVS<Boolean> enabledCond(Function<Event, PrimVS<Boolean>> pred);
 
     default public PrimVS<Machine> create(Bdd pc, Scheduler scheduler, Class<? extends Machine> machineType,
                                   Function<Integer, ? extends Machine> constructor) {
