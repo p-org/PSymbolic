@@ -202,9 +202,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
                 equalCond = equalCond.or(entry.getValue().and(cmp.guardedValues.get(entry.getKey())));
             }
         }
-        if (this.getUniverse().isConstFalse() && cmp.getUniverse().isConstFalse()) {
-            return BoolUtils.fromTrueGuard(pc);
-        }
+        equalCond = equalCond.or(getUniverse().and(cmp.getUniverse()).not());
         return BoolUtils.fromTrueGuard(pc.and(equalCond));
     }
 

@@ -6,6 +6,8 @@ import symbolicp.vs.*;
 import java.util.*;
 import java.util.logging.Logger;
 
+import static symbolicp.runtime.BufferSemantics.bag;
+
 public abstract class Machine extends HasId {
     private final State startState;
     private final Set<State> states;
@@ -24,11 +26,21 @@ public abstract class Machine extends HasId {
         return state;
     }
 
-    public Machine(String name, int id, State startState, State... states) {
+    public Machine(String name, int id, BufferSemantics semantics, State startState, State... states) {
         super(name, id);
 
+        EffectCollection buffer;
+        switch (semantics) {
+            case bag:
+                buffer = new EffectBag();
+                break;
+            default:
+                buffer = new EffectQueue();
+                break;
+        }
+
         this.startState = startState;
-        this.sendEffects = new EffectQueue();
+        this.sendEffects = buffer;
         this.deferredQueue = new DeferQueue();
 
         this.state = new PrimVS<>(startState);

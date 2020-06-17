@@ -139,17 +139,30 @@ public class Event implements ValueSummary<Event> {
 
     @Override
     public Event update(Bdd guard, Event update) {
+        /*
         if (guard.isConstTrue()) {
             assert (this.guard(guard.not()).merge(update.guard(guard)).symbolicEquals(update, guard).getGuard(true).isConstTrue());
-        }
+        }*/
         return this.guard(guard.not()).merge(update.guard(guard));
     }
 
     @Override
     public PrimVS<Boolean> symbolicEquals(Event cmp, Bdd pc) {
-        return BoolUtils.and(
-                BoolUtils.and(this.name.symbolicEquals(cmp.name, pc), this.machine.symbolicEquals(cmp.machine, pc)),
-                new PrimVS<>(this.map.equals(cmp.map)).guard(pc));
+        Bdd nameAndTarget = this.name.symbolicEquals(cmp.name, Bdd.constTrue()).getGuard(true).and(
+                                this.machine.symbolicEquals(cmp.machine, Bdd.constTrue()).getGuard(true));
+        Bdd mapping = Bdd.constFalse();
+        for (GuardedValue<EventName> event : name.getGuardedValues()) {
+            if (this.map.containsKey(event.value)) {
+                if (cmp.map.containsKey(event.value)) {
+                    mapping = mapping.or(this.map.get(event.value)
+                                                  .symbolicEquals(cmp.map.get(event.value), Bdd.constTrue())
+                                                  .getGuard(true));
+                }
+            } else if (!cmp.map.containsKey(event.value)) {
+                mapping = mapping.or(event.guard);
+            }
+        }
+        return BoolUtils.fromTrueGuard(pc.and(nameAndTarget).and(mapping));
     }
 
     @Override
@@ -164,7 +177,8 @@ public class Event implements ValueSummary<Event> {
         for (GuardedValue<EventName> name : getName().getGuardedValues()) {
             //ScheduleLogger.log("name: " + name.value + " mach: " + this.guard(name.guard).getMachine());
             //if (getMachine().guard(name.guard).getGuardedValues().size() > 1) assert(false);
-            str += getMachine().guard(name.guard);
+            str += name.value;
+            str += " -> " + getMachine().guard(name.guard);
             if (map.size() > 0 && map.containsKey(name.value)) {
                 str += " -- ";
                 str += map.get(name.value);

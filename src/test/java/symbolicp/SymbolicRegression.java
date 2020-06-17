@@ -72,11 +72,12 @@ public class SymbolicRegression {
 
         return dynamicTests;
     }
-
+/*
     @TestFactory
     Collection<DynamicTest> loadStandardRegressions() {
         return loadTests("../Tst/RegressionTests/", new String[] {"Feature5ModuleSystem/"});
     }
+    */
 
     @TestFactory
     Collection<DynamicTest> loadSymbolicRegressions() {

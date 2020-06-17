@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.util.Checks;
 import symbolicp.vs.*;
 
 import java.util.ArrayList;
@@ -9,10 +10,10 @@ import java.util.function.Function;
 
 public class SymbolicBag<T extends ValueSummary<T>> {
 
-    private SetVS<T> entries;
+    private ListVS<T> entries;
 
     public SymbolicBag() {
-        this.entries = new SetVS<>(Bdd.constTrue());
+        this.entries = new ListVS<>(Bdd.constTrue());
         assert(entries.getUniverse().isConstTrue());
     }
 
@@ -36,12 +37,12 @@ public class SymbolicBag<T extends ValueSummary<T>> {
      */
     public PrimVS<Boolean> enabledCond(Function<T, PrimVS<Boolean>> pred) {
         Bdd cond = entries.getNonEmptyUniverse();
-        ListVS<T> elts = entries.guard(cond).getElements();
+        ListVS<T> elts = entries.guard(cond);
         PrimVS<Integer> idx = new PrimVS<>(0).guard(cond);
         PrimVS<Boolean> enabledCond = new PrimVS<>(false);
         while (BoolUtils.isEverTrue(IntUtils.lessThan(idx, elts.size()))) {
             Bdd iterCond = IntUtils.lessThan(idx, elts.size()).getGuard(true);
-            PrimVS<Boolean> res = pred.apply(elts.get(idx.guard(iterCond)));
+            PrimVS<Boolean> res = pred.apply(elts.guard(iterCond).get(idx.guard(iterCond)));
             enabledCond = BoolUtils.or(enabledCond, res);
             idx = IntUtils.add(idx, 1);
         }
@@ -50,15 +51,18 @@ public class SymbolicBag<T extends ValueSummary<T>> {
 
     public T remove(Bdd pc) {
         assert (entries.getUniverse().isConstTrue());
-        ListVS<T> filtered = entries.guard(pc).getElements();
+        ListVS<T> filtered = entries.guard(pc);
         PrimVS<Integer> size = filtered.size();
         List<PrimVS> choices = new ArrayList<>();
-        for (GuardedValue<Integer> guardedValue : size.getGuardedValues()) {
-            choices.add(new PrimVS<Integer>(guardedValue.value).guard(guardedValue.guard));
+        PrimVS<Integer> idx = new PrimVS<>(0).guard(pc);
+        while(BoolUtils.isEverTrue(IntUtils.lessThan(idx, size))) {
+            Bdd cond = IntUtils.lessThan(idx, size).getGuard(true);
+            choices.add(idx.guard(cond));
+            idx = IntUtils.add(idx, 1);
         }
         PrimVS<Integer> index = (PrimVS<Integer>) NondetUtil.getNondetChoice(choices);
         T element = filtered.get(index);
-        entries = entries.update(pc, entries.remove(element).guard(pc));
+        entries = entries.removeAt(index);
         return element;
     }
 

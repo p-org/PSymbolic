@@ -53,7 +53,7 @@ public class SymbolicQueue<T extends ValueSummary<T>> {
         assert(entries.getUniverse().isConstTrue());
         ListVS<T> filtered = entries.guard(pc);
         if (dequeue) {
-            entries = entries.update(pc, filtered.removeAt(new PrimVS<>(0).guard(pc)));
+            entries = entries.removeAt(new PrimVS<>(0).guard(pc));
         }
         return filtered.get(new PrimVS<>(0).guard(pc)).guard(pc);
     }

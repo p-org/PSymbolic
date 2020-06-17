@@ -71,6 +71,11 @@ namespace Plang.Compiler.Backend.Symbolic
             return $"machine_{machine.Name}";
         }
 
+        internal string GetBufferSemantics(Machine machine)
+        {
+            return machine.Semantics;
+        }
+
         internal static string NullEventName => "Events.event_null";
 
         internal static string SchedulerVar => "scheduler";

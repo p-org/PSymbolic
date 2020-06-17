@@ -79,7 +79,7 @@ public class Schedule {
             scheduleString += "Events ran at " + (i - 1) + ": " + System.lineSeparator();
             for (Event e : ran) {
                 if (!e.guard(currentPc).isEmptyVS())
-                    scheduleString += "    " + e.guard(currentPc) + System.lineSeparator();
+                    scheduleString += e.guard(currentPc) + System.lineSeparator();
             }
 
             if (i == size) break;

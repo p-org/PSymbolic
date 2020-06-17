@@ -1,4 +1,5 @@
 package symbolicp.run;
+import symbolicp.bdd.Bdd;
 import symbolicp.runtime.Scheduler;
 import symbolicp.*;
 
@@ -8,8 +9,11 @@ public class EntryPoint {
         Scheduler scheduler = new Scheduler();
         p.setScheduler(scheduler);
         scheduler.startWith(p.getStart());
-        for (int i = 0; i < depth; i++) {
+        int step = 0;
+        while (!scheduler.isDone()) {
             scheduler.step();
+            Assert.prop(step < depth, "Max depth reached", Bdd.constTrue());
+            step++;
         }
     }
 

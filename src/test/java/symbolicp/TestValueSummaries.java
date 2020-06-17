@@ -18,16 +18,15 @@ public class TestValueSummaries {
         Bdd path = Bdd.constTrue();
         Bdd bdd1 = Bdd.newVar();
 
-        PrimVS<Integer> var_x = new PrimVS<Integer>(0).guard(path);
-        PrimVS<Integer> var_y = new PrimVS<Integer>(0).guard(path);
-        PrimVS<Integer> var_xg = new PrimVS<Integer>(1).guard(bdd1);
-        PrimVS<Integer> var_yg = new PrimVS<Integer>(1).guard(bdd1.not());
+        PrimVS<Integer> var_x = new PrimVS<>(0).guard(path);
+        PrimVS<Integer> var_y = new PrimVS<>(0).guard(path);
+        PrimVS<Integer> var_xg = new PrimVS<>(1).guard(bdd1);
+        PrimVS<Integer> var_yg = new PrimVS<>(1).guard(bdd1.not());
 
         assertTrue(var_x.symbolicEquals(var_y, path).getGuard(true).isConstTrue());
 
         PrimVS<Integer> var_x1 = var_x.guard(bdd1.not()).merge(var_xg);
         PrimVS<Integer> var_y1 = var_y.guard(bdd1).merge(var_yg);
-
 
         assertTrue(var_x1.symbolicEquals(var_y1, path).getGuard(false).isConstTrue());
     }
@@ -37,10 +36,10 @@ public class TestValueSummaries {
     {
         Bdd path = Bdd.constTrue();
 
-        PrimVS<Integer> var_x0 = new PrimVS<Integer>(0).guard(path);
-        PrimVS<Integer> var_y0 = new PrimVS<Integer>(0).guard(path);
-        PrimVS<Integer> var_x1 = new PrimVS<Integer>(1).guard(path);
-        PrimVS<Integer> var_y1 = new PrimVS<Integer>(1).guard(path);
+        PrimVS<Integer> var_x0 = new PrimVS<>(0).guard(path);
+        PrimVS<Integer> var_y0 = new PrimVS<>(0).guard(path);
+        PrimVS<Integer> var_x1 = new PrimVS<>(1).guard(path);
+        PrimVS<Integer> var_y1 = new PrimVS<>(1).guard(path);
 
         SetVS<PrimVS<Integer>> set_0 = new SetVS<>(path);
         set_0 = set_0.add(var_x0);
@@ -62,11 +61,11 @@ public class TestValueSummaries {
     {
         Bdd path = Bdd.constTrue();
 
-        PrimVS<Integer> var_x0 = new PrimVS<Integer>(0).guard(path);
-        PrimVS<Integer> var_y0 = new PrimVS<Integer>(0).guard(path);
-        PrimVS<Integer> var_x1 = new PrimVS<Integer>(1).guard(path);
-        PrimVS<Integer> var_y1 = new PrimVS<Integer>(1).guard(path);
-        PrimVS<Integer> var_y2 = new PrimVS<Integer>(2).guard(path);
+        PrimVS<Integer> var_x0 = new PrimVS<>(0).guard(path);
+        PrimVS<Integer> var_y0 = new PrimVS<>(0).guard(path);
+        PrimVS<Integer> var_x1 = new PrimVS<>(1).guard(path);
+        PrimVS<Integer> var_y1 = new PrimVS<>(1).guard(path);
+        PrimVS<Integer> var_y2 = new PrimVS<>(2).guard(path);
 
         MapVS<Integer, PrimVS<Integer>> map_0 = new MapVS<>(Bdd.constTrue());
         MapVS<Integer, PrimVS<Integer>> map_1 = new MapVS<>(Bdd.constTrue());
@@ -88,13 +87,13 @@ public class TestValueSummaries {
     {
         Bdd path = Bdd.constTrue();
 
-        PrimVS<Integer> var_x0 = new PrimVS<Integer>(0).guard(path);
-        PrimVS<Integer> var_y0 = new PrimVS<Integer>(0).guard(path);
-        PrimVS<Integer> var_x1 = new PrimVS<Integer>(1).guard(path);
-        PrimVS<Integer> var_y1 = new PrimVS<Integer>(1).guard(path);
-        PrimVS<Integer> var_y2 = new PrimVS<Integer>(2).guard(path);
-        PrimVS<Integer> var_x2 = new PrimVS<Integer>(2).guard(path);
-        PrimVS<Integer> var_y3 = new PrimVS<Integer>(2).guard(path);
+        PrimVS<Integer> var_x0 = new PrimVS<>(0).guard(path);
+        PrimVS<Integer> var_y0 = new PrimVS<>(0).guard(path);
+        PrimVS<Integer> var_x1 = new PrimVS<>(1).guard(path);
+        PrimVS<Integer> var_y1 = new PrimVS<>(1).guard(path);
+        PrimVS<Integer> var_y2 = new PrimVS<>(2).guard(path);
+        PrimVS<Integer> var_x2 = new PrimVS<>(2).guard(path);
+        PrimVS<Integer> var_y3 = new PrimVS<>(2).guard(path);
 
         ListVS<PrimVS<Integer>> list_0 = new ListVS<>(path);
         ListVS<PrimVS<Integer>> list_1 = new ListVS<>(path);

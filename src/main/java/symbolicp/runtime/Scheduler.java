@@ -16,6 +16,10 @@ public class Scheduler {
     private int step_count = 0;
     private boolean done = false;
 
+    public boolean isDone() {
+        return done;
+    }
+
     public Scheduler(Machine... machines) {
         schedule = new Schedule();
         this.machines = new ArrayList<>();

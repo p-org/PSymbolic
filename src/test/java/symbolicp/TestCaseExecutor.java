@@ -88,12 +88,11 @@ public class TestCaseExecutor {
             }
 
             int exitCode = process.waitFor();
-            System.out.println("compilation finish");
 
             if (exitCode != 0) return 1;
         }
         catch (IOException | InterruptedException e) {
-            System.out.println("compilation failure");
+            CompilerLogger.log("Compilation failure.");
             e.printStackTrace();
         }
 

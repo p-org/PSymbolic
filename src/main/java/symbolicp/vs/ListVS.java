@@ -237,7 +237,7 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
             // the original item is updated when this is the index (i.e., index.guard holds)
             final T newEntry = newItems.get(index.value).update(index.guard, itemToSet);
             newItems.set(index.value, newEntry);
-            ListVS<T> newList = new ListVS<>(size, newItems);
+            ListVS<T> newList = new ListVS<>(size, newItems).guard(index.guard);
             if (merger == null)
                 merger = newList;
             else
@@ -309,8 +309,6 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
      * @return The result of removing from the ListVS
      */
     public ListVS<T> removeAt(PrimVS<Integer> indexSummary) {
-        if (Checks.sameUniverse(indexSummary.getUniverse(), getUniverse()))
-            removeAtHelper(indexSummary);
         assert (Checks.includedIn(indexSummary.getUniverse(), getUniverse()));
         ListVS<T> guarded = this.guard(indexSummary.getUniverse());
         return update(indexSummary.getUniverse(), guarded.removeAtHelper(indexSummary));
@@ -363,6 +361,8 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
      */
     public PrimVS<Integer> indexOf(T element) {
         assert(Checks.includedIn(element.getUniverse(), getUniverse()));
+        assert(!this.getUniverse().and(element.getUniverse()).isConstFalse());
+        //System.out.println(this.guard(element.getUniverse()));
         PrimVS<Integer> i = new PrimVS<>(0).guard(element.getUniverse());
 
         PrimVS<Integer> index = new PrimVS<>();
