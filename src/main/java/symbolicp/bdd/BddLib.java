@@ -20,5 +20,7 @@ public interface BddLib<Bdd> {
     Bdd newVar();
 
     String toString(Bdd bdd);
+
+    Bdd fromString(String s);
 }
 

@@ -4,15 +4,19 @@ import org.sosy_lab.pjbdd.Builders;
 import org.sosy_lab.pjbdd.creator.bdd.Creator;
 import org.sosy_lab.pjbdd.node.BDD;
 import org.sosy_lab.pjbdd.util.parser.BDDStringExporter;
+import org.sosy_lab.pjbdd.util.parser.BDDStringImporter;
 import org.sosy_lab.pjbdd.util.parser.Exporter;
+import org.sosy_lab.pjbdd.util.parser.Importer;
 
 public class PjbddImpl implements BddLib<BDD> {
     final private Creator c;
     final private Exporter e;
+    final private Importer i;
 
     public PjbddImpl() {
         c = Builders.newBDDBuilder().build();
         e = new BDDStringExporter(c);
+        i = new BDDStringImporter(c);
     }
 
     @Override
@@ -66,5 +70,16 @@ public class PjbddImpl implements BddLib<BDD> {
         if (bdd.isFalse()) return "false";
         if (bdd.isTrue()) return "true";
         return e.bddToString(bdd);
+    }
+
+    @Override
+    public BDD fromString(String s) {
+        if (s.equals("false")) {
+            return c.makeFalse();
+        }
+        if (s.equals("true")) {
+            return c.makeTrue();
+        }
+        return i.bddFromString(s);
     }
 }

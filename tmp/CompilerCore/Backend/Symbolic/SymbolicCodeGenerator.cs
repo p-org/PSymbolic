@@ -107,6 +107,16 @@ namespace Plang.Compiler.Backend.Symbolic
 
             context.WriteLine(output);
 
+            context.WriteLine(output, "@Override");
+            context.WriteLine(output, "public void reset() {");
+            context.WriteLine(output, "    super.reset();");
+            foreach (var field in machine.Fields)
+                context.WriteLine(output, $"    {CompilationContext.GetVar(field.Name)} = {GetDefaultValueNoGuard(context, field.Type)};");
+            context.WriteLine(output, "}");
+
+            context.WriteLine(output);
+
+
             WriteMachineConstructor(context, output, machine);
 
             context.WriteLine(output);
@@ -1359,7 +1369,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
                 case NondetExpr _:
                 case FairNondetExpr _:
-                    context.Write(output, $"BoolUtils.fromTrueGuard(Bdd.newVar()).guard({pcScope.PathConstraintVar})");
+                    context.Write(output, $"{CompilationContext.SchedulerVar}.getNextBoolean({pcScope.PathConstraintVar})");
                     break;
                 default:
                     context.Write(output, $"/* Skipping expr '{expr.GetType().Name}' */");

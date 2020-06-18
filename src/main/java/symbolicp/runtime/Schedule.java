@@ -1,109 +1,122 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.GuardedValue;
-import symbolicp.vs.PrimVS;
-import symbolicp.vs.ValueSummary;
+import symbolicp.run.Assert;
+import symbolicp.vs.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Schedule {
-    List<Event> schedule = new ArrayList<>();
-    List<Map<Machine, PrimVS<State>>> machines = new ArrayList<>();
-    List<List<PrimVS<State>>> withinStep = new ArrayList<>();
-    List<List<Event>> ranEvent = new ArrayList<>();
-    int size = 0;
+    private List<PrimVS<Machine>> senderChoice = new ArrayList<>();
+    private Map<Class<? extends Machine>, ListVS<PrimVS<Machine>>> createdMachines = new HashMap<>();
+    private Set<Machine> machines = new HashSet<>();
+    private ListVS<PrimVS<Boolean>> boolChoice = new ListVS<>(Bdd.constTrue());
+    private ListVS<PrimVS<Integer>> intChoice = new ListVS<>(Bdd.constTrue());
+    private Bdd pc = Bdd.constTrue();
 
-    public Schedule() {
-        withinStep.add(new ArrayList<>());
-        ranEvent.add(new ArrayList<>());
+    public Schedule() {}
+
+    private Schedule(List<PrimVS<Machine>> senderChoice,
+                     ListVS<PrimVS<Boolean>> boolChoice,
+                     ListVS<PrimVS<Integer>> intChoice,
+                     Map<Class<? extends Machine>, ListVS<PrimVS<Machine>>> createdMachines,
+                     Set<Machine> machines,
+                     Bdd pc) {
+        this.senderChoice = new ArrayList<>(senderChoice);
+        this.boolChoice = boolChoice;
+        this.intChoice = intChoice;
+        this.createdMachines = new HashMap<>(createdMachines);
+        this.machines = new HashSet<>(machines);
+        this.pc = pc;
     }
 
-    public void step() {
-        schedule.add(new Event());
-        this.machines.add(new HashMap<>());
-        this.withinStep.add(new ArrayList<>());
-        this.ranEvent.add(new ArrayList<>());
-        size++;
+    public int size() {
+        return senderChoice.size();
     }
 
-    public void addToSchedule(Bdd pc, Event effect, List<Machine> machines) {
-        this.schedule.set(size - 1, schedule.get(size - 1).merge(effect));
-        for (Machine m : machines) {
-            this.machines.get(size - 1).put(m, this.machines.get(size - 1).getOrDefault(m, new PrimVS<>()).update(pc, m.getState()));
+    public Set<Machine> getMachines() { return machines; }
+
+    public Schedule guard(Bdd pc) {
+        List<PrimVS<Machine>> newSenderChoice = senderChoice.stream().map(x -> x.guard(pc)).collect(Collectors.toList());
+        return new Schedule(newSenderChoice, boolChoice.guard(pc), intChoice.guard(pc), createdMachines, machines, pc);
+    }
+
+    public void makeMachine(Machine m, Bdd pc) {
+        PrimVS<Machine> toAdd = new PrimVS<>(m).guard(pc);
+        if (createdMachines.containsKey(m.getClass())) {
+            createdMachines.put(m.getClass(), createdMachines.get(m.getClass()).add(toAdd));
+        } else {
+            createdMachines.put(m.getClass(), new ListVS<PrimVS<Machine>>(Bdd.constTrue()).add(toAdd));
         }
+        machines.add(m);
     }
 
-    public void withinStep(PrimVS<State> state) {
-        this.withinStep.get(size).add(state);
-    }
-    public void runEvent(Event event) {
-        this.ranEvent.get(size).add(event);
+    public void scheduleSender(PrimVS<Machine> choice) {
+        senderChoice.add(choice);
     }
 
-    public GuardedValue<String> getSingleSubStep(Bdd pc, List<PrimVS<State>> subSteps) {
-        String substep = "";
-        Bdd currentPc = pc;
-        if (subSteps.size() > 0) {
-            boolean first = true;
-            for (PrimVS<State> step : subSteps) {
-                List<GuardedValue<State>> steps = step.guard(currentPc).getGuardedValues();
-                if (steps.size() > 0) {
-                    if (!first) {
-                        substep += "->";
-                    } else {
-                        first = false;
-                    }
-                    substep += steps.get(0).value;
-                    substep += "(" + steps.size() + ")";
-                    currentPc = currentPc.and(steps.get(0).guard);
-                }
-            }
-        }
-        substep += System.lineSeparator();
-        return new GuardedValue<>(substep, currentPc);
+    public void scheduleBoolChoice(PrimVS<Boolean> choice) {
+        boolChoice = boolChoice.add(choice);
     }
 
-    public String singleScheduleToString(Bdd pc) {
-        String scheduleString = "";
-        Bdd currentPc = pc;
+    public void scheduleIntChoice(PrimVS<Integer> choice) {
+        intChoice = intChoice.add(choice);
+    }
 
-        for (int i = 0; i <= size; i++) {
-            scheduleString += "Substeps at " + (i - 1) + ": ";
-            List<PrimVS<State>> subSteps = withinStep.get(i);
-            GuardedValue<String> withinStepResult = getSingleSubStep(currentPc, subSteps);
-            scheduleString += withinStepResult.value;
-            currentPc = withinStepResult.guard;
+    public PrimVS<Machine> getMachine(Class<? extends Machine> type, PrimVS<Integer> idx) {
+        PrimVS<Machine> machines = createdMachines.get(type).get(idx);
+        return machines.guard(pc);
+    }
 
-            List<Event> ran = ranEvent.get(i);
-            scheduleString += "Events ran at " + (i - 1) + ": " + System.lineSeparator();
-            for (Event e : ran) {
-                if (!e.guard(currentPc).isEmptyVS())
-                    scheduleString += e.guard(currentPc) + System.lineSeparator();
-            }
+    public PrimVS<Machine> getSender(int i) {
+        return senderChoice.get(i).guard(pc);
+    }
 
-            if (i == size) break;
-            scheduleString += "State at " + i + ": ";
-            scheduleString += System.lineSeparator();
-            for (Map.Entry<Machine, PrimVS<State>> entry : this.machines.get(i).entrySet()) {
-                List<GuardedValue<State>> statesOnPath = entry.getValue().guard(currentPc).getGuardedValues();
-                if (statesOnPath.size() > 0) {
-                    GuardedValue<State> guardedValue = statesOnPath.get(0);
-                    scheduleString += "    " + entry.getKey() + "@" + guardedValue.value.name + "(" + statesOnPath.size() + ")";
-                    scheduleString += System.lineSeparator();
-                    currentPc = currentPc.and(guardedValue.guard);
-                }
-            }
-            scheduleString += "Schedule step " + i + ": ";
-            scheduleString += System.lineSeparator();
-            Event effects = schedule.get(i).guard(currentPc);
-            if (!effects.isEmptyVS()) {
-                scheduleString +=  "    " + effects.toString();
-                scheduleString += System.lineSeparator();
-                currentPc = currentPc.and(effects.getUniverse());
+    public PrimVS<Boolean> getBoolChoice(int i) {
+        PrimVS<Boolean> res = boolChoice.get(new PrimVS<>(i).guard(boolChoice.getUniverse()));
+        assert(res.getGuardedValues().size() == 1);
+        return res.guard(pc);
+    }
+
+    public PrimVS<Integer> getIntChoice(int i) {
+        return intChoice.get(new PrimVS<>(i).guard(intChoice.getUniverse())).guard(pc);
+    }
+
+    public Schedule getSingleSchedule() {
+        Bdd pc = Bdd.constTrue();
+        for (PrimVS<Machine> choice : senderChoice) {
+            PrimVS<Machine> guarded = choice.guard(pc);
+            if (guarded.getGuardedValues().size() > 0) {
+                pc = pc.and(guarded.getGuardedValues().get(0).guard);
             }
         }
+        ListVS<PrimVS<Integer>> guardedIntChoice = intChoice.guard(pc);
+        PrimVS<Integer> idx = new PrimVS<>(0);
+        while (BoolUtils.isEverTrue(IntUtils.lessThan(idx, guardedIntChoice.size()))) {
+            Bdd cond = IntUtils.lessThan(idx, guardedIntChoice.size()).getGuard(true);
+            PrimVS<Integer> choice = guardedIntChoice.get(idx.guard(cond));
+            if (choice.getGuardedValues().size() > 0) {
+                pc = pc.and(choice.getGuardedValues().get(0).guard);
+            }
+            idx = IntUtils.add(idx, 1);
+        }
+        assert(intChoice.guard(pc).size().getGuardedValues().size() <= 1);
+        ListVS<PrimVS<Boolean>> guardedBoolChoice = boolChoice.guard(pc);
+        idx = new PrimVS<>(0);
+        while (BoolUtils.isEverTrue(IntUtils.lessThan(idx, guardedBoolChoice.size()))) {
+            Bdd cond = IntUtils.lessThan(idx, guardedBoolChoice.size()).getGuard(true).and(pc);
+            PrimVS<Boolean> choice = guardedBoolChoice.get(idx.guard(cond));
+            if (choice.getGuardedValues().size() > 0) {
+                assert(!choice.getGuardedValues().get(0).guard.isConstFalse());
+                pc = pc.and(choice.getGuardedValues().get(0).guard);
+                assert(!pc.isConstFalse());
+            }
+            idx = IntUtils.add(idx, 1);
+        }
+        assert(boolChoice.guard(pc).size().getGuardedValues().size() <= 1);
 
-        return scheduleString;
+        return this.guard(pc);
     }
+
 }

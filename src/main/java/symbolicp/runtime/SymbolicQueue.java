@@ -19,6 +19,9 @@ public class SymbolicQueue<T extends ValueSummary<T>> {
 
     public PrimVS<Integer> size() { return entries.size(); }
 
+    public PrimVS<Integer> size(Bdd pc) { return entries.guard(pc).size(); }
+
+
     public void enqueueEntry(T entry) {
         entries = entries.add(entry);
     }
@@ -38,7 +41,7 @@ public class SymbolicQueue<T extends ValueSummary<T>> {
     public PrimVS<Boolean> enabledCond(Function<T, PrimVS<Boolean>> pred) {
         Bdd cond = enabledCond();
         T top = peek(cond);
-        return pred.apply(top);
+        return pred.apply(top).guard(top.getUniverse());
     }
 
     public T dequeueEntry(Bdd pc) {

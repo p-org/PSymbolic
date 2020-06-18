@@ -20,11 +20,15 @@ public interface EffectCollection {
             Function<Integer, ? extends Machine> constructor
     );
 
+    public PrimVS<Integer> size();
+
     public boolean isEmpty();
 
     public void add(Event e);
 
     public Event remove(Bdd pc);
+
+    public Event peek(Bdd pc);
 
     public PrimVS<Boolean> enabledCond(Function<Event, PrimVS<Boolean>> pred);
 

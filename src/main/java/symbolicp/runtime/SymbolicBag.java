@@ -42,11 +42,27 @@ public class SymbolicBag<T extends ValueSummary<T>> {
         PrimVS<Boolean> enabledCond = new PrimVS<>(false);
         while (BoolUtils.isEverTrue(IntUtils.lessThan(idx, elts.size()))) {
             Bdd iterCond = IntUtils.lessThan(idx, elts.size()).getGuard(true);
-            PrimVS<Boolean> res = pred.apply(elts.guard(iterCond).get(idx.guard(iterCond)));
+            PrimVS<Boolean> res = pred.apply(elts.get(idx.guard(iterCond)));
             enabledCond = BoolUtils.or(enabledCond, res);
             idx = IntUtils.add(idx, 1);
         }
         return enabledCond;
+    }
+
+    public T peek(Bdd pc) {
+        assert (entries.getUniverse().isConstTrue());
+        ListVS<T> filtered = entries.guard(pc);
+        PrimVS<Integer> size = filtered.size();
+        List<PrimVS> choices = new ArrayList<>();
+        PrimVS<Integer> idx = new PrimVS<>(0).guard(pc);
+        while(BoolUtils.isEverTrue(IntUtils.lessThan(idx, size))) {
+            Bdd cond = IntUtils.lessThan(idx, size).getGuard(true);
+            choices.add(idx.guard(cond));
+            idx = IntUtils.add(idx, 1);
+        }
+        PrimVS<Integer> index = (PrimVS<Integer>) NondetUtil.getNondetChoice(choices);
+        T element = filtered.guard(index.getUniverse()).get(index);
+        return element;
     }
 
     public T remove(Bdd pc) {
@@ -61,7 +77,7 @@ public class SymbolicBag<T extends ValueSummary<T>> {
             idx = IntUtils.add(idx, 1);
         }
         PrimVS<Integer> index = (PrimVS<Integer>) NondetUtil.getNondetChoice(choices);
-        T element = filtered.get(index);
+        T element = filtered.guard(index.getUniverse()).get(index);
         entries = entries.removeAt(index);
         return element;
     }

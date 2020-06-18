@@ -1,26 +1,71 @@
 package symbolicp.runtime;
 
-import symbolicp.util.Checks;
 import symbolicp.bdd.Bdd;
-import symbolicp.vs.*;
+import symbolicp.run.Assert;
+import symbolicp.util.Checks;
+import symbolicp.vs.GuardedValue;
+import symbolicp.vs.IntUtils;
+import symbolicp.vs.PrimVS;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
-public class Scheduler {
+public class Scheduler implements SymbolicSearch {
 
-    public static Schedule schedule;
+    /** The scheduling choices made */
+    public final Schedule schedule;
+
+    /** List of all machines along any path constraints */
     final List<Machine> machines;
+
+    /** How many instances of each Machine there are */
     final Map<Class<? extends Machine>, PrimVS<Integer>> machineCounters;
 
-    private int step_count = 0;
+    /** The machine to start with */
+    private Machine start;
+
+    /** Current depth of exploration */
+    private int depth = 0;
+    /** Whether or not search is done */
     private boolean done = false;
 
+    /** Maximum depth to explore */
+    private int maxDepth = -1;
+    /** Maximum depth to explore before considering it an error */
+    private int errorDepth = -1;
+
+    /** Find out whether symbolic execution is finished
+     * @return Whether or not there are more steps to run
+     */
     public boolean isDone() {
-        return done;
+        return done || depth == maxDepth;
     }
 
+    /** Get the machine that execution started with
+     * @return The starting machine
+     */
+    public Machine getStartMachine() {
+        return start;
+    }
+
+    /** Get current depth
+     * @return current depth
+     */
+    public int getDepth() { return depth; }
+
+    /** Get the schedule
+     * @return The schedule
+     */
+    public Schedule getSchedule() { return schedule; }
+
+    /** Make a new Scheduler
+     * @param machines The machines initially in the Scheduler
+     */
     public Scheduler(Machine... machines) {
+        ScheduleLogger.disableInfo();
         schedule = new Schedule();
         this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
@@ -28,42 +73,80 @@ public class Scheduler {
         for (Machine machine : machines) {
             this.machines.add(machine);
             if (this.machineCounters.containsKey(machine.getClass())) {
-                this.machineCounters.putIfAbsent(machine.getClass(),
+                this.machineCounters.put(machine.getClass(),
                         IntUtils.add(this.machineCounters.get(machine.getClass()), 1));
+            } else {
+                this.machineCounters.put(machine.getClass(), new PrimVS<>(1));
             }
-            this.machineCounters.put(machine.getClass(), new PrimVS<>(0));
+            schedule.makeMachine(machine, Bdd.constTrue());
         }
     }
 
-    /** All events and init effects, before being sent to target machine,
-     * must live in another event's sender queue (because receiver queue is only represented implicitly
-     * by other machines' sender queues)
-     * but can't do this for the very first machine
-     */
+    @Override
+    public void setMaxDepth(int maxDepth) {
+        this.maxDepth = maxDepth;
+    }
+
+    @Override
+    public PrimVS<Integer> getNextInteger(int bound, Bdd pc) {
+        List<PrimVS> choices = new ArrayList<>();
+        for (int i = 0; i < bound; i++) {
+            choices.add(new PrimVS<>(i));
+        }
+        PrimVS<Integer> res = (PrimVS<Integer>) NondetUtil.getNondetChoice(choices);
+        schedule.scheduleIntChoice(res.guard(pc));
+        return res;
+    }
+
+    @Override
+    public PrimVS<Boolean> getNextBoolean(Bdd pc) {
+        List<PrimVS> choices = new ArrayList<>();
+        choices.add(new PrimVS<>(true));
+        choices.add(new PrimVS<>(false));
+        PrimVS<Boolean> res = (PrimVS<Boolean>) NondetUtil.getNondetChoice(choices);
+        schedule.scheduleBoolChoice(res.guard(pc));
+        return res;
+    }
+
+    @Override
+    public void setErrorDepth(int errorDepth) {
+        this.errorDepth = errorDepth;
+    }
+
+    /** Start execution with the specified machine
+     * @param machine Machine to start execution with */
     public void startWith(Machine machine) {
-        for (PrimVS<Integer> machineCounter : machineCounters.values()) {
-            if (machineCounter.getGuardedValues().size() != 1 || !machineCounter.hasValue(0)) {
-                throw new RuntimeException("You cannot start the scheduler after it already contains machines");
-            }
+        if (this.machineCounters.containsKey(machine.getClass())) {
+            this.machineCounters.put(machine.getClass(),
+                    IntUtils.add(this.machineCounters.get(machine.getClass()), 1));
+        } else {
+            this.machineCounters.put(machine.getClass(), new PrimVS<>(1));
         }
 
-        machineCounters.put(machine.getClass(), new PrimVS<>(1));
         machines.add(machine);
+        start = machine;
+        schedule.makeMachine(machine, Bdd.constTrue());
 
         performEffect(
-            new Event(
-                    EventName.Init.instance,
-                    new PrimVS<>(machine),
-                    null
-            )
+                new Event(
+                        EventName.Init.instance,
+                        new PrimVS<>(machine),
+                        null
+                )
         );
     }
 
-    public boolean step() {
+    @Override
+    public void doSearch(Machine target) {
+        startWith(target);
+        while (!isDone()) {
+            Assert.prop(errorDepth < 0 || depth < errorDepth, "Maximum allowed depth " + errorDepth + " exceeded", this, Bdd.constTrue());
+            step();
+        }
+    }
+
+    public PrimVS<Machine> getNextSender() {
         List<PrimVS> candidateSenders = new ArrayList<>();
-        step_count++;
-        schedule.step();
-        if (done) return true;
 
         for (Machine machine : machines) {
             if (!machine.sendEffects.isEmpty()) {
@@ -74,20 +157,25 @@ public class Scheduler {
             }
         }
 
-        if (candidateSenders.isEmpty()) {
-            ScheduleLogger.finished(step_count);
-            done = true;
-            return true;
-        }
-
         PrimVS<Machine> choices = (PrimVS<Machine>) NondetUtil.getNondetChoice(candidateSenders);
+        schedule.scheduleSender(choices);
+        return (choices);
+    }
+
+    public void step() {
+        PrimVS<Machine> choices = getNextSender();
+
+        if (choices.isEmptyVS()) {
+            ScheduleLogger.finished(depth);
+            done = true;
+            return;
+        }
 
         for (GuardedValue<Machine> sender : choices.getGuardedValues()) {
             Machine machine = sender.value;
             Bdd guard = sender.guard;
             Event effect = machine.sendEffects.remove(guard);
-            ScheduleLogger.schedule(step_count, effect, machines);
-            schedule.addToSchedule(guard, effect, machines);
+            ScheduleLogger.schedule(depth, effect, machines);
             PrimVS<State> oldState = machine.getState();
             assert(effect.getUniverse().implies(guard).isConstTrue());
             performEffect(effect);
@@ -95,8 +183,7 @@ public class Scheduler {
             assert(Checks.equalUnder(oldState, machine.getState(), machine.getState().guard(guard.not()).getUniverse()));
         }
 
-        return false;
-
+        depth++;
     }
 
     public PrimVS<Machine> allocateMachine(Bdd pc, Class<? extends Machine> machineType,
@@ -105,7 +192,6 @@ public class Scheduler {
             machineCounters.put(machineType, new PrimVS<>(0));
         }
         PrimVS<Integer> guardedCount = machineCounters.get(machineType).guard(pc);
-        guardedCount = IntUtils.add(guardedCount, 1);
 
         Machine newMachine;
         newMachine = constructor.apply(IntUtils.maxValue(guardedCount));
@@ -114,14 +200,18 @@ public class Scheduler {
             machines.add(newMachine);
         }
 
+        schedule.makeMachine(newMachine, pc);
+
+        guardedCount = IntUtils.add(guardedCount, 1);
         PrimVS<Integer> mergedCount = machineCounters.get(machineType).update(pc, guardedCount);
         machineCounters.put(machineType, mergedCount);
         return new PrimVS<>(newMachine).guard(pc);
     }
 
-    private void performEffect(Event event) {
+    void performEffect(Event event) {
         for (GuardedValue<Machine> target : event.getMachine().getGuardedValues()) {
             target.value.processEventToCompletion(target.guard, event.guard(target.guard));
+            ScheduleLogger.log("finished performing effect " + event + ", has buffer with size " + target.value.sendEffects.size().guard(target.guard));
         }
     }
 

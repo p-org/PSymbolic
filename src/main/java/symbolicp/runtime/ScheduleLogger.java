@@ -25,7 +25,7 @@ public class ScheduleLogger {
     public static void onProcessStateTransition(Bdd pc, Machine machine, PrimVS<State> newState) {
         String msg = String.format("Machine %s transitioning to state: %s", machine.toString(), newState);
         if (isVerbose) msg = String.format("under path %s ", pc) + msg;
-        log.fine(msg);
+        log.info(msg);
     }
 
     public static void onMachineStart(Bdd pc, Machine machine) {
@@ -56,11 +56,10 @@ public class ScheduleLogger {
 
     public static void finished(int steps) {
         log.info(String.format("Execution finished in %d steps", steps));
-        log.info(Scheduler.schedule.singleScheduleToString(Bdd.constTrue()));
     }
 
     public static void handle(State st, Event event) {
-        log.fine("State " + st.name + ", handling event of type " + event);
+        log.info("State " + st.name + ", handling event of type " + event);
     }
 
     public static void disableInfo() {
@@ -72,8 +71,7 @@ public class ScheduleLogger {
     }
 
     public static void schedule(int step, Event effect, List<Machine> machines) {
-        log.info("Schedule at step " + step);
-        String msg = "Schedule at " + step + ": " + effect + System.lineSeparator();
+        String msg = "Schedule at step " + step + ": " + effect;
         log.info(msg);
     }
 

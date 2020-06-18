@@ -95,5 +95,8 @@ public class SetBddLib<T> implements BddLib<Set<T>> {
         return ts.toString();
     }
 
-    public String toString(SetBddLib<T> s) { return s.toString(); }
+    @Override
+    public Set<T> fromString(String s) {
+        throw new NotImplementedException();
+    }
 }

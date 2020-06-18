@@ -44,8 +44,7 @@ public abstract class State extends HasId {
                         );
             }
             else {
-                throw new BugFoundException("State " + this.name + " missing handler for event: " + name +
-                        System.lineSeparator() + Scheduler.schedule.singleScheduleToString(eventPc) , eventPc);
+                throw new BugFoundException("State " + this.name + " missing handler for event: " + name, eventPc);
             }
         }
     }

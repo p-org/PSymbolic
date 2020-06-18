@@ -12,7 +12,7 @@ import java.util.List;
 public class NondetUtil {
 
     public static PrimVS getNondetChoice(List<PrimVS> choices) {
-        assert(choices.size() > 0);
+        if(choices.size() == 0) return new PrimVS<>();
         List<PrimVS> results = new ArrayList<>();
         PrimVS empty = choices.get(0).guard(Bdd.constFalse());
 

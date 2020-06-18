@@ -175,9 +175,14 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
     }
 
     /** Get an item from the ListVS
-     * @param indexSummary The index to take from the ListVS. Should be possible under the same conditions as the ListVS.
+     * @param indexSummary The index to take from the ListVS. Should be possible under a subset of the ListVS's conditions.
      */
     public T get(PrimVS<Integer> indexSummary) {
+        assert(Checks.includedIn(indexSummary.getUniverse(), getUniverse()));
+        return this.guard(indexSummary.getUniverse()).getHelper(indexSummary);
+    }
+
+    public T getHelper(PrimVS<Integer> indexSummary) {
         assert(Checks.sameUniverse(indexSummary.getUniverse(), getUniverse()));
         final PrimVS<Boolean> inRange = inRange(indexSummary);
         // make sure it is always in range
@@ -342,7 +347,7 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
             while (BoolUtils.isEverTrue(IntUtils.lessThan(IntUtils.add(current, 1), size))) {
                 Bdd thisCond = BoolUtils.trueCond(IntUtils.lessThan(IntUtils.add(current, 1), size));
                 current = current.guard(thisCond);
-                T next = this.guard(thisCond).get(IntUtils.add(current, 1));
+                T next = this.get(IntUtils.add(current, 1));
                 newList = newList.set(current, next);
                 current = IntUtils.add(current, 1);
             }
@@ -370,7 +375,7 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
 
         while (BoolUtils.isEverTrue(IntUtils.lessThan(i, guarded.size)))  {
             Bdd cond = BoolUtils.trueCond(IntUtils.lessThan(i, guarded.size));
-            Bdd contains = BoolUtils.trueCond(element.guard(cond).symbolicEquals(guarded.guard(cond).get(i), cond));
+            Bdd contains = BoolUtils.trueCond(element.guard(cond).symbolicEquals(guarded.get(i), cond));
             index = index.merge(i.guard(contains));
             i = IntUtils.add(i, 1);
         }

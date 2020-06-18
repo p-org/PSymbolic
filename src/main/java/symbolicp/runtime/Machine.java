@@ -26,6 +26,18 @@ public abstract class Machine extends HasId {
         return state;
     }
 
+    public void reset() {
+        started = new PrimVS<>(false);
+        state = new PrimVS<>(startState);
+        while (!sendEffects.isEmpty()) {
+            Bdd cond = sendEffects.enabledCond(x -> new PrimVS<>(true)).getGuard(true);
+            sendEffects.remove(sendEffects.enabledCond(x -> new PrimVS<>(true)).getGuard(true));
+        }
+        while (!deferredQueue.isEmpty()) {
+            deferredQueue.dequeueEntry(deferredQueue.enabledCond(x -> new PrimVS<>(true)).getGuard(true));
+        }
+    }
+
     public Machine(String name, int id, BufferSemantics semantics, State startState, State... states) {
         super(name, id);
 
@@ -88,7 +100,6 @@ public abstract class Machine extends HasId {
                 RaiseOutcome nextRaiseOutcome = new RaiseOutcome();
                 if (!gotoOutcome.isEmpty()) {
                     performedTransition = performedTransition.or(gotoOutcome.getGotoCond());
-                    Scheduler.schedule.withinStep(state.guard(pc).guard(gotoOutcome.getGotoCond()));
                     processStateTransition(
                             gotoOutcome.getGotoCond(),
                             nextGotoOutcome,
@@ -98,7 +109,6 @@ public abstract class Machine extends HasId {
                     );
                 }
                 if (!raiseOutcome.isEmpty()) {
-                    Scheduler.schedule.runEvent(raiseOutcome.getEventSummary().guard(raiseOutcome.getRaiseCond()));
                     processEvent(raiseOutcome.getRaiseCond(), nextGotoOutcome, nextRaiseOutcome, raiseOutcome.getEventSummary());
                 }
                 Event eventVS = raiseOutcome.getEventSummary();
@@ -127,7 +137,6 @@ public abstract class Machine extends HasId {
             Map<State, ValueSummary> payloads
     ) {
         ScheduleLogger.onProcessStateTransition(pc, this, newState);
-        Scheduler.schedule.withinStep(newState.guard(pc));
         this.state.check();
 
         if (this.state == null) {
@@ -172,6 +181,7 @@ public abstract class Machine extends HasId {
         final RaiseOutcome eventRaiseOutcome = new RaiseOutcome();
         eventRaiseOutcome.addGuardedRaiseEvent(event);
         runOutcomesToCompletion(pc, emptyGotoOutcome, eventRaiseOutcome);
+        ScheduleLogger.log("finished processing event " + event + ", has buffer with size " + sendEffects.size());
     }
 
     @Override
