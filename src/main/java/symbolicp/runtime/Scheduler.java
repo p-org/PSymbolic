@@ -65,7 +65,7 @@ public class Scheduler implements SymbolicSearch {
      * @param machines The machines initially in the Scheduler
      */
     public Scheduler(Machine... machines) {
-        ScheduleLogger.disableInfo();
+        ScheduleLogger.disable();
         schedule = new Schedule();
         this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
@@ -78,6 +78,7 @@ public class Scheduler implements SymbolicSearch {
             } else {
                 this.machineCounters.put(machine.getClass(), new PrimVS<>(1));
             }
+            ScheduleLogger.onCreateMachine(Bdd.constTrue(), machine);
             schedule.makeMachine(machine, Bdd.constTrue());
         }
     }
@@ -125,6 +126,7 @@ public class Scheduler implements SymbolicSearch {
 
         machines.add(machine);
         start = machine;
+        ScheduleLogger.onCreateMachine(Bdd.constTrue(), machine);
         schedule.makeMachine(machine, Bdd.constTrue());
 
         performEffect(
@@ -140,7 +142,7 @@ public class Scheduler implements SymbolicSearch {
     public void doSearch(Machine target) {
         startWith(target);
         while (!isDone()) {
-            Assert.prop(errorDepth < 0 || depth < errorDepth, "Maximum allowed depth " + errorDepth + " exceeded", this, Bdd.constTrue());
+            Assert.prop(errorDepth < 0 || depth < errorDepth, "Maximum allowed depth " + errorDepth + " exceeded", this, schedule.getLengthCond(schedule.size()));
             step();
         }
     }
@@ -175,7 +177,7 @@ public class Scheduler implements SymbolicSearch {
             Machine machine = sender.value;
             Bdd guard = sender.guard;
             Event effect = machine.sendEffects.remove(guard);
-            ScheduleLogger.schedule(depth, effect, machines);
+            ScheduleLogger.schedule(depth, effect);
             PrimVS<State> oldState = machine.getState();
             assert(effect.getUniverse().implies(guard).isConstTrue());
             performEffect(effect);
@@ -200,6 +202,7 @@ public class Scheduler implements SymbolicSearch {
             machines.add(newMachine);
         }
 
+        ScheduleLogger.onCreateMachine(pc, newMachine);
         schedule.makeMachine(newMachine, pc);
 
         guardedCount = IntUtils.add(guardedCount, 1);
@@ -211,21 +214,14 @@ public class Scheduler implements SymbolicSearch {
     void performEffect(Event event) {
         for (GuardedValue<Machine> target : event.getMachine().getGuardedValues()) {
             target.value.processEventToCompletion(target.guard, event.guard(target.guard));
-            ScheduleLogger.log("finished performing effect " + event + ", has buffer with size " + target.value.sendEffects.size().guard(target.guard));
-        }
-    }
-
-    public void logState() {
-        for (Machine machine : machines) {
-            ScheduleLogger.machineState(machine);
         }
     }
 
     public void disableLogging() {
-        ScheduleLogger.disableInfo();
+        ScheduleLogger.disable();
     }
 
     public void enableLogging() {
-        ScheduleLogger.enableInfo();
+        ScheduleLogger.enable();
     }
 }

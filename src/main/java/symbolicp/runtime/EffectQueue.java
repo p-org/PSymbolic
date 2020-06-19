@@ -17,7 +17,8 @@ public class EffectQueue extends SymbolicQueue<Event> implements EffectCollectio
         if (eventName.getGuardedValues().size() > 1) {
             throw new NotImplementedException();
         }
-        enqueueEntry(new Event(eventName, dest, payload));
+        ScheduleLogger.send(new Event(eventName, dest, payload).guard(pc));
+        enqueueEntry(new Event(eventName, dest, payload).guard(pc));
     }
 
     public PrimVS<Machine> create(

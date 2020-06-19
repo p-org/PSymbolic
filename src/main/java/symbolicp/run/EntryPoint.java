@@ -2,8 +2,17 @@ package symbolicp.run;
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
 import symbolicp.runtime.ReplayScheduler;
+import symbolicp.runtime.RuntimeLogger;
 import symbolicp.runtime.Scheduler;
 import symbolicp.*;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class EntryPoint {
 
@@ -19,12 +28,8 @@ public class EntryPoint {
             ReplayScheduler replay = new ReplayScheduler(scheduler.getSchedule(), pc);
             p.setScheduler(replay);
             replay.doSearch(scheduler.getStartMachine());
-            System.exit(2);
+            e.printStackTrace();
+            throw new BugFoundException("Found bug", pc);
         }
     }
-
-    public static void main(String [] args) {
-        run(new elevator(), 13);
-    }
-
 }

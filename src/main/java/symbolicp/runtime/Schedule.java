@@ -83,6 +83,13 @@ public class Schedule {
         return intChoice.get(new PrimVS<>(i).guard(intChoice.getUniverse())).guard(pc);
     }
 
+    public Bdd getLengthCond(int length) {
+        assert(length <= size());
+        if (length == 0) return Bdd.constTrue();
+        Bdd pc = senderChoice.get(length - 1).getUniverse();
+        return pc;
+    }
+
     public Schedule getSingleSchedule() {
         Bdd pc = Bdd.constTrue();
         for (PrimVS<Machine> choice : senderChoice) {

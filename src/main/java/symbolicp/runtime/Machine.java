@@ -6,8 +6,6 @@ import symbolicp.vs.*;
 import java.util.*;
 import java.util.logging.Logger;
 
-import static symbolicp.runtime.BufferSemantics.bag;
-
 public abstract class Machine extends HasId {
     private final State startState;
     private final Set<State> states;
@@ -87,7 +85,6 @@ public abstract class Machine extends HasId {
     }
 
     void runOutcomesToCompletion(Bdd pc, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
-        ScheduleLogger.machineState(this);
         // Outer loop: process sequences of 'goto's, 'raise's, and events from the deferred queue.
         while (!(gotoOutcome.isEmpty() && raiseOutcome.isEmpty())) {
             // TODO: Determine if this can be safely optimized into a concrete boolean
@@ -181,11 +178,10 @@ public abstract class Machine extends HasId {
         final RaiseOutcome eventRaiseOutcome = new RaiseOutcome();
         eventRaiseOutcome.addGuardedRaiseEvent(event);
         runOutcomesToCompletion(pc, emptyGotoOutcome, eventRaiseOutcome);
-        ScheduleLogger.log("finished processing event " + event + ", has buffer with size " + sendEffects.size());
     }
 
     @Override
     public String toString() {
-        return "Machine " + name + "#" + id;
+        return name + "#" + id;
     }
 }

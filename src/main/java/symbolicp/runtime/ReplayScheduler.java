@@ -4,8 +4,6 @@ import symbolicp.bdd.Bdd;
 import symbolicp.vs.IntUtils;
 import symbolicp.vs.PrimVS;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 public class ReplayScheduler extends Scheduler {
@@ -20,7 +18,7 @@ public class ReplayScheduler extends Scheduler {
     }
 
     public ReplayScheduler (Schedule schedule, Bdd pc) {
-        ScheduleLogger.enableInfo();
+        ScheduleLogger.enable();
         this.schedule = schedule.guard(pc).getSingleSchedule();
         for (Machine machine : schedule.getMachines()) {
             machine.reset();
@@ -43,6 +41,8 @@ public class ReplayScheduler extends Scheduler {
             machineVS = schedule.getMachine(machine.getClass(), new PrimVS<>(0));
             this.machineCounters.put(machine.getClass(), new PrimVS<>(1));
         }
+
+        ScheduleLogger.onCreateMachine(machineVS.getUniverse(), machine);
 
         performEffect(
                 new Event(
@@ -82,6 +82,7 @@ public class ReplayScheduler extends Scheduler {
         PrimVS<Integer> guardedCount = machineCounters.get(machineType).guard(pc);
 
         PrimVS<Machine> allocated = schedule.getMachine(machineType, guardedCount);
+        ScheduleLogger.onCreateMachine(pc, allocated.getValues().iterator().next());
 
         guardedCount = IntUtils.add(guardedCount, 1);
 

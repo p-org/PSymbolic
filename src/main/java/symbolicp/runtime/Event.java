@@ -172,21 +172,21 @@ public class Event implements ValueSummary<Event> {
 
     @Override
     public String toString() {
-        String str = "[";
+        String str = "{";
         int i = 0;
         for (GuardedValue<EventName> name : getName().getGuardedValues()) {
             //ScheduleLogger.log("name: " + name.value + " mach: " + this.guard(name.guard).getMachine());
             //if (getMachine().guard(name.guard).getGuardedValues().size() > 1) assert(false);
             str += name.value;
-            str += " -> " + getMachine().guard(name.guard);
+            //str += " -> " + getMachine().guard(name.guard);
             if (map.size() > 0 && map.containsKey(name.value)) {
-                str += " -- ";
-                str += map.get(name.value);
+                str += ": " + map.get(name.value);
             }
             if (i < getName().getGuardedValues().size() - 1)
                 str += System.lineSeparator();
         }
-        return str + "]";
+        str += "}";
+        return str;
     }
 
 }

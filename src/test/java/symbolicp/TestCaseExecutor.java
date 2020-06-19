@@ -1,6 +1,6 @@
 package symbolicp;
-import org.joor.Reflect;
-import symbolicp.run.CompilerLogger;
+import symbolicp.runtime.CompilerLogger;
+import symbolicp.runtime.RuntimeLogger;
 import symbolicp.run.EntryPoint;
 import symbolicp.run.Program;
 
@@ -70,9 +70,9 @@ public class TestCaseExecutor {
 
         Process process;
         try {
-            System.out.println("compilation start");
-            System.out.println(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s\n"
-                                                    , compilerDirectory, testCasePath, outputDirectory));
+            //CompilerLogger.log("Compilation start");
+            //System.out.println(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s\n"
+            //                                       , compilerDirectory, testCasePath, outputDirectory));
             if (isWindows) {
                 process = Runtime.getRuntime()
                         .exec(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s"
@@ -89,7 +89,10 @@ public class TestCaseExecutor {
 
             int exitCode = process.waitFor();
 
-            if (exitCode != 0) return 1;
+            if (exitCode != 0) {
+                CompilerLogger.log("Compilation failure.");
+                return 1;
+            }
         }
         catch (IOException | InterruptedException e) {
             CompilerLogger.log("Compilation failure.");
@@ -121,7 +124,7 @@ public class TestCaseExecutor {
             return 1;
         }
         try {
-            EntryPoint.run(p, 13);
+            EntryPoint.run(p, 50);
         } catch (Exception | AssertionError e) {
             e.printStackTrace();
             return 2;

@@ -2,10 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
-import symbolicp.util.Checks;
 import symbolicp.vs.GuardedValue;
-import symbolicp.vs.PrimVS;
-import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
 import java.util.HashMap;
@@ -33,7 +30,7 @@ public abstract class State extends HasId {
         for (GuardedValue<EventName> entry : event.getName().getGuardedValues()) {
             EventName name = entry.value;
             Bdd eventPc = entry.guard;
-            ScheduleLogger.handle(this, event);
+            ScheduleLogger.handle(machine,this, event.guard(entry.guard));
             if (eventHandlers.containsKey(name)) {
                 eventHandlers.get(name).handleEvent(
                         eventPc,
@@ -51,6 +48,6 @@ public abstract class State extends HasId {
 
     @Override
     public String toString() {
-        return String.format("State %s#%d", name, id);
+        return String.format("%s#%d", name, id);
     }
 }

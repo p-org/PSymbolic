@@ -13,6 +13,7 @@ public class EffectBag extends SymbolicBag<Event> implements EffectCollection {
 
     @Override
     public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, ValueSummary payload) {
+        ScheduleLogger.send(new Event(eventName, dest, payload).guard(pc));
         this.add(new Event(eventName, dest, payload).guard(pc));
     }
 
