@@ -11,7 +11,7 @@ import java.util.Map;
 public abstract class State extends HasId {
     private final Map<EventName, EventHandler> eventHandlers;
 
-    public void entry(Bdd pc, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome, ValueSummary payload) {}
+    public void entry(Bdd pc, Machine machine, Outcome outcome, ValueSummary payload) {}
     public void exit(Bdd pc, Machine machine) {}
 
     public State(String name, int id, EventHandler... eventHandlers) {
@@ -26,7 +26,7 @@ public abstract class State extends HasId {
         }
     }
 
-    public void handleEvent(Event event, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {
+    public void handleEvent(Event event, Machine machine, Outcome outcome) {
         for (GuardedValue<EventName> entry : event.getName().getGuardedValues()) {
             EventName name = entry.value;
             Bdd eventPc = entry.guard;
@@ -36,8 +36,7 @@ public abstract class State extends HasId {
                         eventPc,
                         event.guard(eventPc).getPayload(),
                         machine,
-                        gotoOutcome,
-                        raiseOutcome
+                        outcome
                         );
             }
             else {

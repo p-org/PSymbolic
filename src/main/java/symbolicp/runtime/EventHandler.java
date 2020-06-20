@@ -20,7 +20,6 @@ public abstract class EventHandler {
         Bdd pc,
         ValueSummary payload,
         Machine machine,
-        GotoOutcome gotoOutcome,
-        RaiseOutcome raiseOutcome
+        Outcome outcome
     );
 }

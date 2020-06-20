@@ -12,6 +12,7 @@ public class UnionVS implements ValueSummary<UnionVS> {
     public UnionVS(PrimVS<Class<? extends ValueSummary>> type, Map<Class<? extends ValueSummary>, ValueSummary> payloads) {
         this.type = type;
         this.payloads = payloads;
+        assert(this.type != null);
     }
 
     public UnionVS(Bdd pc, Class<? extends ValueSummary> type, ValueSummary payloads) {
@@ -28,8 +29,7 @@ public class UnionVS implements ValueSummary<UnionVS> {
     }
 
     public UnionVS(ValueSummary vs) {
-        assert(vs.getClass() != null);
-        new UnionVS(vs.getUniverse(), vs.getClass(), vs);
+        this(vs.getUniverse(), vs.getClass(), vs);
     }
 
     public PrimVS<Class<? extends ValueSummary>> getType() {
@@ -38,6 +38,14 @@ public class UnionVS implements ValueSummary<UnionVS> {
 
     public ValueSummary getPayload(Class<? extends ValueSummary> type) {
         return payloads.get(type);
+    }
+
+    public void check() {
+        for (Class<? extends ValueSummary> typeOpt : type.getValues()) {
+            if (!getUniverse(typeOpt).isConstFalse()) {
+                assert(getPayload(typeOpt) != null);
+            }
+        }
     }
 
     @Override
@@ -77,18 +85,26 @@ public class UnionVS implements ValueSummary<UnionVS> {
         if (valuesToMerge.size() == 0) return new UnionVS();
 
         final PrimVS<Class<? extends ValueSummary>> newTag = type.merge(tagsToMerge);
-        final Map<Class<? extends ValueSummary>, ValueSummary> newPayloads = new HashMap<>();
+        final Map<Class<? extends ValueSummary>, ValueSummary> newPayloads = new HashMap<>(this.payloads);
 
         for (Map.Entry<Class<? extends ValueSummary>, List<ValueSummary>> entry : valuesToMerge.entrySet()) {
             Class<? extends ValueSummary> tag = entry.getKey();
             List<ValueSummary> entryPayload = entry.getValue();
             if (entryPayload.size() > 0) {
-                ValueSummary newPayload = entryPayload.get(0).merge(entryPayload.subList(1, entry.getValue().size()));
+                ValueSummary oldPayload = this.payloads.get(tag);
+                ValueSummary newPayload;
+                if (oldPayload == null) {
+                    newPayload = entryPayload.get(0).merge(entryPayload.subList(1, entry.getValue().size()));
+                } else {
+                    newPayload = oldPayload.merge(entryPayload);
+                }
                 newPayloads.put(tag, newPayload);
             }
         }
 
-        return new UnionVS(newTag, newPayloads);
+        UnionVS res = new UnionVS(newTag, newPayloads);
+        res.check();
+        return res;
     }
 
     @Override
@@ -120,6 +136,8 @@ public class UnionVS implements ValueSummary<UnionVS> {
     public Bdd getUniverse() {
         return type.getUniverse();
     }
+
+    public Bdd getUniverse(Class<? extends ValueSummary> type) { return this.type.getGuard(type); }
 
     @Override
     public String toString() {

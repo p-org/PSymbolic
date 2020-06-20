@@ -12,8 +12,7 @@ public class DeferEventHandler extends EventHandler {
     }
 
     @Override
-    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome,
-                            RaiseOutcome raiseOutcome) {
+    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, Outcome outcome) {
         machine.deferredQueue.defer(pc, makeEvent(payload).guard(pc));
     }
 }

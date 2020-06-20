@@ -185,14 +185,14 @@ namespace Plang.Compiler.Backend.Symbolic
             {
                 var entryPcScope = context.FreshPathConstraintScope();
 
-                context.WriteLine(output, $"@Override public void entry(Bdd {entryPcScope.PathConstraintVar}, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome, ValueSummary payload) {{");
+                context.WriteLine(output, $"@Override public void entry(Bdd {entryPcScope.PathConstraintVar}, Machine machine, Outcome outcome, ValueSummary payload) {{");
 
                 var entryFunc = state.Entry;
                 context.Write(output, $"(({context.GetNameForDecl(entryFunc.Owner)})machine).{context.GetNameForDecl(entryFunc)}({entryPcScope.PathConstraintVar}, machine.sendEffects");
                 if (entryFunc.CanChangeState ?? false)
-                    context.Write(output, ", gotoOutcome");
-                if (entryFunc.CanRaiseEvent ?? false)
-                    context.Write(output, ", raiseOutcome");
+                    context.Write(output, ", outcome");
+                else if (entryFunc.CanRaiseEvent ?? false)
+                    context.Write(output, ", outcome");
                 if (entryFunc.Signature.Parameters.Count() > 0)
                 {
                     Debug.Assert(entryFunc.Signature.Parameters.Count() == 1);
@@ -231,13 +231,13 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
                 case EventDoAction action:
                     context.WriteLine(output, $"new EventHandler({eventTag}) {{");
-                    context.WriteLine(output, "@Override public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome, RaiseOutcome raiseOutcome) {");
+                    context.WriteLine(output, "@Override public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, Outcome outcome) {");
                     var actionFunc = action.Target;
                     context.Write(output, $"(({context.GetNameForDecl(actionFunc.Owner)})machine).{context.GetNameForDecl(actionFunc)}(pc, machine.sendEffects");
                     if (actionFunc.CanChangeState ?? false)
-                        context.Write(output, ", gotoOutcome");
+                        context.Write(output, ", outcome");
                     if (actionFunc.CanRaiseEvent ?? false)
-                        context.Write(output, ", raiseOutcome");
+                        context.Write(output, ", outcome");
                     if (actionFunc.Signature.Parameters.Count() == 1)
                     {
                         Debug.Assert(!handler.Key.PayloadType.IsSameTypeAs(PrimitiveType.Null));
@@ -389,12 +389,12 @@ namespace Plang.Compiler.Backend.Symbolic
             {
                 Debug.Assert(function.Owner != null);
                 context.WriteLine(output, ",");
-                context.Write(output, "GotoOutcome gotoOutcome");
+                context.Write(output, "Outcome outcome");
             }
-            if (function.CanRaiseEvent ?? false)
+            else if (function.CanRaiseEvent ?? false)
             {
                 context.WriteLine(output, ",");
-                context.Write(output, "RaiseOutcome raiseOutcome");
+                context.Write(output, "Outcome outcome");
             }
             foreach (var param in function.Signature.Parameters)
             {
@@ -655,7 +655,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
 
                 case GotoStmt gotoStmt:
-                    context.Write(output, $"gotoOutcome.addGuardedGoto({flowContext.pcScope.PathConstraintVar}, {context.GetNameForDecl(gotoStmt.State)}");
+                    context.Write(output, $"outcome.addGuardedGoto({flowContext.pcScope.PathConstraintVar}, {context.GetNameForDecl(gotoStmt.State)}");
                     if (gotoStmt.Payload != null)
                     {
                         context.Write(output, $", ");
@@ -672,7 +672,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     // TODO: Add type checking for the payload!
                     context.WriteLine(output, "// NOTE (TODO): We currently perform no typechecking on the payload!");
 
-                    context.Write(output, $"raiseOutcome.addGuardedRaise({flowContext.pcScope.PathConstraintVar}, ");
+                    context.Write(output, $"outcome.addGuardedRaise({flowContext.pcScope.PathConstraintVar}, ");
                     WriteExpr(context, output, flowContext.pcScope, raiseStmt.PEvent);
                     if (raiseStmt.Payload.Count > 0)
                     {
@@ -966,10 +966,10 @@ namespace Plang.Compiler.Backend.Symbolic
             context.Write(output, $"{context.GetNameForDecl(function)}({flowContext.pcScope.PathConstraintVar}, {CompilationContext.EffectCollectionVar}");
 
             if (function.CanChangeState ?? false)
-                context.Write(output, ", gotoOutcome");
+                context.Write(output, ", outcome");
 
-            if (function.CanRaiseEvent ?? false)
-                context.Write(output, ", raiseOutcome");
+            else if (function.CanRaiseEvent ?? false)
+                context.Write(output, ", outcome");
 
 
             for (int i = 0; i < args.Count(); i++)

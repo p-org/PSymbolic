@@ -16,9 +16,8 @@ public class GotoEventHandler extends EventHandler {
     public void transitionAction(Bdd pc, Machine machine, ValueSummary payload) {}
 
     @Override
-    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, GotoOutcome gotoOutcome,
-                            RaiseOutcome raiseOutcome) {
+    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, Outcome outcome) {
         transitionAction(pc, machine, payload);
-        gotoOutcome.addGuardedGoto(pc, dest, payload);
+        outcome.addGuardedGoto(pc, dest, payload);
     }
 }
