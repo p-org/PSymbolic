@@ -213,6 +213,7 @@ public class Scheduler implements SymbolicSearch {
 
     void performEffect(Event event) {
         for (GuardedValue<Machine> target : event.getMachine().getGuardedValues()) {
+            Assert.prop(IntUtils.maxValue(target.value.getStack().size()) < 5, "Stack size exceeded 5", this, target.value.getStack().size().getGuard(5));
             target.value.processEventToCompletion(target.guard, event.guard(target.guard));
         }
     }

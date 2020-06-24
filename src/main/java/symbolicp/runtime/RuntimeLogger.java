@@ -1,5 +1,7 @@
 package symbolicp.runtime;
 
+import symbolicp.vs.PrimVS;
+
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,4 +22,5 @@ public class RuntimeLogger {
     }
 
     public static void enable() { log.setLevel(Level.ALL); }
+
 }

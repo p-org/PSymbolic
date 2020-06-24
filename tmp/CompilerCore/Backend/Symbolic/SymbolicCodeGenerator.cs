@@ -236,7 +236,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     context.Write(output, $"(({context.GetNameForDecl(actionFunc.Owner)})machine).{context.GetNameForDecl(actionFunc)}(pc, machine.sendEffects");
                     if (actionFunc.CanChangeState ?? false)
                         context.Write(output, ", outcome");
-                    if (actionFunc.CanRaiseEvent ?? false)
+                    else if (actionFunc.CanRaiseEvent ?? false)
                         context.Write(output, ", outcome");
                     if (actionFunc.Signature.Parameters.Count() == 1)
                     {
@@ -251,10 +251,6 @@ namespace Plang.Compiler.Backend.Symbolic
                 case EventGotoState gotoState:
                     var destTag = $"{context.GetNameForDecl(gotoState.Target)}";
                     context.Write(output, $"new GotoEventHandler({eventTag}, {destTag}");
-                    //if (!handler.Key.PayloadType.IsSameTypeAs(PrimitiveType.Null))
-                    //{
-                    //   context.Write(output, $", {GetValueSummaryOps(context, handler.Key.PayloadType).GetName()}");
-                    //}
                     context.Write(output, ")");
 
                     if (gotoState.TransitionFunction != null)
@@ -281,8 +277,10 @@ namespace Plang.Compiler.Backend.Symbolic
                 case EventIgnore _:
                     context.Write(output, $"new IgnoreEventHandler({eventTag})");
                     break;
-                case EventPushState _:
-                    context.Write(output, "/* TODO: Push state */");
+                case EventPushState pushState:
+                    context.Write(output, "/* Push state */");
+                    var pushToTarget = $"{context.GetNameForDecl(pushState.Target)}";
+                    context.Write(output, $"new PushEventHandler({eventTag}, {pushToTarget})");
                     break;
                 default:
                     throw new NotImplementedException($"Unrecognized handler type {handler.Value.GetType().Name}");
@@ -890,6 +888,11 @@ namespace Plang.Compiler.Backend.Symbolic
                     }
                     break;
 
+                case PopStmt popStmt:
+                    {
+                        context.Write(output, $"outcome.addGuardedPop({flowContext.pcScope.PathConstraintVar});");
+                    }
+                    break;
                 default:
                     context.WriteLine(output, $"/* Skipping statement '{stmt.GetType().Name}' */");
                     // throw new NotImplementedException($"Statement type '{stmt.GetType().Name}' is not supported");

@@ -75,4 +75,11 @@ public class ScheduleLogger {
         log.info(msg);
     }
 
+    public static void push(PrimVS<State> state) {
+        log.info("Pushing state " + state + " onto stack");
+    }
+
+    public static void log(String str) {
+        log.info(str);
+    }
 }

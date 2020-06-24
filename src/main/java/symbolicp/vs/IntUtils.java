@@ -1,5 +1,7 @@
 package symbolicp.vs;
 
+import symbolicp.runtime.State;
+
 /** Class containing static methods that are useful for Integer primitive value summaries */
 public class IntUtils {
     /** Add two Integer primitive value summaries
@@ -85,4 +87,16 @@ public class IntUtils {
         return max;
     }
 
+    /** Get the minimum value that an Integer value summary may take on
+     *
+     * @return The minimum possible value
+     */
+    public static Integer minValue(PrimVS<Integer> a) {
+        Integer min = null;
+        for (int val : a.getValues()) {
+            if (min == null) min = val;
+            else if (min > val) min = val;
+        }
+        return min;
+    }
 }

@@ -1,9 +1,7 @@
 package symbolicp.run;
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
-import symbolicp.runtime.ReplayScheduler;
-import symbolicp.runtime.RuntimeLogger;
-import symbolicp.runtime.Scheduler;
+import symbolicp.runtime.*;
 import symbolicp.*;
 
 import java.io.IOException;
@@ -23,6 +21,8 @@ public class EntryPoint {
         scheduler.setErrorDepth(depth);
         try {
             scheduler.doSearch(p.getStart());
+            ScheduleLogger.enable();
+            ScheduleLogger.finished(scheduler.getDepth());
         } catch (BugFoundException e) {
             Bdd pc = e.pathConstraint;
             ReplayScheduler replay = new ReplayScheduler(scheduler.getSchedule(), pc);

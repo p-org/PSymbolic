@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.util.Checks;
 import symbolicp.vs.PrimVS;
 import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
@@ -10,25 +11,24 @@ import java.util.Map;
 
 public class Outcome {
 
-    private UnionVS outcome;
-    private Map<State, ValueSummary> payloads;
-
-    public Outcome() {
-        outcome = new UnionVS();
-        payloads = new HashMap<>();
-    }
+    private UnionVS outcome = new UnionVS();
+    private Map<State, ValueSummary> payloads = new HashMap<>();
+    private Bdd gotoCond = Bdd.constFalse();
+    private Bdd raiseCond = Bdd.constFalse();
+    private Bdd pushCond = Bdd.constFalse();
+    private Bdd popCond = Bdd.constFalse();
 
     public boolean isEmpty() {
         return outcome.isEmptyVS();
     }
 
-    public Bdd getRaiseCond() { return outcome.getUniverse(Event.class); }
+    public Bdd getRaiseCond() { return raiseCond; }
 
-    public Event getEventSummary() { return (Event) outcome.getPayload(Event.class); }
+    public Event getEventSummary() { return (Event) outcome.getPayload(Event.class).guard(getRaiseCond()); }
 
     public void addGuardedRaiseEvent(Event newEvent) {
-        UnionVS makeNew = new UnionVS(newEvent);
         outcome = outcome.merge(new UnionVS(newEvent));
+        raiseCond = raiseCond.or(newEvent.getUniverse());
     }
 
     public void addGuardedRaise(Bdd pc, PrimVS<EventName> eventName, ValueSummary payload) {
@@ -47,9 +47,9 @@ public class Outcome {
         addGuardedRaise(pc, eventName, null);
     }
 
-    public Bdd getGotoCond() { return outcome.getUniverse(PrimVS.class); }
+    public Bdd getGotoCond() { return gotoCond; }
 
-    public PrimVS<State> getStateSummary() { return (PrimVS<State>) outcome.getPayload(PrimVS.class); }
+    public PrimVS<State> getGotoStateSummary() { return (PrimVS<State>) outcome.getPayload(PrimVS.class).guard(getGotoCond()); }
 
     public Map<State, ValueSummary> getPayloads() {
         return payloads;
@@ -57,13 +57,32 @@ public class Outcome {
 
     public void addGuardedGoto(Bdd pc, State newDest, ValueSummary newPayload) {
         outcome = outcome.merge(new UnionVS(new PrimVS<>(newDest).guard(pc)));
-
         if (newPayload != null) {
             payloads.merge(newDest, newPayload, (x, y) -> x.merge(y));
         }
+        gotoCond = gotoCond.or(pc);
     }
 
     public void addGuardedGoto(Bdd pc, State newDest) {
         addGuardedGoto(pc, newDest, null);
     }
+
+    public Bdd getPushCond() { return pushCond; }
+
+    public PrimVS<State> getPushStateSummary() { return (PrimVS<State>) outcome.getPayload(PrimVS.class).guard(getPushCond()); }
+
+    public void addGuardedPush(Bdd pc, State newDest, ValueSummary newPayload) {
+        outcome = outcome.merge(new UnionVS(new PrimVS<>(newDest).guard(pc)));
+        if (newPayload != null) {
+            payloads.merge(newDest, newPayload, (x, y) -> x.merge(y));
+        }
+        pushCond = pushCond.or(pc);
+    }
+
+    public Bdd getPopCond() { return popCond; }
+
+    public void addGuardedPop(Bdd pc) {
+        popCond = popCond.or(pc);
+    }
+
 }

@@ -1,6 +1,8 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.bdd.BugFoundException;
+import symbolicp.run.Assert;
 import symbolicp.vs.*;
 
 import java.util.*;
@@ -13,6 +15,7 @@ public abstract class Machine extends HasId {
     int update = 0;
 
     private PrimVS<State> state;
+    private ListVS<PrimVS<State>> stack;
     public final EffectCollection sendEffects;
     public final DeferQueue deferredQueue;
 
@@ -24,9 +27,12 @@ public abstract class Machine extends HasId {
         return state;
     }
 
+    public ListVS<PrimVS<State>> getStack() { return stack; }
+
     public void reset() {
         started = new PrimVS<>(false);
         state = new PrimVS<>(startState);
+        stack = new ListVS(Bdd.constTrue());
         while (!sendEffects.isEmpty()) {
             Bdd cond = sendEffects.enabledCond(x -> new PrimVS<>(true)).getGuard(true);
             sendEffects.remove(sendEffects.enabledCond(x -> new PrimVS<>(true)).getGuard(true));
@@ -54,6 +60,7 @@ public abstract class Machine extends HasId {
         this.deferredQueue = new DeferQueue();
 
         this.state = new PrimVS<>(startState);
+        stack = new ListVS(Bdd.constTrue());
 
         startState.addHandlers(
                 new EventHandler(EventName.Init.instance) {
@@ -84,7 +91,7 @@ public abstract class Machine extends HasId {
     }
 
     void runOutcomesToCompletion(Bdd pc, Outcome outcome) {
-        // Outer loop: process sequences of 'goto's, 'raise's, and events from the deferred queue.
+        // Outer loop: process sequences of 'goto's, 'raise's, 'push's, 'pop's, and events from the deferred queue.
         while (!outcome.isEmpty()) {
             // TODO: Determine if this can be safely optimized into a concrete boolean
             Bdd performedTransition = Bdd.constFalse();
@@ -92,20 +99,35 @@ public abstract class Machine extends HasId {
 
             // Inner loop: process sequences of 'goto's and 'raise's.
             while (!outcome.isEmpty()) {
+                ScheduleLogger.log("next");
                 Outcome nextOutcome = new Outcome();
+                // goto
                 if (!outcome.getGotoCond().isConstFalse()) {
                     performedTransition = performedTransition.or(outcome.getGotoCond());
                     processStateTransition(
                             outcome.getGotoCond(),
                             nextOutcome,
-                            outcome.getStateSummary(),
+                            outcome.getGotoStateSummary(),
                             outcome.getPayloads()
                     );
                 }
+                // raise
                 if (!outcome.getRaiseCond().isConstFalse()) {
                     processEvent(outcome.getRaiseCond(), nextOutcome, outcome.getEventSummary());
                 }
-                Event eventVS = outcome.getEventSummary();
+                // push
+                if (!outcome.getPushCond().isConstFalse()) {
+                    processPushTransition(
+                            outcome.getPushCond(),
+                            nextOutcome,
+                            outcome.getPushStateSummary(),
+                            outcome.getPayloads()
+                    );
+                }
+                // pop
+                if (!outcome.getPopCond().isConstFalse()) {
+                    popFromStack(outcome.getPopCond());
+                }
                 this.state.check();
 
                 outcome = nextOutcome;
@@ -120,6 +142,29 @@ public abstract class Machine extends HasId {
                 outcome = deferredRaiseOutcome;
             }
         }
+    }
+
+    void pushOnStack(PrimVS<State> pushState) {
+        stack = stack.add(pushState);
+    }
+
+    public void popFromStack(Bdd pc) {
+        ListVS<PrimVS<State>> guardedStack = stack.guard(pc);
+        PrimVS<State> newState = guardedStack.get(IntUtils.subtract(guardedStack.size(), 1));
+        ListVS<PrimVS<State>> newStack = guardedStack.removeAt(IntUtils.subtract(guardedStack.size(), 1));
+        state = state.update(pc, newState);
+        stack = stack.update(pc, newStack);
+        ScheduleLogger.log("after pop, stack size is " + stack.size());
+    }
+
+    void processPushTransition(Bdd pc,
+                               Outcome outcome, // 'out' parameter
+                               PrimVS<State> newState,
+                               Map<State, ValueSummary> payloads) {
+        // TODO: logging
+        ScheduleLogger.push(state.guard(pc));
+        pushOnStack(state.guard(pc)); // push current state on stack
+        processStateTransition(pc, outcome, newState, payloads);
     }
 
     void processStateTransition(

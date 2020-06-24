@@ -2,8 +2,8 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.bdd.BugFoundException;
-import symbolicp.vs.GuardedValue;
-import symbolicp.vs.ValueSummary;
+import symbolicp.util.Checks;
+import symbolicp.vs.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,21 +26,48 @@ public abstract class State extends HasId {
         }
     }
 
+    public PrimVS<Boolean> hasHandler(Event event) {
+        Bdd has = Bdd.constFalse();
+        for (GuardedValue<EventName> entry : event.getName().getGuardedValues()) {
+            if (eventHandlers.containsKey(entry.value)) {
+                has = has.or(entry.guard);
+            }
+        }
+        return BoolUtils.fromTrueGuard(has).guard(event.getUniverse());
+    }
+
     public void handleEvent(Event event, Machine machine, Outcome outcome) {
         for (GuardedValue<EventName> entry : event.getName().getGuardedValues()) {
             EventName name = entry.value;
             Bdd eventPc = entry.guard;
+            PrimVS<State> current = new PrimVS<>(this).guard(eventPc);
+            ListVS<PrimVS<State>> stack = machine.getStack().guard(eventPc);
             ScheduleLogger.handle(machine,this, event.guard(entry.guard));
-            if (eventHandlers.containsKey(name)) {
-                eventHandlers.get(name).handleEvent(
-                        eventPc,
-                        event.guard(eventPc).getPayload(),
-                        machine,
-                        outcome
+            Bdd handledPc = Bdd.constFalse();
+            while (true) {
+                ScheduleLogger.log("Stack size: " + stack.size());
+                for (GuardedValue<State> guardedValue : current.getGuardedValues()) {
+                    if (guardedValue.value.eventHandlers.containsKey(name)) {
+                        guardedValue.value.eventHandlers.get(name).handleEvent(
+                                eventPc.and(guardedValue.guard),
+                                event.guard(guardedValue.guard).getPayload(),
+                                machine,
+                                outcome
                         );
-            }
-            else {
-                throw new BugFoundException("State " + this.name + " missing handler for event: " + name, eventPc);
+                        handledPc = handledPc.or(guardedValue.guard);
+                    }
+                }
+                if (Checks.sameUniverse(handledPc, eventPc)) {
+                    break; // handled the event along all paths
+                } else {
+                    stack = stack.guard(handledPc.not());
+                    if (IntUtils.minValue(stack.size()) > 0) {
+                        current = stack.get(IntUtils.subtract(stack.size(), 1));
+                        stack = stack.removeAt(IntUtils.subtract(stack.size(), 1));
+                    } else {
+                        throw new BugFoundException("State " + this.name + " missing handler for event: " + name, eventPc);
+                    }
+                }
             }
         }
     }
