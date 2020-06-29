@@ -1,6 +1,7 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.util.Checks;
 
 import java.util.*;
 import java.util.stream.Collectors;

@@ -1,6 +1,7 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
 
 public class PushEventHandler extends EventHandler {
@@ -12,7 +13,7 @@ public class PushEventHandler extends EventHandler {
     }
 
     @Override
-    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, Outcome outcome) {
+    public void handleEvent(Bdd pc, UnionVS payload, Machine machine, Outcome outcome) {
         outcome.addGuardedPush(pc, dest, payload);
     }
 }

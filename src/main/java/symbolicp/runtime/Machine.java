@@ -65,7 +65,7 @@ public abstract class Machine extends HasId {
         startState.addHandlers(
                 new EventHandler(EventName.Init.instance) {
                     @Override
-                    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, Outcome outcome) {
+                    public void handleEvent(Bdd pc, UnionVS payload, Machine machine, Outcome outcome) {
                         assert(!BoolUtils.isEverTrue(hasStarted().guard(pc)));
                         machine.start(pc, payload);
                     }
@@ -78,7 +78,7 @@ public abstract class Machine extends HasId {
         }
     }
 
-    public void start(Bdd pc, ValueSummary payload) {
+    public void start(Bdd pc, UnionVS payload) {
         ScheduleLogger.onMachineStart(pc, this);
         update++;
         this.state = this.state.guard(pc.not()).merge(new PrimVS<>(startState).guard(pc));
@@ -99,7 +99,6 @@ public abstract class Machine extends HasId {
 
             // Inner loop: process sequences of 'goto's and 'raise's.
             while (!outcome.isEmpty()) {
-                ScheduleLogger.log("next");
                 Outcome nextOutcome = new Outcome();
                 // goto
                 if (!outcome.getGotoCond().isConstFalse()) {
@@ -154,13 +153,13 @@ public abstract class Machine extends HasId {
         ListVS<PrimVS<State>> newStack = guardedStack.removeAt(IntUtils.subtract(guardedStack.size(), 1));
         state = state.update(pc, newState);
         stack = stack.update(pc, newStack);
-        ScheduleLogger.log("after pop, stack size is " + stack.size());
+        ScheduleLogger.log("after pop, stack size is " + stack.size() + ", state is " + state);
     }
 
     void processPushTransition(Bdd pc,
                                Outcome outcome, // 'out' parameter
                                PrimVS<State> newState,
-                               Map<State, ValueSummary> payloads) {
+                               Map<State, UnionVS> payloads) {
         // TODO: logging
         ScheduleLogger.push(state.guard(pc));
         pushOnStack(state.guard(pc)); // push current state on stack
@@ -171,7 +170,7 @@ public abstract class Machine extends HasId {
             Bdd pc,
             Outcome outcome, // 'out' parameter
             PrimVS<State> newState,
-            Map<State, ValueSummary> payloads
+            Map<State, UnionVS> payloads
     ) {
         ScheduleLogger.onProcessStateTransition(pc, this, newState);
 
@@ -191,7 +190,7 @@ public abstract class Machine extends HasId {
         for (GuardedValue<State> entry : newState.guard(pc).getGuardedValues()) {
             State state = entry.value;
             Bdd transitionCond = entry.guard;
-            ValueSummary payload = payloads.get(state);
+            UnionVS payload = payloads.get(state);
             state.entry(transitionCond, this, outcome, payload);
         }
     }

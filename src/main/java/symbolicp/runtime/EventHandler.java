@@ -12,13 +12,13 @@ public abstract class EventHandler {
         this.eventName = eventName;
     }
 
-    public Event makeEvent(ValueSummary payload) {
+    public Event makeEvent(UnionVS payload) {
         return new Event(eventName, new PrimVS<>(), payload);
     }
 
     public abstract void handleEvent(
         Bdd pc,
-        ValueSummary payload,
+        UnionVS payload,
         Machine machine,
         Outcome outcome
     );

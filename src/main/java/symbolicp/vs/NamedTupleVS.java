@@ -16,6 +16,11 @@ public class NamedTupleVS<T> implements ValueSummary<NamedTupleVS<T>> {
         this.tuple = tuple;
     }
 
+    public NamedTupleVS (NamedTupleVS<T> namedTuple) {
+        this.names = new HashMap<>(namedTuple.names);
+        this.tuple = new TupleVS(namedTuple.tuple);
+    }
+
     /** Make a new NamedTupleVS with the provided names and fields
      * @param namesAndFields Alternating String and ValueSummary values where the Strings give the field names
      */

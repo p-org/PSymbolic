@@ -28,6 +28,11 @@ public class UnionVS implements ValueSummary<UnionVS> {
         assert(this.type != null);
     }
 
+    public UnionVS(UnionVS vs) {
+        this.type = vs.type;
+        this.payloads = new HashMap<>(vs.payloads);
+    }
+
     public UnionVS(ValueSummary vs) {
         this(vs.getUniverse(), vs.getClass(), vs);
     }
@@ -114,7 +119,7 @@ public class UnionVS implements ValueSummary<UnionVS> {
 
     @Override
     public UnionVS update(Bdd guard, UnionVS update) {
-        return null;
+        return this.guard(guard.not()).merge(update.guard(guard));
     }
 
     @Override

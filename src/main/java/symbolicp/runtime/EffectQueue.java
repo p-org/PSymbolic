@@ -13,7 +13,7 @@ public class EffectQueue extends SymbolicQueue<Event> implements EffectCollectio
         super();
     }
 
-    public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, ValueSummary payload) {
+    public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, UnionVS payload) {
         if (eventName.getGuardedValues().size() > 1) {
             throw new NotImplementedException();
         }
@@ -25,7 +25,7 @@ public class EffectQueue extends SymbolicQueue<Event> implements EffectCollectio
             Bdd pc,
             Scheduler scheduler,
             Class<? extends Machine> machineType,
-            ValueSummary payload,
+            UnionVS payload,
             Function<Integer, ? extends Machine> constructor
     ) {
         PrimVS<Machine> machine = scheduler.allocateMachine(pc, machineType, constructor);

@@ -9,11 +9,14 @@ public interface ValueSummary<T extends ValueSummary> {
      * constantly false path constraint under which the current pc is defined but not the guard
      * corresponding to the specified type, the function throws a ClassCastException.
      */
-    default ValueSummary fromAny(Bdd pc, Class<? extends ValueSummary> type, UnionVS src) {
+     static ValueSummary fromAny(Bdd pc, Class<? extends ValueSummary> type, UnionVS src) {
         Bdd typeGuard = src.getType().getGuard(type);
         Bdd pcNotDefined = pc.and(typeGuard.not());
         if (!pcNotDefined.isConstFalse()) {
-            throw new ClassCastException(String.format("Symbolic casting under path constraint %s is not defined",
+            System.out.println("UnionVS: " + src);
+            System.out.println("type guard: " + typeGuard);
+            throw new ClassCastException(String.format("Symbolic casting to %s under path constraint %s is not defined",
+                    type,
                     pcNotDefined));
         }
         return ((ValueSummary) src.getPayload(type)).guard(pc);

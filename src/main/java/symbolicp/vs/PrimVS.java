@@ -167,6 +167,9 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     }
 
     public void check() {
+        if (!Checks.disjointUnion(guardedValues.values())) {
+            System.out.println(getValues());
+        }
         assert (Checks.disjointUnion(guardedValues.values()));
         for (Bdd guard : guardedValues.values()) {
             assert(!guard.isConstFalse());

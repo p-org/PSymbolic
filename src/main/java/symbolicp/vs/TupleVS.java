@@ -15,6 +15,11 @@ public class TupleVS implements ValueSummary<TupleVS> {
     /** The classes of the fields of the tuple */
     private final Class[] classes;
 
+    public TupleVS(TupleVS tuple) {
+        this.fields = Arrays.copyOf(tuple.fields, tuple.fields.length);
+        this.classes = Arrays.copyOf(tuple.classes, tuple.classes.length);
+    }
+
     /** Make a new TupleVS from the provided items */
     public TupleVS(ValueSummary... items) {
         this.fields = items;
@@ -99,5 +104,15 @@ public class TupleVS implements ValueSummary<TupleVS> {
         // Optimization: Tuples should always be nonempty,
         // and all fields should exist under the same conditions
         return fields[0].getUniverse();
+    }
+
+    @Override
+    public String toString() {
+        String str = "( ";
+        for (int i = 0; i < classes.length; i++) {
+            str += (classes[i]).cast(fields[i]).toString() + " ";
+        }
+        str += ")";
+        return str;
     }
 }

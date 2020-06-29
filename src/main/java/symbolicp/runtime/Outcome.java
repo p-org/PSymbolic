@@ -12,14 +12,14 @@ import java.util.Map;
 public class Outcome {
 
     private UnionVS outcome = new UnionVS();
-    private Map<State, ValueSummary> payloads = new HashMap<>();
+    private Map<State, UnionVS> payloads = new HashMap<>();
     private Bdd gotoCond = Bdd.constFalse();
     private Bdd raiseCond = Bdd.constFalse();
     private Bdd pushCond = Bdd.constFalse();
     private Bdd popCond = Bdd.constFalse();
 
     public boolean isEmpty() {
-        return outcome.isEmptyVS();
+        return gotoCond.or(raiseCond).or(pushCond).or(popCond).isConstFalse();
     }
 
     public Bdd getRaiseCond() { return raiseCond; }
@@ -31,7 +31,7 @@ public class Outcome {
         raiseCond = raiseCond.or(newEvent.getUniverse());
     }
 
-    public void addGuardedRaise(Bdd pc, PrimVS<EventName> eventName, ValueSummary payload) {
+    public void addGuardedRaise(Bdd pc, PrimVS<EventName> eventName, UnionVS payload) {
         // TODO: Handle this in a more principled way
         if (eventName.getGuardedValues().size() != 1) {
             throw new RuntimeException("Raise statements with symbolically-determined event tags are not yet supported");
@@ -51,11 +51,11 @@ public class Outcome {
 
     public PrimVS<State> getGotoStateSummary() { return (PrimVS<State>) outcome.getPayload(PrimVS.class).guard(getGotoCond()); }
 
-    public Map<State, ValueSummary> getPayloads() {
+    public Map<State, UnionVS> getPayloads() {
         return payloads;
     }
 
-    public void addGuardedGoto(Bdd pc, State newDest, ValueSummary newPayload) {
+    public void addGuardedGoto(Bdd pc, State newDest, UnionVS newPayload) {
         outcome = outcome.merge(new UnionVS(new PrimVS<>(newDest).guard(pc)));
         if (newPayload != null) {
             payloads.merge(newDest, newPayload, (x, y) -> x.merge(y));
@@ -71,7 +71,7 @@ public class Outcome {
 
     public PrimVS<State> getPushStateSummary() { return (PrimVS<State>) outcome.getPayload(PrimVS.class).guard(getPushCond()); }
 
-    public void addGuardedPush(Bdd pc, State newDest, ValueSummary newPayload) {
+    public void addGuardedPush(Bdd pc, State newDest, UnionVS newPayload) {
         outcome = outcome.merge(new UnionVS(new PrimVS<>(newDest).guard(pc)));
         if (newPayload != null) {
             payloads.merge(newDest, newPayload, (x, y) -> x.merge(y));

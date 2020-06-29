@@ -11,7 +11,7 @@ import java.util.Map;
 public abstract class State extends HasId {
     private final Map<EventName, EventHandler> eventHandlers;
 
-    public void entry(Bdd pc, Machine machine, Outcome outcome, ValueSummary payload) {}
+    public void entry(Bdd pc, Machine machine, Outcome outcome, UnionVS payload) {}
     public void exit(Bdd pc, Machine machine) {}
 
     public State(String name, int id, EventHandler... eventHandlers) {
@@ -45,9 +45,11 @@ public abstract class State extends HasId {
             ScheduleLogger.handle(machine,this, event.guard(entry.guard));
             Bdd handledPc = Bdd.constFalse();
             while (true) {
-                ScheduleLogger.log("Stack size: " + stack.size());
                 for (GuardedValue<State> guardedValue : current.getGuardedValues()) {
                     if (guardedValue.value.eventHandlers.containsKey(name)) {
+                        //System.out.println("payload: " + event.guard(guardedValue.guard).getPayload());
+                        //if (event.guard(guardedValue.guard).getPayload() != null)
+                            //System.out.println("payload class: " + event.guard(guardedValue.guard).getPayload().getClass());
                         guardedValue.value.eventHandlers.get(name).handleEvent(
                                 eventPc.and(guardedValue.guard),
                                 event.guard(guardedValue.guard).getPayload(),

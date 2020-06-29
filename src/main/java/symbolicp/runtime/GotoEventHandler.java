@@ -13,10 +13,10 @@ public class GotoEventHandler extends EventHandler {
         this.dest = dest;
     }
 
-    public void transitionAction(Bdd pc, Machine machine, ValueSummary payload) {}
+    public void transitionAction(Bdd pc, Machine machine, UnionVS payload) {}
 
     @Override
-    public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, Outcome outcome) {
+    public void handleEvent(Bdd pc, UnionVS payload, Machine machine, Outcome outcome) {
         transitionAction(pc, machine, payload);
         outcome.addGuardedGoto(pc, dest, payload);
     }

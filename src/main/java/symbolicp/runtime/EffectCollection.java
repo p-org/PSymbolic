@@ -10,13 +10,13 @@ import symbolicp.vs.ValueSummary;
 import java.util.function.Function;
 
 public interface EffectCollection {
-    public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, ValueSummary payload);
+    public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, UnionVS payload);
 
     public PrimVS<Machine> create(
             Bdd pc,
             Scheduler scheduler,
             Class<? extends Machine> machineType,
-            ValueSummary payload,
+            UnionVS payload,
             Function<Integer, ? extends Machine> constructor
     );
 

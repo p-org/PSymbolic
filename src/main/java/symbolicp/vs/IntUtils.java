@@ -99,4 +99,14 @@ public class IntUtils {
         }
         return min;
     }
+
+    /** Detect whether one Integer value summary is equal to another
+     *
+     * @param a Value summary of first Integer
+     * @param b Value summary of second Integer
+     * @return The value summary representing whether the first argument is equal to the second
+     */
+    public static PrimVS<Boolean> equalTo(PrimVS<Integer> a, PrimVS<Integer> b) {
+        return a.apply2(b, Integer::equals);
+    }
 }

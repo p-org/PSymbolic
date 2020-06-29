@@ -10,7 +10,7 @@ import java.util.*;
 public class Event implements ValueSummary<Event> {
 
     private final PrimVS<EventName> name;
-    private final Map<EventName, ValueSummary> map;
+    private final Map<EventName, UnionVS> map;
     private final PrimVS<Machine> machine;
 
     public PrimVS<Boolean> canRun() {
@@ -35,7 +35,7 @@ public class Event implements ValueSummary<Event> {
         return this.guard(cond);
     }
 
-    private Event(PrimVS<EventName> names, PrimVS<Machine> machine, Map<EventName, ValueSummary> map) {
+    private Event(PrimVS<EventName> names, PrimVS<Machine> machine, Map<EventName, UnionVS> map) {
         this.name = names;
         this.machine = machine;
         this.map = new HashMap<>(map);
@@ -53,11 +53,11 @@ public class Event implements ValueSummary<Event> {
         this(new PrimVS<>(), new PrimVS<>());
     }
 
-    public Event(EventName name, PrimVS<Machine> machine, ValueSummary payload) {
+    public Event(EventName name, PrimVS<Machine> machine, UnionVS payload) {
         this(new PrimVS<>(name), machine, payload);
     }
 
-    public Event(PrimVS<EventName> names, PrimVS<Machine> machine, ValueSummary payload) {
+    public Event(PrimVS<EventName> names, PrimVS<Machine> machine, UnionVS payload) {
         this.name = names;
         this.machine = machine;
         this.map = new HashMap<>();
@@ -77,7 +77,7 @@ public class Event implements ValueSummary<Event> {
         return this.machine;
     }
 
-    public ValueSummary getPayload() {
+    public UnionVS getPayload() {
         List<GuardedValue<EventName>> names = this.name.getGuardedValues();
         assert(names.size() <= 1);
         if (names.size() == 0) {
@@ -94,23 +94,23 @@ public class Event implements ValueSummary<Event> {
 
     @Override
     public Event guard(Bdd guard) {
-        Map<EventName, ValueSummary> newMap = new HashMap<>();
+        Map<EventName, UnionVS> newMap = new HashMap<>();
         PrimVS<EventName> newName = name.guard(guard);
-        for (Map.Entry<EventName, ValueSummary> entry : map.entrySet()) {
+        for (Map.Entry<EventName, UnionVS> entry : map.entrySet()) {
             if (!newName.getGuard(entry.getKey()).isConstFalse()) {
                 newMap.put(entry.getKey(), entry.getValue().guard(guard));
             }
         }
-        return new Event(name.guard(guard), machine.guard(guard), map);
+        return new Event(name.guard(guard), machine.guard(guard), newMap);
     }
 
     @Override
     public Event merge(Iterable<Event> summaries) {
         List<PrimVS<EventName>> namesToMerge = new ArrayList<>();
         List<PrimVS<Machine>> machinesToMerge = new ArrayList<>();
-        Map<EventName, ValueSummary> newMap = new HashMap<>();
+        Map<EventName, UnionVS> newMap = new HashMap<>();
 
-        for (Map.Entry<EventName, ValueSummary> entry : this.map.entrySet()) {
+        for (Map.Entry<EventName, UnionVS> entry : this.map.entrySet()) {
             if (!name.getGuard(entry.getKey()).isConstFalse() && entry.getValue() != null) {
                 newMap.put(entry.getKey(), entry.getValue());
             }
@@ -119,7 +119,7 @@ public class Event implements ValueSummary<Event> {
         for (Event summary : summaries) {
             namesToMerge.add(summary.name);
             machinesToMerge.add(summary.machine);
-            for (Map.Entry<EventName, ValueSummary> entry : summary.map.entrySet()) {
+            for (Map.Entry<EventName, UnionVS> entry : summary.map.entrySet()) {
                 newMap.computeIfPresent(entry.getKey(), (key, value) -> value.merge(summary.map.get(key)));
                 if (entry.getValue() != null)
                     newMap.putIfAbsent(entry.getKey(), entry.getValue());
@@ -134,6 +134,7 @@ public class Event implements ValueSummary<Event> {
 
     @Override
     public Event merge(Event summary) {
+        assert (this.getUniverse().and(summary.getUniverse()).isConstFalse());
         return merge(Collections.singletonList(summary));
     }
 

@@ -32,4 +32,11 @@ public class EntryPoint {
             throw new BugFoundException("Found bug", pc);
         }
     }
+
+    /*
+    public static void main(String[] args) {
+        Program twoPC = new timer();
+        run(twoPC, 10);
+    }
+     */
 }

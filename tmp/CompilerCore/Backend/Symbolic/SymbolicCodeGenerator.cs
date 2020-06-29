@@ -185,7 +185,7 @@ namespace Plang.Compiler.Backend.Symbolic
             {
                 var entryPcScope = context.FreshPathConstraintScope();
 
-                context.WriteLine(output, $"@Override public void entry(Bdd {entryPcScope.PathConstraintVar}, Machine machine, Outcome outcome, ValueSummary payload) {{");
+                context.WriteLine(output, $"@Override public void entry(Bdd {entryPcScope.PathConstraintVar}, Machine machine, Outcome outcome, UnionVS payload) {{");
 
                 var entryFunc = state.Entry;
                 context.Write(output, $"(({context.GetNameForDecl(entryFunc.Owner)})machine).{context.GetNameForDecl(entryFunc)}({entryPcScope.PathConstraintVar}, machine.sendEffects");
@@ -199,7 +199,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     var payloadType = entryFunc.Signature.Parameters[0].Type;
                     var payloadTypeSymbolic = GetSymbolicType(payloadType);
                     var defaultPayload = GetDefaultValue(context, entryPcScope, payloadType);
-                    context.Write(output, $", payload != null ? ({payloadTypeSymbolic})payload : {defaultPayload}");
+                    context.Write(output, $", payload != null ? ({payloadTypeSymbolic}) ValueSummary.fromAny({entryPcScope.PathConstraintVar}, {defaultPayload}.getClass(), payload) : {defaultPayload}");
                 }
                 context.WriteLine(output, ");");
 
@@ -231,7 +231,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
                 case EventDoAction action:
                     context.WriteLine(output, $"new EventHandler({eventTag}) {{");
-                    context.WriteLine(output, "@Override public void handleEvent(Bdd pc, ValueSummary payload, Machine machine, Outcome outcome) {");
+                    context.WriteLine(output, "@Override public void handleEvent(Bdd pc, UnionVS payload, Machine machine, Outcome outcome) {");
                     var actionFunc = action.Target;
                     context.Write(output, $"(({context.GetNameForDecl(actionFunc.Owner)})machine).{context.GetNameForDecl(actionFunc)}(pc, machine.sendEffects");
                     if (actionFunc.CanChangeState ?? false)
@@ -242,7 +242,8 @@ namespace Plang.Compiler.Backend.Symbolic
                     {
                         Debug.Assert(!handler.Key.PayloadType.IsSameTypeAs(PrimitiveType.Null));
                         var payloadVSType = GetSymbolicType(handler.Key.PayloadType);
-                        context.Write(output, $", ({payloadVSType})payload");
+                        var defaultPayload = GetDefaultValueNoGuard(context, handler.Key.PayloadType);
+                        context.Write(output, $", ({payloadVSType}) ValueSummary.fromAny(pc, {defaultPayload}.getClass(), payload)");
                     }
                     context.WriteLine(output, ");");
                     context.WriteLine(output, "}");
@@ -256,7 +257,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     if (gotoState.TransitionFunction != null)
                     {
                         context.WriteLine(output, " {");
-                        context.WriteLine(output, "@Override public void transitionAction(Bdd pc, Machine machine, ValueSummary payload) {");
+                        context.WriteLine(output, "@Override public void transitionAction(Bdd pc, Machine machine, UnionVS payload) {");
 
                         var transitionFunc = gotoState.TransitionFunction;
                         Debug.Assert(!(transitionFunc.CanChangeState ?? false));
@@ -352,7 +353,7 @@ namespace Plang.Compiler.Backend.Symbolic
             var isStatic = function.Owner == null;
 
             if (function.CanReceive == true)
-                throw new NotImplementedException("Async functions are not supported");
+                throw new NotImplementedException($"Async functions {context.GetNameForDecl(function)} are not supported");
 
             var staticKeyword = isStatic ? "static " : "";
 
@@ -656,8 +657,9 @@ namespace Plang.Compiler.Backend.Symbolic
                     context.Write(output, $"outcome.addGuardedGoto({flowContext.pcScope.PathConstraintVar}, {context.GetNameForDecl(gotoStmt.State)}");
                     if (gotoStmt.Payload != null)
                     {
-                        context.Write(output, $", ");
+                        context.Write(output, $", new UnionVS(");
                         WriteExpr(context, output, flowContext.pcScope, gotoStmt.Payload);
+                        context.Write(output, $")");
                     }
                     context.WriteLine(output, ");");
 
@@ -676,8 +678,9 @@ namespace Plang.Compiler.Backend.Symbolic
                     {
                         // TODO: Determine how multi-payload raise statements are supposed to work
                         Debug.Assert(raiseStmt.Payload.Count == 1);
-                        context.Write(output, ", ");
+                        context.Write(output, ", new UnionVS(");
                         WriteExpr(context, output, flowContext.pcScope, raiseStmt.Payload[0]);
+                        context.Write(output, ")");
                     }
                     context.WriteLine(output, ");");
 
@@ -830,7 +833,11 @@ namespace Plang.Compiler.Backend.Symbolic
                     if (sendStmt.Arguments.Count == 0)
                         context.Write(output, "null");
                     else if (sendStmt.Arguments.Count == 1)
+                    {
+                        context.Write(output, "new UnionVS(");
                         WriteExpr(context, output, flowContext.pcScope, sendStmt.Arguments[0]);
+                        context.Write(output, ")");
+                    }
                     else
                         throw new NotImplementedException("Send statements with more than one payload argument are not supported");
                     context.WriteLine(output, ");");
@@ -849,11 +856,13 @@ namespace Plang.Compiler.Backend.Symbolic
                             (structureTemp) =>
                             {
                                 context.Write(output, $"{structureTemp} = ");
-                                WriteExpr(context, output, flowContext.pcScope, insertStmt.Index);
+                                WriteExpr(context, output, flowContext.pcScope, insertStmt.Variable);
                                 if (isMap)
                                     context.Write(output, $".add(");
                                 else
                                     context.Write(output, $".insert(");
+                                WriteExpr(context, output, flowContext.pcScope, insertStmt.Index);
+                                context.Write(output, ", ");
                                 WriteExpr(context, output, flowContext.pcScope, insertStmt.Value);
                                 context.WriteLine(output, ");");
                             }
@@ -1289,7 +1298,7 @@ namespace Plang.Compiler.Backend.Symbolic
                 case NamedTupleAccessExpr namedTupleAccessExpr:
                     context.Write(output, $"({GetSymbolicType(namedTupleAccessExpr.Type)})(");
                     WriteExpr(context, output, pcScope, namedTupleAccessExpr.SubExpr);
-                    context.Write(output, $").getNamedField(\"{namedTupleAccessExpr.FieldName}\")");
+                    context.Write(output, $").getField(\"{namedTupleAccessExpr.FieldName}\")");
                     break;
                 case ThisRefExpr thisRefExpr:
                     context.Write(
@@ -1374,6 +1383,10 @@ namespace Plang.Compiler.Backend.Symbolic
                 case FairNondetExpr _:
                     context.Write(output, $"{CompilationContext.SchedulerVar}.getNextBoolean({pcScope.PathConstraintVar})");
                     break;
+                case SizeofExpr sizeOfExpr:
+                    WriteExpr(context, output, pcScope, sizeOfExpr.Expr);
+                    context.Write(output, ".size()");
+                    break;
                 default:
                     context.Write(output, $"/* Skipping expr '{expr.GetType().Name}' */");
                     break;
@@ -1393,8 +1406,9 @@ namespace Plang.Compiler.Backend.Symbolic
             if (ctorArguments.Count > 0)
             {
                 Debug.Assert(ctorArguments.Count == 1);
+                context.Write(output, "new UnionVS (");
                 WriteExpr(context, output, pcScope, ctorArguments[0]);
-                context.Write(output, ", ");
+                context.Write(output, "), ");
             }
 
             context.Write(
@@ -1579,9 +1593,9 @@ namespace Plang.Compiler.Backend.Symbolic
                 case PermissionType _:
                     return $"new PrimVS<Machine>()";
                 case SequenceType _:
-                    return $"new {GetSymbolicType(type)}()";
+                    return $"new {GetSymbolicType(type)}(Bdd.constTrue())";
                 case MapType _:
-                    return $"new {GetSymbolicType(type)}(Bdd.constFalse())";
+                    return $"new {GetSymbolicType(type)}(Bdd.constTrue())";
                 case NamedTupleType namedTupleType:
                     {
                         var allFieldDefaults = new List<string>();

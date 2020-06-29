@@ -3,15 +3,14 @@ package symbolicp;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.function.Executable;
+import symbolicp.runtime.CompilerLogger;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -26,50 +25,62 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class SymbolicRegression {
 
+    Map<String, List<String>> getFiles(String testDirPath, String[] excluded) {
+        Map<String, List<String>> result = new HashMap<>();
+        File[] directories = new File(testDirPath).listFiles(File::isDirectory);
+        for (File dir : directories) {
+            try (Stream<Path> walk = Files.walk(Paths.get(dir.toURI()))) {
+                Stream<String> projectFilesStream = walk.map(Path::toString)
+                        .filter(f -> f.endsWith(".p"));
+                if (excluded != null) {
+                    projectFilesStream = projectFilesStream.filter(f -> Arrays.stream(excluded).noneMatch(f::contains));
+                }
+                List<String> projectFiles = projectFilesStream.collect(Collectors.toList());
+                projectFiles.forEach(System.out::println);
+                if (!projectFiles.isEmpty())
+                    result.put(dir.toString(), projectFiles);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return result;
+    }
+
+    void runDynamicTest(int expected, List<String> testCasePaths, String testCasePath, Collection<DynamicTest> dynamicTests) {
+        Executable exec = () -> assertEquals(expected, TestCaseExecutor.runTestCase(testCasePaths));
+        DynamicTest dynamicTest = DynamicTest.dynamicTest(testCasePath, exec);
+        dynamicTests.add(dynamicTest);
+    }
+
     Collection<DynamicTest> loadTests(String testDirPath, String[] excluded) {
 
         Collection<DynamicTest> dynamicTests = new ArrayList<>();
 
-        // First, fetch all files that are within the Regression Test folder.
-        List<String> result = new ArrayList<>();
+        List<String> testDirs = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(Paths.get(testDirPath))) {
-             result = walk.map(Path::toString)
-                    .filter(f -> f.endsWith(".p")).collect(Collectors.toList());
-
-            result.forEach(System.out::println);
+            testDirs = walk.map(Path::toString)
+                    .filter(f -> f.endsWith("Correct") || f.endsWith("DynamicError") || f.endsWith("StaticError")).collect(Collectors.toList());
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        for (String testCasePath : result) {
+        for (String testDir : testDirs) {
+            Map<String, List<String>> paths = getFiles(testDir, excluded);
             Executable exec;
-            boolean skip = false;
-            if (excluded != null)
-                for (String excluded_fragment : excluded) {
-                    if (testCasePath.contains(excluded_fragment)) {
-                        skip = true;
-                        break;
-                    }
+            if (testDir.contains("Correct")) {
+                for (Map.Entry<String, List<String>> entry : paths.entrySet()) {
+                    runDynamicTest(0, entry.getValue(), entry.getKey(), dynamicTests);
                 }
-            if (skip) continue;
-            if (testCasePath.contains("Feature5ModuleSystem")) continue; // Feature5ModuleSystem is skipped
-            if (testCasePath.contains("Correct")) {
-                exec = () -> assertEquals(0, TestCaseExecutor.runTestCase(testCasePath));
+            } else if (testDir.contains("DynamicError")) {
+                for (Map.Entry<String, List<String>> entry : paths.entrySet()) {
+                    runDynamicTest(2, entry.getValue(), entry.getKey(), dynamicTests);
+                }
+            } else if (testDir.contains("StaticError")) {
+                for (Map.Entry<String, List<String>> entry : paths.entrySet()) {
+                    runDynamicTest(1, entry.getValue(), entry.getKey(), dynamicTests);
+                }
             }
-            else if (testCasePath.contains("DynamicError")) {
-                exec = () -> assertEquals(2, TestCaseExecutor.runTestCase(testCasePath));
-            }
-            else if (testCasePath.contains("StaticError")) {
-                exec = () -> assertEquals(1, TestCaseExecutor.runTestCase(testCasePath));
-            }
-            else {
-                continue;
-            }
-
-            DynamicTest dynamicTest = DynamicTest.dynamicTest(testCasePath, exec);
-            dynamicTests.add(dynamicTest);
         }
-
         return dynamicTests;
     }
 /*

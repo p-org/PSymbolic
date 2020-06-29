@@ -14,8 +14,10 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 
 public class TestCaseExecutor {
@@ -52,34 +54,37 @@ public class TestCaseExecutor {
 
     private final static boolean PRINT_STATIC_ERRORS = true;
     /**
-     * @param testCasePath path to test case; only accepts p file
+     * @param testCasePaths paths to test case; only accepts list of p files
      * @return 0 = successful, 1 = compile error, 2 = dynamic error
      */
-    static int runTestCase(String testCasePath) {
+    static int runTestCase(List<String> testCasePaths) {
         // Invoke the P compiler to compile the test Case
         boolean isWindows = System.getProperty("os.name")
                 .toLowerCase().startsWith("windows");
         String compilerDirectory = "../Bld/Drops/Release/Binaries/Pc.dll";
 
         String prefix = "../Tst/";
-        assert testCasePath.startsWith(prefix);
-        String testCaseRelPath = testCasePath.substring(prefix.length());
-        String testCaseRelDir = sanitizeRelDir(Paths.get(testCaseRelPath).getParent().toString());
+        assert testCasePaths.stream().allMatch(p -> p.contains(prefix));
+        List<String> testCaseRelPaths = testCasePaths.stream().map(p -> p.substring(p.indexOf(prefix) + prefix.length()))
+                                        .collect(Collectors.toList());
+        testCasePaths.stream().map(p -> p.substring(p.indexOf(prefix) + prefix.length())).forEach(System.out::println);
+        //System.out.println(testCasePaths.toString());
+        String testCaseRelDir = sanitizeRelDir(Paths.get(testCaseRelPaths.get(0)).getParent().toString());
         String outputDirectory = "src/test/java/symbolicp/testCase/" + testCaseRelDir;
         String outputPackage = packageNameFromRelDir(testCaseRelDir);
 
+        String testCasePathsString = String.join(" ", testCasePaths);
         Process process;
         try {
-            //CompilerLogger.log("Compilation start");
-            //System.out.println(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s\n"
-            //                                       , compilerDirectory, testCasePath, outputDirectory));
+            System.out.println(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s\n"
+                                                   , compilerDirectory, testCasePathsString, outputDirectory));
             if (isWindows) {
                 process = Runtime.getRuntime()
                         .exec(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s"
-                                , compilerDirectory, testCasePath, outputDirectory));
+                                , compilerDirectory, testCasePathsString, outputDirectory));
             } else {
                 process = Runtime.getRuntime()
-                        .exec(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s " , compilerDirectory, testCasePath, outputDirectory));
+                        .exec(String.format("dotnet %s %s -generate:Symbolic -outputDir:%s " , compilerDirectory, testCasePathsString, outputDirectory));
             }
 
             if (PRINT_STATIC_ERRORS) {
@@ -100,7 +105,7 @@ public class TestCaseExecutor {
         }
 
         // Next, try to dynamically load and compile this file
-        String[] path_split = Utils.splitPath(testCasePath);
+        String[] path_split = Utils.splitPath(testCasePaths.get(0));
         String class_name = path_split[path_split.length-1].split("\\.")[0].toLowerCase();
         String outputPath = outputDirectory + File.separator + class_name + ".java";
 
