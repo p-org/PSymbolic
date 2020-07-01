@@ -192,8 +192,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
      * @return The option containing value corresponding to the key or an empty option if no such value
      */
     public V get(PrimVS<K> keySummary) {
-        final PrimVS<Boolean> containsKeySummary = keys.contains(keySummary);
-        if (!containsKeySummary.getGuard(false).isConstFalse()) {
+        if (!containsKey(keySummary).getGuard(false).isConstFalse()) {
             // there is a possibility that the key is not present
             throw new NoSuchElementException();
         }
@@ -208,4 +207,13 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
 
         return merger.merge(toMerge);
     }
+
+    /** Get whether or not the MapVS contains a key
+     * @param keySummary The key ValueSummary
+     * @return Whether or not the MapVS contains a key
+     */
+    public PrimVS<Boolean> containsKey(PrimVS<K> keySummary) {
+        return keys.contains(keySummary);
+    }
+
 }

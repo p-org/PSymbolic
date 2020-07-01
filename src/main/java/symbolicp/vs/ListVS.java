@@ -258,7 +258,7 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
      * @return Whether or not the ListVS contains an element
      */
     public PrimVS<Boolean> contains(T element) {
-        return BoolUtils.fromTrueGuard(indexOf(element).getUniverse());
+        return BoolUtils.fromTrueGuard(indexOf(element).getUniverse()).guard(this.getUniverse());
     }
 
     /** Insert an item in the ListVS. Inserting past the end will produce an IndexOutOfBoundsException.

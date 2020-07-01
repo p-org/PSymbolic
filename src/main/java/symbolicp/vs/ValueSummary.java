@@ -2,25 +2,35 @@ package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
 
+import java.lang.reflect.InvocationTargetException;
+
 public interface ValueSummary<T extends ValueSummary> {
 
     /**
-     * Casts an AnyVS (UnionVS<TypeTag>) to a concrete Value Summary type. If there is some non
+     * Casts an AnyVS (UnionVS<TypeTag>) to a ValueSummary type. If there is some non
      * constantly false path constraint under which the current pc is defined but not the guard
      * corresponding to the specified type, the function throws a ClassCastException.
+     * If the ValueSummary type is also a UnionVS, returns the provided UnionVS.
+     * @param pc The path constraint to cast under
+     * @param type The ValueSummary type to cast to
+     * @param src The UnionVS to cast from
+     * @return A ValueSummary that can be casted into the provided type
      */
      static ValueSummary fromAny(Bdd pc, Class<? extends ValueSummary> type, UnionVS src) {
-        Bdd typeGuard = src.getType().getGuard(type);
-        Bdd pcNotDefined = pc.and(typeGuard.not());
-        if (!pcNotDefined.isConstFalse()) {
-            System.out.println("UnionVS: " + src);
-            System.out.println("type guard: " + typeGuard);
-            throw new ClassCastException(String.format("Symbolic casting to %s under path constraint %s is not defined",
-                    type,
-                    pcNotDefined));
-        }
-        return ((ValueSummary) src.getPayload(type)).guard(pc);
-    }
+         if (type.equals(UnionVS.class)) {
+             return src;
+         }
+         Bdd typeGuard = src.getType().getGuard(type);
+         Bdd pcNotDefined = pc.and(typeGuard.not());
+         if (!pcNotDefined.isConstFalse()) {
+             System.out.println("UnionVS: " + src);
+             System.out.println("type guard: " + typeGuard);
+             throw new ClassCastException(String.format("Symbolic casting to %s under path constraint %s is not defined",
+                     type,
+                     pcNotDefined));
+         }
+         return src.getPayload(type).guard(pc);
+     }
 
     /** Check whether a value summary has any values under any path condition
      * @return Whether the path condition is empty

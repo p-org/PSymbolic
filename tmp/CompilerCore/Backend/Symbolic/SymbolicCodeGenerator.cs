@@ -602,11 +602,17 @@ namespace Plang.Compiler.Backend.Symbolic
                         false,
                         locationTemp =>
                         {
-                            string inlineCastPrefix = GetInlineCastPrefix(assignStmt.Value.Type, assignStmt.Location.Type, context, flowContext.pcScope);
-                            context.Write(output, $"{locationTemp} = {inlineCastPrefix}");
-                            WriteExpr(context, output, flowContext.pcScope, assignStmt.Value);
-                            if (inlineCastPrefix != "") context.Write(output, ")");
-                            context.WriteLine(output, ";");
+                            if (assignStmt.Value is NullLiteralExpr)
+                            {
+                                context.Write(output, $"{locationTemp} = {GetDefaultValueNoGuard(context, assignStmt.Location.Type)}.guard(Bdd.constFalse());");
+                            } else
+                            {
+                                string inlineCastPrefix = GetInlineCastPrefix(assignStmt.Value.Type, assignStmt.Location.Type, context, flowContext.pcScope);
+                                context.Write(output, $"{locationTemp} = {inlineCastPrefix}");
+                                WriteExpr(context, output, flowContext.pcScope, assignStmt.Value);
+                                if (inlineCastPrefix != "") context.Write(output, ")");
+                                context.WriteLine(output, ";");
+                            }
                         }
                     );
 
@@ -634,9 +640,12 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
 
                 case AssertStmt assertStmt:
-                    context.Write(output, "assert !(");
+                    context.Write(output, "Assert.prop(!(");
                     WriteExpr(context, output, flowContext.pcScope, assertStmt.Assertion);
-                    context.Write(output, ").getValues().contains(Boolean.FALSE);");
+                    context.Write(output, ").getValues().contains(Boolean.FALSE), ");
+                    context.Write(output, $"\"{assertStmt.Message}\"");
+                    context.Write(output, ", scheduler");
+                    context.Write(output, $", {flowContext.pcScope.PathConstraintVar});");
                     break;
 
                 case ReturnStmt returnStmt:
@@ -884,11 +893,12 @@ namespace Plang.Compiler.Backend.Symbolic
                             (structureTemp) =>
                             {
                                 context.Write(output, $"{structureTemp} = ");
+                                WriteExpr(context, output, flowContext.pcScope, removeStmt.Variable);
 
                                 if (isMap)
-                                    context.Write(output, $"?.remove(");
+                                    context.Write(output, $".remove(");
                                 else
-                                    context.Write(output, $"?.removeAt(");
+                                    context.Write(output, $".removeAt(");
 
                                 WriteExpr(context, output, flowContext.pcScope, removeStmt.Value);
                                 context.WriteLine(output, ");");
@@ -937,10 +947,10 @@ namespace Plang.Compiler.Backend.Symbolic
             if (valueType.IsSameTypeAs(locationType)) return "";
 
             if (locationType.IsSameTypeAs(PrimitiveType.Any)) {
-                return $"new UnionVS ({pcScope.PathConstraintVar}, {locationType}, ";
+                return $"new UnionVS ({pcScope.PathConstraintVar}, {GetDefaultValueNoGuard(context, locationType)}.getClass(), ";
             } else if (valueType.IsSameTypeAs(PrimitiveType.Any))
             {
-                return $"{GetSymbolicType(locationType)}.fromAny({pcScope.PathConstraintVar}, {locationType}, ";
+                return $"({GetSymbolicType(locationType)}) ValueSummary.fromAny({pcScope.PathConstraintVar}, {GetDefaultValueNoGuard(context, locationType)}.getClass(), ";
             }
             throw new NotImplementedException(
                     $"Cannot yet handle casting to variable of type {locationType.CanonicalRepresentation} " +
@@ -1261,10 +1271,16 @@ namespace Plang.Compiler.Backend.Symbolic
                         break;
                     }
                 case CastExpr castExpr:
-                    string prefix = GetInlineCastPrefix(castExpr.SubExpr.Type, castExpr.Type, context, pcScope);
-                    context.Write(output, prefix);
-                    WriteExpr(context, output, pcScope, castExpr.SubExpr);
-                    if (prefix != "") context.Write(output, ")");
+                    if (castExpr.SubExpr is NullLiteralExpr)
+                    {
+                        context.Write(output,  GetDefaultValue(context, pcScope, castExpr.Type));
+                    } else
+                    {
+                        string prefix = GetInlineCastPrefix(castExpr.SubExpr.Type, castExpr.Type, context, pcScope);
+                        context.Write(output, prefix);
+                        WriteExpr(context, output, pcScope, castExpr.SubExpr);
+                        if (prefix != "") context.Write(output, ")");
+                    }
                     break;
                 case DefaultExpr defaultExpr:
                     context.Write(output, GetDefaultValue(context, pcScope, defaultExpr.Type));
@@ -1287,7 +1303,7 @@ namespace Plang.Compiler.Backend.Symbolic
                     WriteExpr(context, output, pcScope, mapAccessExpr.MapExpr);
                     context.Write(output, ".get(");
                     WriteExpr(context, output, pcScope, mapAccessExpr.IndexExpr);
-                    context.Write(output, "))");
+                    context.Write(output, ")");
                     break;
                 case SeqAccessExpr seqAccessExpr:
                     WriteExpr(context, output, pcScope, seqAccessExpr.SeqExpr);
@@ -1366,8 +1382,6 @@ namespace Plang.Compiler.Backend.Symbolic
 
                     WriteExpr(context, output, pcScope, containsExpr.Collection);
 
-                    context.Write(output, "{removeStmt.Variable}");
-
                     if (isMap)
                         context.Write(output, ".containsKey(");
                     else
@@ -1403,12 +1417,25 @@ namespace Plang.Compiler.Backend.Symbolic
                 $"{CompilationContext.SchedulerVar}, " +
                 $"{context.GetNameForDecl(ctorInterface)}.class, ");
 
-            if (ctorArguments.Count > 0)
+            if (ctorArguments.Count == 1)
             {
                 Debug.Assert(ctorArguments.Count == 1);
                 context.Write(output, "new UnionVS (");
                 WriteExpr(context, output, pcScope, ctorArguments[0]);
                 context.Write(output, "), ");
+            }
+            else if (ctorArguments.Count > 1)
+            {
+                context.Write(output, "new UnionVS (");
+                context.Write(output, "new TupleVS (");
+                for (int i = 0; i < ctorArguments.Count; i++)
+                {
+                    WriteExpr(context, output, pcScope, ctorArguments[i]);
+                    if (i != ctorArguments.Count - 1) {
+                        context.Write(output, ", ");
+                    }
+                }
+                context.Write(output, ")), ");
             }
 
             context.Write(
