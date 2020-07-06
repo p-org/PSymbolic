@@ -268,7 +268,8 @@ namespace Plang.Compiler.Backend.Symbolic
                         {
                             Debug.Assert(!handler.Key.PayloadType.IsSameTypeAs(PrimitiveType.Null));
                             var payloadVSType = GetSymbolicType(handler.Key.PayloadType);
-                            context.Write(output, $", ({payloadVSType})payload");
+                            var defaultPayload = GetDefaultValueNoGuard(context, handler.Key.PayloadType);
+                            context.Write(output, $", ({payloadVSType}) ValueSummary.fromAny(pc, {defaultPayload}.getClass(), payload)");
                         }
                         context.WriteLine(output, ");");
                         context.WriteLine(output, "}");
@@ -1233,16 +1234,17 @@ namespace Plang.Compiler.Backend.Symbolic
                     var lambdaTemp = context.FreshTempVar();
                     context.Write(output, "(");
                     WriteExpr(context, output, pcScope, unaryOpExpr.SubExpr);
-                    context.Write(output, $").map(({lambdaTemp}) -> {UnOpToStr(unaryOpExpr.Operation)}{lambdaTemp})");
+                    context.Write(output, $").apply(({lambdaTemp}) -> {UnOpToStr(unaryOpExpr.Operation)}{lambdaTemp})");
                     break;
                 case BinOpExpr binOpExpr:
                     var isPrimitive = binOpExpr.Lhs.Type is PrimitiveType && binOpExpr.Rhs.Type is PrimitiveType;
                     var isEnum = binOpExpr.Lhs.Type is EnumType && binOpExpr.Rhs.Type is EnumType;
                     var isEquality = binOpExpr.Operation == BinOpType.Eq || binOpExpr.Operation == BinOpType.Neq;
 
-                    if (!(isPrimitive || (isEnum && isEquality)))
+                    if (!(isPrimitive || isEquality))
                     {
-                        throw new NotImplementedException("Binary operations are currently only supported between primitive types and enums");
+                        string str = $"lhs type: {binOpExpr.Lhs}, rhs type: {binOpExpr.Rhs}" ;
+                        throw new NotImplementedException("Binary operations are currently only supported between primitive types and enums | " + str);
                     }
 
                     var lhsLambdaTemp = context.FreshTempVar();
@@ -1251,7 +1253,9 @@ namespace Plang.Compiler.Backend.Symbolic
                     context.Write(output, "(");
                     WriteExpr(context, output, pcScope, binOpExpr.Lhs);
                     context.Write(output, ").apply2(");
-                    WriteExpr(context, output, pcScope, binOpExpr.Rhs);
+                    if (binOpExpr.Rhs is NullLiteralExpr)
+                        context.Write(output, $"{GetDefaultValueNoGuard(context, binOpExpr.Lhs.Type)}.guard(Bdd.constFalse())");
+                    else WriteExpr(context, output, pcScope, binOpExpr.Rhs);
                     string lambda;
                     if (binOpExpr.Operation == BinOpType.Eq) lambda = $"{lhsLambdaTemp}.equals({rhsLambdaTemp}))";
                     else if (binOpExpr.Operation == BinOpType.Neq) lambda = $"!{lhsLambdaTemp}.equals({rhsLambdaTemp}))";

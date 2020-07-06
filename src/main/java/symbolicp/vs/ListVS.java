@@ -1,6 +1,7 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.runtime.ScheduleLogger;
 import symbolicp.util.Checks;
 
 import java.util.*;
@@ -261,7 +262,7 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
         return BoolUtils.fromTrueGuard(indexOf(element).getUniverse()).guard(this.getUniverse());
     }
 
-    /** Insert an item in the ListVS. Inserting past the end will produce an IndexOutOfBoundsException.
+    /** Insert an item in the ListVS.
      * @param indexSummary The index to insert at in the ListVS. Should be possible under a subset of the ListVS's conditions.
      * @param itemToInsert The item to put in the ListVS. Should be possible under the same subset of the ListVS's conditions.
      * @return The result of inserting into the ListVS
@@ -300,11 +301,10 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
             current = IntUtils.add(current, 1);
 
             // 3. setting everything after insertion index to be the previous element
-            // (but we can skip the very last one, since we've already added it)
-            while (BoolUtils.isEverTrue(IntUtils.lessThan(current, IntUtils.subtract(size, 1)))) {
-                T old = newList.get(current);
-                T update = old.update(BoolUtils.trueCond(IntUtils.lessThan(current, size)), prev);
-                newList = newList.set(current, update);
+            while (BoolUtils.isEverTrue(IntUtils.lessThan(current, size))) {
+                Bdd guard = BoolUtils.trueCond(IntUtils.lessThan(current, size));
+                T old = this.guard(guard).get(current.guard(guard));
+                newList = newList.set(current.guard(guard), prev.guard(guard));
                 prev = old;
                 current = IntUtils.add(current, 1);
             }
@@ -342,32 +342,31 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
             throw new IndexOutOfBoundsException();
         }
 
-        ListVS<T> merger = null;
-        List<ListVS<T>> toMerge = new ArrayList<>();
-        for (GuardedValue<Integer> index : indexSummary.getGuardedValues()) {
-            // want to update size if it is greater than 0
-            Bdd updateSizeCond = BoolUtils.trueCond(IntUtils.lessThan(0, size));
-            // new size
-            PrimVS<Integer> newSize = size.update(updateSizeCond, IntUtils.subtract(size, 1));
+        // new size
+        PrimVS<Integer> newSize = IntUtils.subtract(size, 1);
 
-            ListVS<T> newList = new ListVS<>(newSize, items.subList(0, items.size() - 1));
-            PrimVS<Integer> current = indexSummary;
-
-            // Setting everything after removal index to be the next element
-            while (BoolUtils.isEverTrue(IntUtils.lessThan(IntUtils.add(current, 1), size))) {
-                Bdd thisCond = BoolUtils.trueCond(IntUtils.lessThan(IntUtils.add(current, 1), size));
-                current = current.guard(thisCond);
-                T next = this.get(IntUtils.add(current, 1));
-                newList = newList.set(current, next);
-                current = IntUtils.add(current, 1);
-            }
-
-            if (merger == null)
-                merger = newList;
-            else
-                toMerge.add(newList);
+        /** Optimize case where the index can only take on one value */
+        if (indexSummary.getValues().size() == 1) {
+            int idx = indexSummary.getValues().iterator().next();
+            List<T> newItems = new ArrayList<T>(items);
+            newItems.remove(idx);
+            return new ListVS<>(newSize, newItems);
         }
-        return merger.merge(toMerge);
+
+        ListVS<T> newList = new ListVS<>(newSize, items.subList(0, items.size() - 1));
+        PrimVS<Integer> current = indexSummary;
+
+        // Setting everything after removal index to be the next element
+        while (BoolUtils.isEverTrue(IntUtils.lessThan(IntUtils.add(current, 1), size))) {
+            ScheduleLogger.log("removeAt while " + current);
+            Bdd thisCond = BoolUtils.trueCond(IntUtils.lessThan(IntUtils.add(current, 1), size));
+            current = current.guard(thisCond);
+            T next = this.get(IntUtils.add(current, 1));
+            newList = newList.set(current, next);
+            current = IntUtils.add(current, 1);
+        }
+
+        return newList;
     }
 
     /** Get the index of an element in the ListVS

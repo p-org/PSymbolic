@@ -14,8 +14,6 @@ public class Assert {
     public static void prop(boolean p, String msg, Scheduler scheduler, Bdd pc) {
         if (!p) {
             RuntimeLogger.enable();
-            System.out.println("Property violated: " + msg);
-            RuntimeLogger.property("Property violated: " + msg);
             throw new BugFoundException("Property violated: " + msg, pc);
         }
     }

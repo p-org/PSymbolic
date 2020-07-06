@@ -14,6 +14,8 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -116,6 +118,8 @@ public class TestCaseExecutor {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         compiler.run(null, null, null, outputPath);
 
+
+
         // Load and instantiate compiled class
         try {
             URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{new File(outputDirectory).toURI().toURL()});
@@ -129,7 +133,7 @@ public class TestCaseExecutor {
             return 1;
         }
         try {
-            EntryPoint.run(p, 50);
+            EntryPoint.run(p, 200, 50);
         } catch (Exception | AssertionError e) {
             e.printStackTrace();
             return 2;

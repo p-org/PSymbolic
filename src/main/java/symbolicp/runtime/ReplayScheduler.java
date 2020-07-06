@@ -43,6 +43,7 @@ public class ReplayScheduler extends Scheduler {
         }
 
         ScheduleLogger.onCreateMachine(machineVS.getUniverse(), machine);
+        machine.setScheduler(this);
 
         performEffect(
                 new Event(
@@ -83,6 +84,7 @@ public class ReplayScheduler extends Scheduler {
 
         PrimVS<Machine> allocated = schedule.getMachine(machineType, guardedCount);
         ScheduleLogger.onCreateMachine(pc, allocated.getValues().iterator().next());
+        allocated.getValues().iterator().next().setScheduler(this);
 
         guardedCount = IntUtils.add(guardedCount, 1);
 

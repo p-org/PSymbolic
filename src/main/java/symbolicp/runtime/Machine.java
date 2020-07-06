@@ -9,6 +9,7 @@ import java.util.*;
 import java.util.logging.Logger;
 
 public abstract class Machine extends HasId {
+    private Scheduler scheduler;
     private final State startState;
     private final Set<State> states;
     private PrimVS<Boolean> started = new PrimVS<>(false);
@@ -18,6 +19,8 @@ public abstract class Machine extends HasId {
     private ListVS<PrimVS<State>> stack;
     public final EffectCollection sendEffects;
     public final DeferQueue deferredQueue;
+
+    public void setScheduler(Scheduler scheduler) { this.scheduler = scheduler; }
 
     public PrimVS<Boolean> hasStarted() {
         return started;
@@ -91,14 +94,17 @@ public abstract class Machine extends HasId {
     }
 
     void runOutcomesToCompletion(Bdd pc, Outcome outcome) {
+        int steps = 0;
         // Outer loop: process sequences of 'goto's, 'raise's, 'push's, 'pop's, and events from the deferred queue.
         while (!outcome.isEmpty()) {
             // TODO: Determine if this can be safely optimized into a concrete boolean
             Bdd performedTransition = Bdd.constFalse();
-            Logger.getLogger("run again");
 
             // Inner loop: process sequences of 'goto's and 'raise's.
             while (!outcome.isEmpty()) {
+                Assert.prop(scheduler.getMaxInternalSteps() < 0 || steps < scheduler.getMaxInternalSteps(), scheduler,
+                        pc.and(outcome.getGotoCond().or(outcome.getPopCond()).or(outcome.getPushCond()).or(outcome.getRaiseCond())));
+                steps++;
                 Outcome nextOutcome = new Outcome();
                 // goto
                 if (!outcome.getGotoCond().isConstFalse()) {
@@ -187,7 +193,7 @@ public abstract class Machine extends HasId {
 
         this.state.check();
 
-        for (GuardedValue<State> entry : newState.guard(pc).getGuardedValues()) {
+        for (GuardedValue<State> entry : newState.getGuardedValues()) {
             State state = entry.value;
             Bdd transitionCond = entry.guard;
             UnionVS payload = payloads.get(state);

@@ -2,7 +2,6 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.run.Assert;
-import symbolicp.util.Checks;
 import symbolicp.vs.GuardedValue;
 import symbolicp.vs.IntUtils;
 import symbolicp.vs.PrimVS;
@@ -32,6 +31,8 @@ public class Scheduler implements SymbolicSearch {
     /** Whether or not search is done */
     private boolean done = false;
 
+    /** Maximum number of internal steps allowed */
+    private int maxInternalSteps = -1;
     /** Maximum depth to explore */
     private int maxDepth = -1;
     /** Maximum depth to explore before considering it an error */
@@ -79,9 +80,14 @@ public class Scheduler implements SymbolicSearch {
                 this.machineCounters.put(machine.getClass(), new PrimVS<>(1));
             }
             ScheduleLogger.onCreateMachine(Bdd.constTrue(), machine);
+            machine.setScheduler(this);
             schedule.makeMachine(machine, Bdd.constTrue());
         }
     }
+
+    public void setMaxInternalSteps(int maxSteps) { this.maxInternalSteps = maxSteps; }
+
+    public int getMaxInternalSteps() { return maxInternalSteps; }
 
     @Override
     public void setMaxDepth(int maxDepth) {
@@ -127,6 +133,7 @@ public class Scheduler implements SymbolicSearch {
         machines.add(machine);
         start = machine;
         ScheduleLogger.onCreateMachine(Bdd.constTrue(), machine);
+        machine.setScheduler(this);
         schedule.makeMachine(machine, Bdd.constTrue());
 
         performEffect(
@@ -179,10 +186,10 @@ public class Scheduler implements SymbolicSearch {
             Event effect = machine.sendEffects.remove(guard);
             ScheduleLogger.schedule(depth, effect);
             PrimVS<State> oldState = machine.getState();
-            assert(effect.getUniverse().implies(guard).isConstTrue());
+            //assert(effect.getUniverse().implies(guard).isConstTrue());
             performEffect(effect);
             // After the effect is performed, the machine state should be the same under all other path conditions
-            assert(Checks.equalUnder(oldState, machine.getState(), machine.getState().guard(guard.not()).getUniverse()));
+            //assert(Checks.equalUnder(oldState, machine.getState(), machine.getState().guard(guard.not()).getUniverse()));
         }
 
         depth++;
@@ -203,6 +210,7 @@ public class Scheduler implements SymbolicSearch {
         }
 
         ScheduleLogger.onCreateMachine(pc, newMachine);
+        newMachine.setScheduler(this);
         schedule.makeMachine(newMachine, pc);
 
         guardedCount = IntUtils.add(guardedCount, 1);
