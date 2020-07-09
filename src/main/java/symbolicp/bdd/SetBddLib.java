@@ -81,6 +81,11 @@ public class SetBddLib<T> implements BddLib<Set<T>> {
     }
 
     @Override
+    public Set<T> implies(Set<T> left, Set<T> right) {
+        return or(not(left), right);
+    }
+
+    @Override
     public Set<T> ifThenElse(Set<T> cond, Set<T> thenClause, Set<T> elseClause) {
         return or(and(cond, thenClause), and(not(cond), elseClause));
     }

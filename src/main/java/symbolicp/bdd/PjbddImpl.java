@@ -55,6 +55,11 @@ public class PjbddImpl implements BddLib<BDD> {
     }
 
     @Override
+    public BDD implies(BDD left, BDD right) {
+        return c.makeImply(left, right);
+    }
+
+    @Override
     public BDD ifThenElse(BDD cond, BDD thenClause, BDD elseClause) {
         return c.makeIte(cond, thenClause, elseClause);
     }

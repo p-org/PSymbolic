@@ -7,11 +7,16 @@ import org.sosy_lab.common.log.BasicLogManager;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.java_smt.SolverContextFactory;
 import org.sosy_lab.java_smt.api.*;
+import symbolicp.vs.PrimVS;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class SMTBddImpl implements BddLib<BooleanFormula> {
     final private SolverContext context;
     final private FormulaManager formulaManager;
     final private BooleanFormulaManager booleanFormulaManager;
+    final private IntegerFormulaManager integerFormulaManager;
     private long idx = 0;
 
     public SMTBddImpl() {
@@ -24,11 +29,24 @@ public class SMTBddImpl implements BddLib<BooleanFormula> {
                     config, logger, shutdown.getNotifier(), SolverContextFactory.Solvers.SMTINTERPOL);
             formulaManager = context.getFormulaManager();
             booleanFormulaManager = formulaManager.getBooleanFormulaManager();
+            integerFormulaManager = formulaManager.getIntegerFormulaManager();
         } catch (InvalidConfigurationException e){
             e.printStackTrace();
             throw new RuntimeException("Invalid configuration for SMT");
         }
     }
+
+    /*
+    public PrimVS getNondetChoice(List<PrimVS> choices) {
+        if(choices.size() == 0) return new PrimVS<>();
+        List<PrimVS> results = new ArrayList<>();
+        integerFormulaManager.makeVariable("var_" + idx++);
+        for (PrimVS choice : choices) {
+
+        }
+    }
+
+     */
 
     @Override
     public BooleanFormula constFalse() {
@@ -79,6 +97,11 @@ public class SMTBddImpl implements BddLib<BooleanFormula> {
     @Override
     public BooleanFormula not(BooleanFormula booleanFormula) {
         return simplify(booleanFormulaManager.not(booleanFormula));
+    }
+
+    @Override
+    public BooleanFormula implies(BooleanFormula left, BooleanFormula right) {
+        return booleanFormulaManager.implication(left, right);
     }
 
     @Override
