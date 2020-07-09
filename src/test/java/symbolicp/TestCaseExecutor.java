@@ -13,9 +13,12 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -65,15 +68,14 @@ public class TestCaseExecutor {
                 .toLowerCase().startsWith("windows");
         String compilerDirectory = "../Bld/Drops/Release/Binaries/Pc.dll";
 
-        String prefix = "../Tst/";
+        String prefix = "SymbolicRegressionTests/";
         assert testCasePaths.stream().allMatch(p -> p.contains(prefix));
         List<String> testCaseRelPaths = testCasePaths.stream().map(p -> p.substring(p.indexOf(prefix) + prefix.length()))
                                         .collect(Collectors.toList());
         testCasePaths.stream().map(p -> p.substring(p.indexOf(prefix) + prefix.length())).forEach(System.out::println);
-        //System.out.println(testCasePaths.toString());
         String testCaseRelDir = sanitizeRelDir(Paths.get(testCaseRelPaths.get(0)).getParent().toString());
         String outputDirectory = "src/test/java/symbolicp/testCase/" + testCaseRelDir;
-        String outputPackage = packageNameFromRelDir(testCaseRelDir);
+        // String outputPackage = packageNameFromRelDir(testCaseRelDir);
 
         String testCasePathsString = String.join(" ", testCasePaths);
         Process process;
@@ -110,6 +112,21 @@ public class TestCaseExecutor {
         String[] path_split = Utils.splitPath(testCasePaths.get(0));
         String class_name = path_split[path_split.length-1].split("\\.")[0].toLowerCase();
         String outputPath = outputDirectory + File.separator + class_name + ".java";
+        List<String> toCopy = testCasePaths.stream().filter(f -> f.contains(".java")).collect(Collectors.toList());
+        List<String> toLoad = new ArrayList<>();
+        try {
+            for (String copy : toCopy) {
+                String[] copy_path_split = Utils.splitPath(copy);
+                String external_class_name = copy_path_split[path_split.length-1].split("\\.")[0];
+                String copyPath = outputDirectory + File.separator + external_class_name + ".java";
+                Files.copy(Paths.get(copy), Paths.get(copyPath), StandardCopyOption.REPLACE_EXISTING);
+                toLoad.add(copyPath);
+            }
+        } catch (IOException e) {
+            CompilerLogger.log("Compilation failure.");
+            e.printStackTrace();
+            return 1;
+        }
 
         // Program to run
         Program p = null;
@@ -119,9 +136,11 @@ public class TestCaseExecutor {
         compiler.run(null, null, null, outputPath);
 
 
-
-        // Load and instantiate compiled class
+        // Load and instantiate compiled class and external classes
         try {
+            for (String path : toLoad) {
+                URLClassLoader.newInstance(new URL[]{new File(path).toURI().toURL()});
+            }
             URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{new File(outputDirectory).toURI().toURL()});
             Class<?> cls = Class.forName(class_name, true, classLoader);
             Object instance = cls.getDeclaredConstructor().newInstance();
