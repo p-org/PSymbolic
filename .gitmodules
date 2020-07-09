@@ -1,0 +1,3 @@
+[submodule "jsylvan"]
+	path = jsylvan
+	url = https://github.com/utwente-fmt/jsylvan
