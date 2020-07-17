@@ -3,10 +3,7 @@ package symbolicp.bdd;
 import org.sosy_lab.pjbdd.Builders;
 import org.sosy_lab.pjbdd.creator.bdd.Creator;
 import org.sosy_lab.pjbdd.node.BDD;
-import org.sosy_lab.pjbdd.util.parser.BDDStringExporter;
-import org.sosy_lab.pjbdd.util.parser.BDDStringImporter;
-import org.sosy_lab.pjbdd.util.parser.Exporter;
-import org.sosy_lab.pjbdd.util.parser.Importer;
+import org.sosy_lab.pjbdd.util.parser.*;
 
 public class PjbddImpl implements BddLib<BDD> {
     final private Creator c;
@@ -14,8 +11,8 @@ public class PjbddImpl implements BddLib<BDD> {
     final private Importer i;
 
     public PjbddImpl() {
-        c = Builders.newBDDBuilder().build();
-        e = new BDDStringExporter(c);
+        c = Builders.newBDDBuilder().setVarCount(0).build();
+        e = new DotExporter();
         i = new BDDStringImporter(c);
     }
 

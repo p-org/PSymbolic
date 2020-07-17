@@ -25,4 +25,9 @@ public class EffectBag extends SymbolicBag<Event> implements EffectCollection {
         return machine;
     }
 
+    @Override
+    public PrimVS<Boolean> enabledCondInit() {
+        return enabledCondOne(Event::isInit);
+    }
+
 }

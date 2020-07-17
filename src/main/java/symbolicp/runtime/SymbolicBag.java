@@ -49,6 +49,25 @@ public class SymbolicBag<T extends ValueSummary<T>> {
         return enabledCond;
     }
 
+    /** Get a condition under which a queue entry that obeys the provided predicate exists
+     * @param pred The filtering predicate
+     * @return The condition under which the first queue entry obeys pred
+     */
+    public PrimVS<Boolean> enabledCondOne(Function<T, PrimVS<Boolean>> pred) {
+        Bdd cond = entries.getNonEmptyUniverse();
+        ListVS<T> elts = entries.guard(cond);
+        PrimVS<Integer> idx = new PrimVS<>(0).guard(cond);
+        while (BoolUtils.isEverTrue(IntUtils.lessThan(idx, elts.size()))) {
+            Bdd iterCond = IntUtils.lessThan(idx, elts.size()).getGuard(true);
+            PrimVS<Boolean> res = pred.apply(elts.get(idx.guard(iterCond)));
+            if (!res.getGuard(true).isConstFalse()) {
+                return res;
+            }
+            idx = IntUtils.add(idx, 1);
+        }
+        return new PrimVS<>(false);
+    }
+
     public T peek(Bdd pc) {
         assert (entries.getUniverse().isConstTrue());
         ListVS<T> filtered = entries.guard(pc);

@@ -17,6 +17,23 @@ public class Event implements ValueSummary<Event> {
         Bdd cond = Bdd.constFalse();
         for (GuardedValue<Machine> machine : getMachine().getGuardedValues()) {
             cond = cond.or(machine.value.hasStarted().getGuard(true).and(machine.guard));
+
+            if (BoolUtils.isEverFalse(machine.value.hasStarted())) {
+                Bdd unstarted = machine.value.hasStarted().getGuard(false).and(machine.guard);
+                PrimVS<EventName> names = this.guard(unstarted).getName();
+                for (GuardedValue<EventName> name : names.getGuardedValues()) {
+                    if (name.value.equals(EventName.Init.instance)) {
+                        cond = cond.or(name.guard);
+                    }
+                }
+            }
+        }
+        return BoolUtils.fromTrueGuard(cond);
+    }
+
+    public PrimVS<Boolean> isInit() {
+        Bdd cond = Bdd.constFalse();
+        for (GuardedValue<Machine> machine : getMachine().getGuardedValues()) {
             if (BoolUtils.isEverFalse(machine.value.hasStarted())) {
                 Bdd unstarted = machine.value.hasStarted().getGuard(false).and(machine.guard);
                 PrimVS<EventName> names = this.guard(unstarted).getName();

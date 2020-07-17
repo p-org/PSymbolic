@@ -44,4 +44,9 @@ public class EffectQueue extends SymbolicQueue<Event> implements EffectCollectio
         return this.dequeueEntry(pc);
     }
 
+    @Override
+    public PrimVS<Boolean> enabledCondInit() {
+        return enabledCond(Event::isInit);
+    }
+
 }

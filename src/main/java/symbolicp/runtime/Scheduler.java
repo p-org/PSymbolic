@@ -66,7 +66,7 @@ public class Scheduler implements SymbolicSearch {
      * @param machines The machines initially in the Scheduler
      */
     public Scheduler(Machine... machines) {
-        ScheduleLogger.disable();
+        //ScheduleLogger.disable();
         schedule = new Schedule();
         this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
@@ -149,6 +149,7 @@ public class Scheduler implements SymbolicSearch {
     public void doSearch(Machine target) {
         startWith(target);
         while (!isDone()) {
+            // ScheduleLogger.log("step " + depth + ", true queries " + Bdd.trueQueries + ", false queries " + Bdd.falseQueries);
             Assert.prop(errorDepth < 0 || depth < errorDepth, "Maximum allowed depth " + errorDepth + " exceeded", this, schedule.getLengthCond(schedule.size()));
             step();
         }
@@ -159,6 +160,10 @@ public class Scheduler implements SymbolicSearch {
 
         for (Machine machine : machines) {
             if (!machine.sendEffects.isEmpty()) {
+                Bdd initCond = machine.sendEffects.enabledCondInit().getGuard(true);
+                if (!initCond.isConstFalse()) {
+                    return new PrimVS<>(machine).guard(initCond);
+                }
                 Bdd canRun = machine.sendEffects.enabledCond(Event::canRun).getGuard(true);
                 if (!canRun.isConstFalse()) {
                     candidateSenders.add(new PrimVS<>(machine).guard(canRun));
@@ -168,7 +173,7 @@ public class Scheduler implements SymbolicSearch {
 
         PrimVS<Machine> choices = (PrimVS<Machine>) NondetUtil.getNondetChoice(candidateSenders);
         schedule.scheduleSender(choices);
-        return (choices);
+        return choices;
     }
 
     public void step() {

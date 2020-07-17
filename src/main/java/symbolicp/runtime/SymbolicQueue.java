@@ -2,6 +2,7 @@ package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.util.Checks;
+import symbolicp.vs.GuardedValue;
 import symbolicp.vs.ListVS;
 import symbolicp.vs.PrimVS;
 import symbolicp.vs.ValueSummary;
@@ -11,6 +12,7 @@ import java.util.function.Function;
 public class SymbolicQueue<T extends ValueSummary<T>> {
 
     private ListVS<T> entries;
+    private T peek = null;
 
     public SymbolicQueue() {
         this.entries = new ListVS<>(Bdd.constTrue());
@@ -40,6 +42,7 @@ public class SymbolicQueue<T extends ValueSummary<T>> {
      */
     public PrimVS<Boolean> enabledCond(Function<T, PrimVS<Boolean>> pred) {
         Bdd cond = enabledCond();
+        assert(!cond.isConstFalse());
         T top = peek(cond);
         return pred.apply(top).guard(top.getUniverse());
     }
@@ -53,12 +56,22 @@ public class SymbolicQueue<T extends ValueSummary<T>> {
     }
 
     private T peekOrDequeueHelper(Bdd pc, boolean dequeue) {
+        boolean updatePeek = peek == null || !pc.implies(peek.getUniverse()).isConstTrue();
+        if (!dequeue && !updatePeek) {
+            return peek.guard(pc);
+        }
         assert(entries.getUniverse().isConstTrue());
         ListVS<T> filtered = entries.guard(pc);
+        if (updatePeek) {
+            peek = filtered.get(new PrimVS<>(0).guard(pc));
+        }
+        T ret = peek.guard(pc);
         if (dequeue) {
             entries = entries.removeAt(new PrimVS<>(0).guard(pc));
+            peek = null;
         }
-        return filtered.get(new PrimVS<>(0).guard(pc)).guard(pc);
+        assert(!pc.isConstFalse());
+        return ret;
     }
 
     @Override

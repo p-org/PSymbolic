@@ -32,6 +32,8 @@ public interface EffectCollection {
 
     public PrimVS<Boolean> enabledCond(Function<Event, PrimVS<Boolean>> pred);
 
+    public PrimVS<Boolean> enabledCondInit();
+
     default public PrimVS<Machine> create(Bdd pc, Scheduler scheduler, Class<? extends Machine> machineType,
                                   Function<Integer, ? extends Machine> constructor) {
         return create(pc, scheduler, machineType, null, constructor);
