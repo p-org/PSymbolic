@@ -206,7 +206,7 @@ public abstract class Machine extends HasId {
             Outcome outcome,
             Event event
     ) {
-        assert(event.getMachine().guard(pc).getValues().size() <= 1);
+        // assert(event.getMachine().guard(pc).getValues().size() <= 1);
         ScheduleLogger.onProcessEvent(pc, this, event);
         PrimVS<State> guardedState = this.state.guard(pc);
         for (GuardedValue<State> entry : guardedState.getGuardedValues()) {

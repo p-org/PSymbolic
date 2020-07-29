@@ -185,18 +185,21 @@ public class Scheduler implements SymbolicSearch {
             return;
         }
 
+        Event effect = null;
+        List<Event> effects = new ArrayList<>();
         for (GuardedValue<Machine> sender : choices.getGuardedValues()) {
             Machine machine = sender.value;
             Bdd guard = sender.guard;
-            Event effect = machine.sendEffects.remove(guard);
-            ScheduleLogger.schedule(depth, effect);
-            PrimVS<State> oldState = machine.getState();
-            //assert(effect.getUniverse().implies(guard).isConstTrue());
-            performEffect(effect);
-            // After the effect is performed, the machine state should be the same under all other path conditions
-            //assert(Checks.equalUnder(oldState, machine.getState(), machine.getState().guard(guard.not()).getUniverse()));
+            if (effect == null) {
+                effect = machine.sendEffects.remove(guard);
+            } else {
+                effects.add(machine.sendEffects.remove(guard));
+            }
         }
 
+        effect = effect.merge(effects);
+        ScheduleLogger.schedule(depth, effect);
+        performEffect(effect);
         depth++;
     }
 
@@ -226,7 +229,6 @@ public class Scheduler implements SymbolicSearch {
 
     void performEffect(Event event) {
         for (GuardedValue<Machine> target : event.getMachine().getGuardedValues()) {
-            Assert.prop(IntUtils.maxValue(target.value.getStack().size()) < 5, "Stack size exceeded 5", this, target.value.getStack().size().getGuard(5));
             target.value.processEventToCompletion(target.guard, event.guard(target.guard));
         }
     }

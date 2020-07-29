@@ -6,6 +6,7 @@ import symbolicp.vs.PrimVS;
 
 import java.util.*;
 import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
 
 public class ValueSummaryUnionFind extends UnionFind<PrimVS> {
 
@@ -14,16 +15,13 @@ public class ValueSummaryUnionFind extends UnionFind<PrimVS> {
     public ValueSummaryUnionFind(Collection<PrimVS> c) {
         super();
         for (PrimVS elt : c) {
+            List<PrimVS> values = new ArrayList<>(new HashSet<>(parents.values()));
             addElement(elt);
-            List<PrimVS> values = new ArrayList<>(parents.values());
             Bdd eltUniverse = elt.getUniverse();
             for (int i = 0; i < values.size(); i ++) {
-                if (elt.equals(values.get(i))) {
-                    continue;
-                }
                 Bdd unionUniverse = universe.get(find(values.get(i)));
                 if (!eltUniverse.and(unionUniverse).isConstFalse()) {
-                        union(elt, values.get(i));
+                    union(elt, values.get(i));
                     if (eltUniverse.implies(unionUniverse).isConstTrue()) {
                         break;
                     }
@@ -49,6 +47,7 @@ public class ValueSummaryUnionFind extends UnionFind<PrimVS> {
         Bdd universe1 = universe.get(find(e1));
         Bdd universe2 = universe.get(find(e2));
         boolean res = super.union(e1, e2);
+        if (!res) return false;
         universe.put(find(e1), universe1.or(universe2));
         return res;
     }

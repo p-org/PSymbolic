@@ -17,7 +17,6 @@ import java.util.stream.Stream;
 public class EntryPoint {
 
     public static void run(Program p, int depth, int maxInternalSteps) {
-        Bdd.reset();
         Scheduler scheduler = new Scheduler();
         p.setScheduler(scheduler);
         int step = 0;
