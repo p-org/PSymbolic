@@ -1,5 +1,6 @@
 package symbolicp.runtime;
 
+import org.checkerframework.checker.units.qual.A;
 import symbolicp.bdd.Bdd;
 import symbolicp.run.Assert;
 import symbolicp.vs.GuardedValue;
@@ -31,12 +32,24 @@ public class Scheduler implements SymbolicSearch {
     /** Whether or not search is done */
     private boolean done = false;
 
+    int choiceDepth = 0;
+
     /** Maximum number of internal steps allowed */
     private int maxInternalSteps = -1;
     /** Maximum depth to explore */
     private int maxDepth = -1;
     /** Maximum depth to explore before considering it an error */
     private int errorDepth = -1;
+
+    /** Reset scheduler state
+     */
+    public void reset() {
+        depth = 0;
+        choiceDepth = 0;
+        done = false;
+        machineCounters.clear();
+        machines.clear();
+    }
 
     /** Find out whether symbolic execution is finished
      * @return Whether or not there are more steps to run
@@ -94,25 +107,47 @@ public class Scheduler implements SymbolicSearch {
         this.maxDepth = maxDepth;
     }
 
-    @Override
-    public PrimVS<Integer> getNextInteger(int bound, Bdd pc) {
+    public List<PrimVS> getNextIntegerChoices(int bound, Bdd pc) {
         List<PrimVS> choices = new ArrayList<>();
         for (int i = 0; i < bound; i++) {
             choices.add(new PrimVS<>(i));
         }
-        PrimVS<Integer> res = (PrimVS<Integer>) NondetUtil.getNondetChoice(choices);
-        schedule.scheduleIntChoice(res.guard(pc));
-        return res;
+        return choices;
+    }
+
+    public PrimVS<Integer> getNextInteger(List<PrimVS> candidateIntegers) {
+        PrimVS<Integer> choices = (PrimVS<Integer>) NondetUtil.getNondetChoice(candidateIntegers);
+        List<PrimVS<Integer>> choiceList = new ArrayList<>();
+        choices.getGuardedValues().forEach(x -> choiceList.add(new PrimVS<>(x.value).guard(x.guard)));
+        schedule.addRepeatInt(choices, choiceDepth);
+        schedule.addIntChoice(choiceList, choiceDepth);
+        return choices;
+    }
+
+    @Override
+    public PrimVS<Integer> getNextInteger(int bound, Bdd pc) {
+        return getNextInteger(getNextIntegerChoices(bound, pc));
+    }
+
+    public List<PrimVS> getNextBooleanChoices(Bdd pc) {
+        List<PrimVS> choices = new ArrayList<>();
+        choices.add(new PrimVS<>(true).guard(pc));
+        choices.add(new PrimVS<>(false).guard(pc));
+        return choices;
+    }
+
+    public PrimVS<Boolean> getNextBoolean(List<PrimVS> candidateBooleans) {
+        PrimVS<Boolean> choices = (PrimVS<Boolean>) NondetUtil.getNondetChoice(candidateBooleans);
+        List<PrimVS<Boolean>> choiceList = new ArrayList<>();
+        choices.getGuardedValues().forEach(x -> choiceList.add(new PrimVS<>(x.value).guard(x.guard)));
+        schedule.addRepeatBool(choices, choiceDepth);
+        schedule.addBoolChoice(choiceList, choiceDepth);
+        return choices;
     }
 
     @Override
     public PrimVS<Boolean> getNextBoolean(Bdd pc) {
-        List<PrimVS> choices = new ArrayList<>();
-        choices.add(new PrimVS<>(true));
-        choices.add(new PrimVS<>(false));
-        PrimVS<Boolean> res = (PrimVS<Boolean>) NondetUtil.getNondetChoice(choices);
-        schedule.scheduleBoolChoice(res.guard(pc));
-        return res;
+        return getNextBoolean(getNextBooleanChoices(pc));
     }
 
     @Override
@@ -145,6 +180,29 @@ public class Scheduler implements SymbolicSearch {
         );
     }
 
+    public void replayStartWith(Machine machine) {
+        PrimVS<Machine> machineVS;
+        if (this.machineCounters.containsKey(machine.getClass())) {
+            machineVS = schedule.getMachine(machine.getClass(), this.machineCounters.get(machine.getClass()));
+            this.machineCounters.put(machine.getClass(),
+                    IntUtils.add(this.machineCounters.get(machine.getClass()), 1));
+        } else {
+            machineVS = schedule.getMachine(machine.getClass(), new PrimVS<>(0));
+            this.machineCounters.put(machine.getClass(), new PrimVS<>(1));
+        }
+
+        ScheduleLogger.onCreateMachine(machineVS.getUniverse(), machine);
+        machine.setScheduler(this);
+
+        performEffect(
+                new Event(
+                        EventName.Init.instance,
+                        machineVS,
+                        null
+                )
+        );
+    }
+
     @Override
     public void doSearch(Machine target) {
         startWith(target);
@@ -155,14 +213,16 @@ public class Scheduler implements SymbolicSearch {
         }
     }
 
-    public PrimVS<Machine> getNextSender() {
+    public List<PrimVS> getNextSenderChoices() {
         List<PrimVS> candidateSenders = new ArrayList<>();
 
         for (Machine machine : machines) {
             if (!machine.sendEffects.isEmpty()) {
                 Bdd initCond = machine.sendEffects.enabledCondInit().getGuard(true);
                 if (!initCond.isConstFalse()) {
-                    return new PrimVS<>(machine).guard(initCond);
+                    PrimVS<Machine> ret = new PrimVS<>(machine).guard(initCond);
+                    candidateSenders.add(ret);
+                    return candidateSenders;
                 }
                 Bdd canRun = machine.sendEffects.enabledCond(Event::canRun).getGuard(true);
                 if (!canRun.isConstFalse()) {
@@ -171,9 +231,21 @@ public class Scheduler implements SymbolicSearch {
             }
         }
 
+        return candidateSenders;
+    }
+
+    public PrimVS<Machine> getNextSender(List<PrimVS> candidateSenders) {
         PrimVS<Machine> choices = (PrimVS<Machine>) NondetUtil.getNondetChoice(candidateSenders);
-        schedule.scheduleSender(choices);
+        List<PrimVS<Machine>> choiceList = new ArrayList<>();
+        choices.getGuardedValues().forEach(x -> choiceList.add(new PrimVS<>(x.value).guard(x.guard)));
+        schedule.addSenderChoice(choiceList, choiceDepth);
+        schedule.addRepeatSender(choices, choiceDepth);
+        choiceDepth++;
         return choices;
+    }
+
+    public PrimVS<Machine> getNextSender() {
+        return getNextSender(getNextSenderChoices());
     }
 
     public void step() {
@@ -184,6 +256,30 @@ public class Scheduler implements SymbolicSearch {
             done = true;
             return;
         }
+
+        /*
+        int n = choices.getGuardedValues().size();
+        int limit = 5; // n / 2 + 1;
+        int i = 0;
+
+        Event effect = null;
+        List<Event> effects = new ArrayList<>();
+        for (GuardedValue<Machine> sender : choices.getGuardedValues()) {
+            Machine machine = sender.value;
+            Bdd guard = sender.guard;
+            if (i < limit) {
+                if (effect == null) {
+                    effect = machine.sendEffects.remove(guard);
+                } else {
+                    effects.add(machine.sendEffects.remove(guard));
+                }
+            } else {
+                ScheduleLogger.log("omitting " + i);
+                machine.sendEffects.remove(guard);
+            }
+            i++;
+        }
+        */
 
         Event effect = null;
         List<Event> effects = new ArrayList<>();
@@ -196,7 +292,6 @@ public class Scheduler implements SymbolicSearch {
                 effects.add(machine.sendEffects.remove(guard));
             }
         }
-
         effect = effect.merge(effects);
         ScheduleLogger.schedule(depth, effect);
         performEffect(effect);

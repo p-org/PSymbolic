@@ -40,6 +40,7 @@ public abstract class State extends HasId {
         for (GuardedValue<EventName> entry : event.getName().getGuardedValues()) {
             EventName name = entry.value;
             Bdd eventPc = entry.guard;
+            assert(event.guard(eventPc).getName().getGuardedValues().size() == 1);
             PrimVS<State> current = new PrimVS<>(this).guard(eventPc);
             ListVS<PrimVS<State>> stack = machine.getStack().guard(eventPc);
             ScheduleLogger.handle(machine,this, event.guard(entry.guard));

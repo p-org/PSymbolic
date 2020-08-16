@@ -10,8 +10,6 @@ public class ReplayScheduler extends Scheduler {
 
     /** Schedule to replay */
     private final Schedule schedule;
-    int boolChoiceDepth = 0;
-    int intChoiceDepth = 0;
 
     public ReplayScheduler (Schedule schedule) {
         this(schedule, Bdd.constTrue());
@@ -56,21 +54,23 @@ public class ReplayScheduler extends Scheduler {
 
     @Override
     public PrimVS<Machine> getNextSender() {
-        return schedule.getSender(getDepth());
+        PrimVS<Machine> res = schedule.getRepeatSender(choiceDepth);
+        choiceDepth++;
+        return res;
     }
 
     @Override
     public PrimVS<Boolean> getNextBoolean(Bdd pc) {
-        PrimVS<Boolean> res = schedule.getBoolChoice(boolChoiceDepth);
-        boolChoiceDepth++;
+        PrimVS<Boolean> res = schedule.getRepeatBool(choiceDepth);
+        choiceDepth++;
         return res;
     }
 
     @Override
     public PrimVS<Integer> getNextInteger(int bound, Bdd pc) {
-        PrimVS<Integer> res = schedule.getIntChoice(intChoiceDepth);
+        PrimVS<Integer> res = schedule.getRepeatInt(choiceDepth);
         assert(IntUtils.maxValue(res) < bound);
-        intChoiceDepth++;
+        choiceDepth++;
         return res;
     }
 
