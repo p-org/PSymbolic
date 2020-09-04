@@ -3,22 +3,32 @@ package symbolicp.runtime;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.*;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Schedule {
 
-    public interface Choice {}
+    private Bdd filter = Bdd.constTrue();
 
-    public class RepeatChoice implements Choice {
+    public Bdd getFilter() {
+        return filter;
+    }
+
+    public void setFilter(Bdd set) {
+        filter = set;
+    }
+
+    public class Choice {
         PrimVS<Machine> senderChoice = new PrimVS<>();
         PrimVS<Boolean> boolChoice = new PrimVS<>();
         PrimVS<Integer> intChoice = new PrimVS<>();
+        PrimVS<ValueSummary> elementChoice = new PrimVS<>();
 
-        public RepeatChoice() {
+        public Choice() {
         }
 
-        public RepeatChoice(PrimVS<Machine> senderChoice, PrimVS<Boolean> boolChoice, PrimVS<Integer> intChoice) {
+        public Choice(PrimVS<Machine> senderChoice, PrimVS<Boolean> boolChoice, PrimVS<Integer> intChoice) {
             this.senderChoice = senderChoice;
             this.boolChoice = boolChoice;
             this.intChoice = intChoice;
@@ -28,11 +38,16 @@ public class Schedule {
             return senderChoice.getUniverse().or(boolChoice.getUniverse().or(intChoice.getUniverse()));
         }
 
-        public RepeatChoice guard(Bdd pc) {
-            RepeatChoice c = new RepeatChoice();
+        public boolean isEmpty() {
+            return getUniverse().isConstFalse();
+        }
+
+        public Choice guard(Bdd pc) {
+            Choice c = new Choice();
             c.senderChoice = senderChoice.guard(pc);
             c.boolChoice = boolChoice.guard(pc);
             c.intChoice = intChoice.guard(pc);
+            c.elementChoice = elementChoice.guard(pc);
             return c;
         }
 
@@ -48,136 +63,157 @@ public class Schedule {
             intChoice = choice;
         }
 
+        public void addElementChoice(PrimVS<ValueSummary> choice) {
+            elementChoice = choice;
+        }
+
         public void clear() {
             senderChoice = new PrimVS<>();
             boolChoice = new PrimVS<>();
             intChoice = new PrimVS<>();
+            elementChoice = new PrimVS<>();
         }
     }
 
-    public class Choices implements Choice {
-        List<PrimVS<Machine>> senderChoice = new ArrayList<>();
-        List<PrimVS<Boolean>> boolChoice = new ArrayList<>();
-        List<PrimVS<Integer>> intChoice = new ArrayList<>();
+    List<Choice> fullChoice = new ArrayList<>();
+    List<Choice> repeatChoice = new ArrayList<>();
+    List<Choice> backtrackChoice = new ArrayList<>();
+    int previousTransitionOverlap = 0;
+    List<Integer> transitionCount = new ArrayList<>();
+    int totalTransitionCountAllIterations = 0;
+    int totalNewTransitionCountAllIterations = 0;
 
-        public Choices() {
-        }
-
-        public Choices guard(Bdd pc) {
-            Choices c = new Choices();
-            c.senderChoice = senderChoice.stream().map(x -> x.guard(pc)).collect(Collectors.toList());
-            c.boolChoice = new ArrayList<>(boolChoice);
-            c.intChoice = new ArrayList<>(intChoice);
-            return c;
-        }
-
-        public Choices(List<PrimVS<Machine>> senderChoice, List<PrimVS<Boolean>> boolChoice, List<PrimVS<Integer>> intChoice) {
-            this.senderChoice = new ArrayList<>(senderChoice);
-            this.boolChoice = new ArrayList<>(boolChoice);
-            this.intChoice = new ArrayList<>(intChoice);
-        }
-
-        public boolean isEmpty() {
-            return senderChoice.isEmpty() && boolChoice.isEmpty() && intChoice.isEmpty();
-        }
-
-        public void addSenderChoice(List<PrimVS<Machine>> choice) {
-            senderChoice = new ArrayList<>(choice);
-        }
-
-        public void addBoolChoice(List<PrimVS<Boolean>> choice) {
-            boolChoice = new ArrayList<>(choice);
-        }
-
-        public void addIntChoice(List<PrimVS<Integer>> choice) {
-            intChoice = new ArrayList<>(choice);
-            ;
-        }
-
-        public void clear() {
-            senderChoice = new ArrayList<>();
-            boolChoice = new ArrayList<>();
-            intChoice = new ArrayList<>();
+    public void addTransition(int depth) {
+        if (depth >= transitionCount.size()) {
+            transitionCount.add(1);
+        } else {
+            transitionCount.set(depth, transitionCount.get(depth) + 1);
         }
     }
 
-    List<Choices> fullChoice = new ArrayList<>();
-    List<RepeatChoice> repeatChoice = new ArrayList<>();
-    List<Choices> backtrackChoice = new ArrayList<>();
+    public void resetTransitionCount() {
+        previousTransitionOverlap = 0;
+        int scheduleChoices = 0;
+        for (Choice choice : repeatChoice) {
+            if (!choice.senderChoice.isEmptyVS()) scheduleChoices++;
+        }
+        for (int i = 0; i < scheduleChoices; i++) {
+            if (!repeatChoice.get(i).isEmpty()) {
+                previousTransitionOverlap += transitionCount.get(i);
+            }
+        }
+        transitionCount.clear();
+    }
 
-    public void addSenderChoice(List<PrimVS<Machine>> choice, int depth) {
+    public int getNumBacktracks() {
+        int count = 0;
+        for (Choice backtrack : backtrackChoice) {
+            if (!backtrack.isEmpty()) count++;
+        }
+        return count;
+    }
+
+
+    public void addSenderChoice(PrimVS<Machine> choice, int depth) {
         if (depth >= fullChoice.size()) {
-            fullChoice.add(new Choices());
+            fullChoice.add(new Choice());
         }
         fullChoice.get(depth).addSenderChoice(choice);
     }
 
-    public void addBoolChoice(List<PrimVS<Boolean>> choice, int depth) {
+    public void addBoolChoice(PrimVS<Boolean> choice, int depth) {
         if (depth >= fullChoice.size()) {
-            fullChoice.add(new Choices());
+            fullChoice.add(new Choice());
         }
         fullChoice.get(depth).addBoolChoice(choice);
     }
 
-    public void addIntChoice(List<PrimVS<Integer>> choice, int depth) {
+    public void addIntChoice(PrimVS<Integer> choice, int depth) {
         if (depth >= fullChoice.size()) {
-            fullChoice.add(new Choices());
+            fullChoice.add(new Choice());
         }
         fullChoice.get(depth).addIntChoice(choice);
     }
 
-    public void addRepeatSender(PrimVS<Machine> choice, int depth) {
-        if (depth >= repeatChoice.size()) {
-            repeatChoice.add(new RepeatChoice());
+    public void addElementChoice(PrimVS<ValueSummary> choice, int depth) {
+        if (depth >= fullChoice.size()) {
+            fullChoice.add(new Choice());
         }
-        repeatChoice.get(depth).addSenderChoice(choice);
+        fullChoice.get(depth).addElementChoice(choice);
+    }
+
+    public void addRepeatSender(PrimVS<Machine> choice, int depth) {
+        // filter = filter.and(choice.getUniverse());
+        if (depth >= repeatChoice.size()) {
+            repeatChoice.add(new Choice());
+        }
+        repeatChoice.get(depth).addSenderChoice(choice.guard(filter));
     }
 
     public void addRepeatBool(PrimVS<Boolean> choice, int depth) {
         if (depth >= repeatChoice.size()) {
-            repeatChoice.add(new RepeatChoice());
+            repeatChoice.add(new Choice().guard(filter));
         }
-        repeatChoice.get(depth).addBoolChoice(choice);
+        repeatChoice.get(depth).addBoolChoice(choice.guard(filter));
     }
 
     public void addRepeatInt(PrimVS<Integer> choice, int depth) {
         if (depth >= repeatChoice.size()) {
-            repeatChoice.add(new RepeatChoice());
+            repeatChoice.add(new Choice());
         }
-        repeatChoice.get(depth).addIntChoice(choice);
+        repeatChoice.get(depth).addIntChoice(choice.guard(filter));
     }
 
-    public void addBacktrackSender(List<PrimVS<Machine>> choice, int depth) {
+    public void addRepeatElement(PrimVS<ValueSummary> choice, int depth) {
+        filter = filter.and(choice.getUniverse());
+        if (depth >= repeatChoice.size()) {
+            repeatChoice.add(new Choice());
+        }
+        repeatChoice.get(depth).addElementChoice(choice.guard(filter));
+    }
+
+    public void addBacktrackSender(PrimVS<Machine> choice, int depth) {
         if (depth >= backtrackChoice.size()) {
-            backtrackChoice.add(new Choices());
+            backtrackChoice.add(new Choice());
         }
         backtrackChoice.get(depth).addSenderChoice(choice);
     }
 
-    public void addBacktrackBool(List<PrimVS<Boolean>> choice, int depth) {
+    public void addBacktrackBool(PrimVS<Boolean> choice, int depth) {
         if (depth >= backtrackChoice.size()) {
-            backtrackChoice.add(new Choices());
+            backtrackChoice.add(new Choice());
         }
         backtrackChoice.get(depth).addBoolChoice(choice);
     }
 
-    public void addBacktrackInt(List<PrimVS<Integer>> choice, int depth) {
+    public void addBacktrackInt(PrimVS<Integer> choice, int depth) {
         if (depth >= backtrackChoice.size()) {
-            backtrackChoice.add(new Choices());
+            backtrackChoice.add(new Choice());
         }
         backtrackChoice.get(depth).addIntChoice(choice);
     }
 
-    public List<PrimVS<Machine>> getSenderChoice(int depth) {
+    public void addBacktrackElement(PrimVS<ValueSummary> choice, int depth) {
+        if (depth >= backtrackChoice.size()) {
+            backtrackChoice.add(new Choice());
+        }
+        backtrackChoice.get(depth).addElementChoice(choice);
+    }
+
+    public PrimVS<Machine> getSenderChoice(int depth) {
         return fullChoice.get(depth).senderChoice;
     }
 
-    public List<PrimVS<Boolean>> getBoolChoice(int depth) {
+    public PrimVS<Boolean> getBoolChoice(int depth) {
         return fullChoice.get(depth).boolChoice;
     }
 
-    public List<PrimVS<Integer>> getIntChoice(int depth) {
+    public PrimVS<Integer> getIntChoice(int depth) {
         return fullChoice.get(depth).intChoice;
+    }
+
+    public ValueSummary getElementChoice(int depth) {
+        return fullChoice.get(depth).elementChoice;
     }
 
     public PrimVS<Machine> getRepeatSender(int depth) {
@@ -188,27 +224,30 @@ public class Schedule {
         return repeatChoice.get(depth).boolChoice;
     }
 
-    public PrimVS<Integer> getRepeatInt(int depth) {
-        return repeatChoice.get(depth).intChoice;
-    }
+    public PrimVS<Integer> getRepeatInt(int depth) { return repeatChoice.get(depth).intChoice; }
 
-    public List<PrimVS<Machine>> getBacktrackSender(int depth) {
+    public PrimVS<ValueSummary> getRepeatElement(int depth) { return repeatChoice.get(depth).elementChoice; }
+
+    public PrimVS<Machine> getBacktrackSender(int depth) {
         return backtrackChoice.get(depth).senderChoice;
     }
 
-    public List<PrimVS<Boolean>> getBacktrackBool(int depth) {
+    public PrimVS<Boolean> getBacktrackBool(int depth) {
         return backtrackChoice.get(depth).boolChoice;
     }
 
-    public List<PrimVS<Integer>> getBacktrackInt(int depth) {
+    public PrimVS<Integer> getBacktrackInt(int depth) {
         return backtrackChoice.get(depth).intChoice;
     }
+
+    public PrimVS<ValueSummary> getBacktrackElement(int depth) { return backtrackChoice.get(depth).elementChoice; }
 
     public void clearChoice(int depth) {
         fullChoice.get(depth).clear();
     }
 
     public void clearRepeat(int depth) {
+        Choice choice = repeatChoice.get(depth);
         repeatChoice.get(depth).clear();
     }
 
@@ -228,9 +267,9 @@ public class Schedule {
     public Schedule() {
     }
 
-    private Schedule(List<Choices> fullChoice,
-                     List<RepeatChoice> repeatChoice,
-                     List<Choices> backtrackChoice,
+    private Schedule(List<Choice> fullChoice,
+                     List<Choice> repeatChoice,
+                     List<Choice> backtrackChoice,
                      Map<Class<? extends Machine>, ListVS<PrimVS<Machine>>> createdMachines,
                      Set<Machine> machines,
                      Bdd pc) {
@@ -247,19 +286,25 @@ public class Schedule {
     }
 
     public Schedule guard(Bdd pc) {
-        List<Choices> newFullChoice = new ArrayList<>();
-        List<RepeatChoice> newRepeatChoice = new ArrayList<>();
-        List<Choices> newBacktrackChoice = new ArrayList<>();
-        for (Choices c : fullChoice) {
+        List<Choice> newFullChoice = new ArrayList<>();
+        List<Choice> newRepeatChoice = new ArrayList<>();
+        List<Choice> newBacktrackChoice = new ArrayList<>();
+        for (Choice c : fullChoice) {
             newFullChoice.add(c.guard(pc));
         }
-        for (RepeatChoice c : repeatChoice) {
+        for (Choice c : repeatChoice) {
             newRepeatChoice.add(c.guard(pc));
         }
-        for (Choices c : backtrackChoice) {
+        for (Choice c : backtrackChoice) {
             newBacktrackChoice.add(c.guard(pc));
         }
         return new Schedule(newFullChoice, newRepeatChoice, newBacktrackChoice, createdMachines, machines, pc);
+    }
+
+    public void guardRepeat(Bdd pc) {
+        for (int i = 0; i < repeatChoice.size(); i++) {
+            repeatChoice.set(i, repeatChoice.get(i).guard(pc));
+        }
     }
 
     public void makeMachine(Machine m, Bdd pc) {
@@ -275,8 +320,8 @@ public class Schedule {
     public boolean hasMachine(Class<? extends Machine> type, PrimVS<Integer> idx, Bdd otherPc) {
         if (!createdMachines.containsKey(type)) return false;
         // TODO: may need fixing
-        ScheduleLogger.log("has machine of type");
-        ScheduleLogger.log(idx + " in range? " + createdMachines.get(type).inRange(idx).getGuard(false));
+        //ScheduleLogger.log("has machine of type");
+        //ScheduleLogger.log(idx + " in range? " + createdMachines.get(type).inRange(idx).getGuard(false));
         if (!createdMachines.get(type).inRange(idx).getGuard(false).isConstFalse()) return false;
         PrimVS<Machine> machines = createdMachines.get(type).get(idx);
         return !machines.guard(pc).guard(otherPc).getUniverse().isConstFalse();
@@ -289,8 +334,8 @@ public class Schedule {
 
     public Schedule getSingleSchedule() {
         Bdd pc = Bdd.constTrue();
-        for (RepeatChoice choice : repeatChoice) {
-            RepeatChoice guarded = choice.guard(pc);
+        for (Choice choice : repeatChoice) {
+            Choice guarded = choice.guard(pc);
             PrimVS<Machine> sender = guarded.senderChoice;
             if (sender.getGuardedValues().size() > 0) {
                 pc = pc.and(sender.getGuardedValues().get(0).guard);
@@ -312,5 +357,56 @@ public class Schedule {
     public Bdd getLengthCond(int size) {
         if (size == 0) return Bdd.constFalse();
         return repeatChoice.get(size - 1).getUniverse();
+    }
+
+    public void printSchedule(FileWriter writer, int iter) {
+        int i = 0;
+        int transitionCountTotal = transitionCount.stream().reduce(0, (x, y) -> x + y);
+        totalTransitionCountAllIterations += transitionCountTotal;
+        totalNewTransitionCountAllIterations += transitionCountTotal - previousTransitionOverlap;
+        try {
+            writer.append("Iter " + iter + ": ");
+            writer.append(System.lineSeparator());
+            writer.append("Running Total Transitions:" + totalTransitionCountAllIterations);
+            writer.append(System.lineSeparator());
+            writer.append("Running Total New Transitions: " + totalNewTransitionCountAllIterations);
+            writer.append(System.lineSeparator());
+            writer.append("Total Transitions:" + transitionCountTotal);
+            writer.append(System.lineSeparator());
+            writer.append("Total New Transitions: " + (transitionCountTotal - previousTransitionOverlap));
+            int choice = 0;
+            for (Choice rc : repeatChoice) {
+                writer.append(System.lineSeparator());
+                writer.append("Choice " + choice++ +": ");
+                if (!rc.boolChoice.isEmptyVS()) {
+                    writer.append(rc.boolChoice.toString());
+                }
+                if (!rc.intChoice.isEmptyVS()) {
+                    writer.append(rc.intChoice.toString());
+                }
+                if (!rc.senderChoice.isEmptyVS()) {
+                    writer.append(rc.senderChoice.toString());
+                }
+            }
+            /*
+            choice = 0;
+            writer.append(System.lineSeparator());
+            writer.append("Counts " + iter + ": ");
+            for (Choice rc : repeatChoice) {
+                writer.append(System.lineSeparator());
+                writer.append("Choice " + choice++ + ": ");
+                if (!rc.boolChoice.isEmptyVS()) {
+                    writer.append(rc.boolChoice.getValues().size() + "");
+                }
+                if (!rc.intChoice.isEmptyVS()) {
+                    writer.append(rc.intChoice.getValues().size() + "");
+                }
+                if (!rc.senderChoice.isEmptyVS()) {
+                    writer.append(rc.senderChoice.getValues().size() + "");
+                }
+            } */
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

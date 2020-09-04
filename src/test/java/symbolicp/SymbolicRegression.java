@@ -1,7 +1,9 @@
 package symbolicp;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.Executable;
 import symbolicp.runtime.CompilerLogger;
 
@@ -11,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,7 +34,7 @@ public class SymbolicRegression {
         for (File dir : directories) {
             try (Stream<Path> walk = Files.walk(Paths.get(dir.toURI()))) {
                 Stream<String> projectFilesStream = walk.map(Path::toString)
-                        .filter(f -> f.endsWith(".p"));
+                        .filter(f -> f.endsWith(".java") || f.endsWith(".p"));
                 if (excluded != null) {
                     projectFilesStream = projectFilesStream.filter(f -> Arrays.stream(excluded).noneMatch(f::contains));
                 }
@@ -83,7 +86,8 @@ public class SymbolicRegression {
         }
         return dynamicTests;
     }
-/*
+
+    /*
     @TestFactory
     Collection<DynamicTest> loadStandardRegressions() {
         return loadTests("../Tst/RegressionTests/", new String[] {"Feature5ModuleSystem/"});
@@ -91,8 +95,9 @@ public class SymbolicRegression {
     */
 
     @TestFactory
+    @Timeout(value = 3, unit = TimeUnit.HOURS)
     Collection<DynamicTest> loadSymbolicRegressions() {
-        return loadTests("../Tst/SymbolicRegressionTests/", null);
+        return loadTests("./SymbolicRegressionTests/TwoPhaseCommitMultipleTransactions", null);
     }
 
 }

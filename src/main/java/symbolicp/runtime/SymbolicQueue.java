@@ -48,7 +48,9 @@ public class SymbolicQueue<T extends ValueSummary<T>> {
     }
 
     public T dequeueEntry(Bdd pc) {
-        return peekOrDequeueHelper(pc, true);
+        T res = peekOrDequeueHelper(pc, true);
+        return res;
+        //return peekOrDequeueHelper(pc, true);
     }
 
     public T peek(Bdd pc) {

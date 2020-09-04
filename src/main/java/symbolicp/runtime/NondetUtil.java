@@ -1,7 +1,9 @@
 package symbolicp.runtime;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.util.Checks;
 import symbolicp.util.ValueSummaryUnionFind;
+import symbolicp.vs.GuardedValue;
 import symbolicp.vs.PrimVS;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,6 +34,7 @@ public class NondetUtil {
 
     public static PrimVS getNondetChoiceAlt(List<PrimVS> choices) {
         if (choices.size() == 0) return new PrimVS<>();
+        if (choices.size() == 1) return choices.get(0);
         List<PrimVS> results = new ArrayList<>();
         PrimVS empty = choices.get(0).guard(Bdd.constFalse());
         List<Bdd> choiceVars = new ArrayList<>();
@@ -69,6 +72,7 @@ public class NondetUtil {
 
     public static PrimVS getNondetChoice(List<PrimVS> choices) {
         if (choices.size() == 0) return new PrimVS<>();
+        if (choices.size() == 1) return choices.get(0);
         List<PrimVS> results = new ArrayList<>();
         PrimVS empty = choices.get(0).guard(Bdd.constFalse());
         List<Bdd> choiceVars = new ArrayList<>();
@@ -122,8 +126,26 @@ public class NondetUtil {
             results.add(guarded);
             residualPc = residualPc.and(enabledCond.not());
         }
-
         return results;
     }
 
+    public static Bdd chooseGuard(int n, PrimVS choice) {
+        Bdd guard = Bdd.constFalse();
+        if (choice.getGuardedValues().size() <= n) return Bdd.constTrue();
+        for (GuardedValue guardedValue : (List<GuardedValue>) choice.getGuardedValues()) {
+            if (n == 0) break;
+            guard = guard.or(guardedValue.guard);
+            n--;
+        }
+        return guard;
+    }
+
+    public static PrimVS excludeChoice(Bdd guard, PrimVS choice) {
+        PrimVS newChoice = choice.guard(guard.not());
+        List<GuardedValue> guardedValues = newChoice.getGuardedValues();
+        if (guardedValues.size() > 0) {
+            newChoice.merge(new PrimVS(guardedValues.iterator().next().value).guard(guard));
+        }
+        return newChoice;
+    }
 }

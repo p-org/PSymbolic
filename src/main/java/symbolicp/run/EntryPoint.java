@@ -16,13 +16,16 @@ import java.util.stream.Stream;
 
 public class EntryPoint {
 
+    public static int prog = 0;
+    public static Instant start = Instant.now();
+
     public static void run(Program p, int depth, int maxInternalSteps) {
-        Scheduler scheduler = new Scheduler();
+        Bdd.reset();
+        BoundedScheduler scheduler = new BoundedScheduler(1000, 1, 1000);
         p.setScheduler(scheduler);
-        int step = 0;
         scheduler.setErrorDepth(depth);
         scheduler.setMaxInternalSteps(maxInternalSteps);
-        Instant start = Instant.now();
+        start = Instant.now();
         try {
             scheduler.doSearch(p.getStart());
             ScheduleLogger.enable();
@@ -39,6 +42,7 @@ public class EntryPoint {
             Instant end = Instant.now();
             ScheduleLogger.enable();
             CompilerLogger.log("Took " + Duration.between(start, end).getSeconds() + " seconds");
+            prog++;
         }
     }
 

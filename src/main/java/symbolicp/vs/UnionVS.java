@@ -37,6 +37,10 @@ public class UnionVS implements ValueSummary<UnionVS> {
         this(vs.getUniverse(), vs.getClass(), vs);
     }
 
+    public boolean hasType(Class<? extends ValueSummary> queryType) {
+        return !type.getGuard(queryType).isConstFalse();
+    }
+
     public PrimVS<Class<? extends ValueSummary>> getType() {
         return type;
     }

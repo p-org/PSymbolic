@@ -1,24 +1,35 @@
 package symbolicp.runtime;
 
-import org.checkerframework.checker.units.qual.A;
 import symbolicp.bdd.Bdd;
+import symbolicp.run.EntryPoint;
 import symbolicp.vs.GuardedValue;
 import symbolicp.vs.IntUtils;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.ValueSummary;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.function.*;
+import java.util.stream.Collectors;
 
 public class BoundedScheduler extends Scheduler {
     int iter = 0;
     int senderBound;
+    int boolBound;
+    int intBound;
+
     private boolean isDoneIterating = false;
 
-    public BoundedScheduler(int senderBound) {
+    public BoundedScheduler(int senderBound, int boolBound, int intBound) {
         super();
         this.senderBound = senderBound;
+        this.boolBound = boolBound;
+        this.intBound = intBound;
     }
 
     @Override
@@ -28,21 +39,32 @@ public class BoundedScheduler extends Scheduler {
             super.doSearch(target);
             postIterationCleanup();
             iter++;
-            if (iter > 10) return;
         }
     }
 
     public void postIterationCleanup() {
         ScheduleLogger.log("Cleanup!");
+        try (FileWriter schedules = new FileWriter("/Users/lpick/schedules/prog" + EntryPoint.prog + "_iter" + iter + ".txt")) {
+            schedule.printSchedule(schedules, iter);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }// if (iter == 10000) isDoneIterating = true;
         for (int d = schedule.size() - 1; d >= 0; d--) {
-            Schedule.Choices backtrack = schedule.backtrackChoice.get(d);
+            Schedule.Choice backtrack = schedule.backtrackChoice.get(d);
             schedule.clearRepeat(d);
-            if (!backtrack.isEmpty()) {;
+            if (!backtrack.isEmpty()) {
                 for (Machine machine : schedule.getMachines()) {
                     machine.reset();
                 }
                 ScheduleLogger.log("backtrack to " + d);
+                ScheduleLogger.log("pending backtracks: " + schedule.getNumBacktracks());
+                schedule.setFilter(Bdd.constTrue()); //backtrack.getUniverse();
+                schedule.resetTransitionCount();
                 reset();
+                if ((iter - 1) % 100 != 0) {
+                    File file = new File("/Users/lpick/schedules/prog" + EntryPoint.prog + "_iter" + (iter - 1) + ".txt");
+                    file.delete();
+                }
                 return;
             } else {
                 schedule.clearChoice(d);
@@ -63,108 +85,66 @@ public class BoundedScheduler extends Scheduler {
  */
     }
 
-    private PrimVS getNext(int depth, int bound, Function<Integer, PrimVS> getRepeat, Function<Integer, List> getBacktrack,
+    private PrimVS getNext(int depth, int bound, Function<Integer, PrimVS> getRepeat, Function<Integer, PrimVS> getBacktrack,
                            Consumer<Integer> clearBacktrack, BiConsumer<PrimVS, Integer> addRepeat,
-                           BiConsumer<List, Integer> addBacktrack, Supplier<List> getChoices,
+                           BiConsumer<PrimVS, Integer> addBacktrack, Supplier<List> getChoices,
                            Function<List, PrimVS> generateNext) {
-        List choices = new ArrayList<>();
+        PrimVS choices = new PrimVS();
         if (depth < schedule.size()) {
-            ScheduleLogger.log("repeat or backtrack");
+            // ScheduleLogger.log("repeat or backtrack");
             PrimVS repeat = getRepeat.apply(depth);
             if (!repeat.getUniverse().isConstFalse()) {
                 return repeat;
             }
-            ScheduleLogger.log("CHOSE FROM backtrack: " + getBacktrack.apply(depth));
+            // ScheduleLogger.log("CHOSE FROM backtrack: " + getBacktrack.apply(depth));
             // nothing to repeat, so look at backtrack set
             choices = getBacktrack.apply(depth);
             clearBacktrack.accept(depth);
         }
 
-        if (choices.isEmpty()) {
+        if (choices.isEmptyVS()) {
             // no choice to backtrack to, so generate new choices
             if (iter > 0)
                 ScheduleLogger.log("new choice at depth " + depth);
-            choices = getChoices.get();
+            choices = generateNext.apply(getChoices.get());
         }
 
-        ScheduleLogger.log("choose from " + choices);
-        int limit = Math.min(choices.size(), bound);
-        List chosen = choices.subList(0, limit);
-        List backtrack = new ArrayList();
-        if (limit < choices.size())
-            backtrack = choices.subList(limit, choices.size());
-
-        PrimVS chosenVS = generateNext.apply(chosen);
-        ScheduleLogger.log("add repeat " + chosenVS);
+        // ScheduleLogger.log("choose from " + choices);
+        Bdd guard = NondetUtil.chooseGuard(bound, choices);
+        PrimVS chosenVS = choices.guard(guard).guard(schedule.getFilter());
+        PrimVS backtrackVS = choices.guard(guard.not());
+        //("add repeat " + chosenVS);
         addRepeat.accept(chosenVS, depth);
-        ScheduleLogger.log("add backtrack " + backtrack);
-        if (backtrack.size() != 0) {
-            ScheduleLogger.log("NEED TO BACKTRACK TO " + depth + ", remaining: " + backtrack);
+        // ScheduleLogger.log("add backtrack " + backtrackVS);
+        if (!backtrackVS.isEmptyVS()) {
+            // ScheduleLogger.log("NEED TO BACKTRACK TO " + depth + ", remaining: " + backtrackVS);
         }
-        addBacktrack.accept(backtrack, depth);
+        addBacktrack.accept(backtrackVS, depth);
         return chosenVS;
     }
 
     @Override
     public PrimVS<Machine> getNextSender() {
         int depth = choiceDepth;
-        int startSize = schedule.size();
         PrimVS<Machine> res = getNext(depth, senderBound, schedule::getRepeatSender, schedule::getBacktrackSender,
                 schedule::clearBacktrack, schedule::addRepeatSender, schedule::addBacktrackSender, super::getNextSenderChoices,
                 super::getNextSender);
+        schedule.setFilter(schedule.getFilter().and(res.getUniverse()));
+        /*
         ScheduleLogger.log("choice: " + schedule.getRepeatSender(depth));
         ScheduleLogger.log("backtrack: " + schedule.getBacktrackSender(depth));
         ScheduleLogger.log("full choice: " + schedule.getSenderChoice(depth));
-        /*
-        for (GuardedValue<Machine> sender : schedule.getSenderBacktrack(depth).getGuardedValues()) {
-            Machine machine = sender.value;
-            Bdd guard = sender.guard;
-            assert(guard.and(res.getUniverse()).isConstFalse());
-            machine.sendEffects.remove(guard);
-        }
          */
-/*
-        for (Machine machine : machines) {
-            if (!machine.sendEffects.isEmpty()) {
-                Bdd initCond = machine.sendEffects.enabledCondInit().getGuard(true);
-                if (!initCond.isConstFalse()) {
-                    return new PrimVS<>(machine).guard(initCond);
-                }
-                Bdd canRun = machine.sendEffects.enabledCond(Event::canRun).getGuard(true);
-                if (!canRun.isConstFalse()) {
-                    if (canRun.and(res.getUniverse()).isConstFalse()) {
-                        machine.sendEffects.remove(canRun);
-                    }
-                }
+        for (GuardedValue<Machine> sender : schedule.getRepeatSender(depth).getGuardedValues()) {
+            Machine machine = sender.value;
+            // ScheduleLogger.log("choice " + machine + " guard: " + sender.guard);
+            //cheduleLogger.log("enabled guard: " + machine.sendEffects.enabledCond(Event::canRun));
+            Bdd guard = machine.sendEffects.enabledCond(Event::canRun).getGuard(true).and(schedule.getRepeatSender(depth).getUniverse().not());
+            if (!guard.isConstFalse()) {
+                machine.sendEffects.remove(guard);
+                // ScheduleLogger.log("remove guard from sender " + machine + ": " + guard);
             }
         }
-
- */
-/*
-        for (Machine machine : machines) {
-            if (!machine.sendEffects.isEmpty()) {
-                ScheduleLogger.log("nonempty send effect at machine: " + machine);
-                Bdd initCond = machine.sendEffects.enabledCondInit().getGuard(true);
-                if (!initCond.isConstFalse()) {
-                    ScheduleLogger.log("peek init: " + machine.sendEffects.peek(initCond));
-                }
-                Bdd canRun = machine.sendEffects.enabledCond(Event::canRun).getGuard(true);
-                if (!canRun.isConstFalse()) {
-                    ScheduleLogger.log("peek canRun: " + machine.sendEffects.peek(canRun));
-                    // ScheduleLogger.log("canRun: " + canRun);
-                }
-            } else {
-                ScheduleLogger.log("empty send effect at machine: " + machine);
-            }
-        }
-
- */
-        /*
-        ScheduleLogger.log("depth: " + depth);
-        ScheduleLogger.log("schedule size: " + schedule.size());
-        ScheduleLogger.log("Backtrack: " + schedule.getSenderBacktrack(depth));
-        ScheduleLogger.log("Leftover: " + schedule.getSender(depth).guard(res.getUniverse().not()));
-        */
         choiceDepth = depth + 1;
         return res;
     }
@@ -172,22 +152,32 @@ public class BoundedScheduler extends Scheduler {
     @Override
     public PrimVS<Boolean> getNextBoolean(Bdd pc) {
         int depth = choiceDepth;
-        PrimVS<Boolean> res = getNext(depth, senderBound, schedule::getRepeatBool, schedule::getBacktrackBool,
+        PrimVS<Boolean> res = getNext(depth, boolBound, schedule::getRepeatBool, schedule::getBacktrackBool,
                 schedule::clearBacktrack, schedule::addRepeatBool, schedule::addBacktrackBool,
                 () -> super.getNextBooleanChoices(pc), super::getNextBoolean);
-        ScheduleLogger.log("choice: " + schedule.getBoolChoice(depth));
+        //ScheduleLogger.log("choice: " + schedule.getBoolChoice(depth));
         choiceDepth = depth + 1;
         return res;
     }
 
     @Override
-    public PrimVS<Integer> getNextInteger(int bound, Bdd pc) {
+    public PrimVS<Integer> getNextInteger(PrimVS<Integer> bound, Bdd pc) {
         int depth = choiceDepth;
-        PrimVS<Integer> res = getNext(depth, senderBound, schedule::getRepeatInt, schedule::getBacktrackInt,
+        PrimVS<Integer> res = getNext(depth, intBound, schedule::getRepeatInt, schedule::getBacktrackInt,
                 schedule::clearBacktrack, schedule::addRepeatInt, schedule::addBacktrackInt,
                 () -> super.getNextIntegerChoices(bound, pc), super::getNextInteger);
         choiceDepth = depth + 1;
         return res;
+    }
+
+    @Override
+    public ValueSummary getNextElement(Set<ValueSummary> candidates, Bdd pc) {
+        int depth = choiceDepth;
+        PrimVS<ValueSummary> res = getNext(depth, senderBound, schedule::getRepeatElement, schedule::getBacktrackElement,
+                schedule::clearBacktrack, schedule::addRepeatElement, schedule::addBacktrackElement,
+                () -> super.getNextElementChoices(candidates, pc), super::getNextElementHelper);
+        choiceDepth = depth + 1;
+        return super.getNextElementFlattener(res);
     }
 
     @Override

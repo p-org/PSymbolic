@@ -3,6 +3,9 @@ package symbolicp.runtime;
 import symbolicp.bdd.Bdd;
 import symbolicp.runtime.Machine;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.ValueSummary;
+
+import java.util.Set;
 
 /** Search interface for exploring different schedules */
 public interface SymbolicSearch {
@@ -29,11 +32,18 @@ public interface SymbolicSearch {
      * @param bound upper bound (exclusive) on the integer.
      * @return a integer
      */
-    PrimVS<Integer> getNextInteger(int bound, Bdd pc);
+    PrimVS<Integer> getNextInteger(PrimVS<Integer> bound, Bdd pc);
 
     /** Return the next boolean based on the search and strategy.
      *
      * @return a boolean choice.
      */
     PrimVS<Boolean> getNextBoolean(Bdd pc);
+
+    /** Return the next element of a finite set based on the search and strategy.
+     *
+     * @param s set to choose from
+     * @return a integer
+     */
+    ValueSummary getNextElement(Set<ValueSummary> s, Bdd pc);
 }

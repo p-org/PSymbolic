@@ -22,6 +22,8 @@ public abstract class Machine extends HasId {
 
     public void setScheduler(Scheduler scheduler) { this.scheduler = scheduler; }
 
+    public Scheduler getScheduler() { return scheduler; }
+
     public PrimVS<Boolean> hasStarted() {
         return started;
     }

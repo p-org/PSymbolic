@@ -6,12 +6,11 @@ import symbolicp.run.Assert;
 import symbolicp.vs.GuardedValue;
 import symbolicp.vs.IntUtils;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.ValueSummary;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class Scheduler implements SymbolicSearch {
 
@@ -107,25 +106,24 @@ public class Scheduler implements SymbolicSearch {
         this.maxDepth = maxDepth;
     }
 
-    public List<PrimVS> getNextIntegerChoices(int bound, Bdd pc) {
+    public List<PrimVS> getNextIntegerChoices(PrimVS<Integer> bound, Bdd pc) {
         List<PrimVS> choices = new ArrayList<>();
-        for (int i = 0; i < bound; i++) {
-            choices.add(new PrimVS<>(i));
+        for (int i = 0; i < IntUtils.maxValue(bound); i++) {
+            Bdd cond = IntUtils.lessThan(i, bound).getGuard(true);
+            choices.add(new PrimVS<>(i).guard(cond));
         }
         return choices;
     }
 
     public PrimVS<Integer> getNextInteger(List<PrimVS> candidateIntegers) {
         PrimVS<Integer> choices = (PrimVS<Integer>) NondetUtil.getNondetChoice(candidateIntegers);
-        List<PrimVS<Integer>> choiceList = new ArrayList<>();
-        choices.getGuardedValues().forEach(x -> choiceList.add(new PrimVS<>(x.value).guard(x.guard)));
         schedule.addRepeatInt(choices, choiceDepth);
-        schedule.addIntChoice(choiceList, choiceDepth);
+        schedule.addIntChoice(choices, choiceDepth);
         return choices;
     }
 
     @Override
-    public PrimVS<Integer> getNextInteger(int bound, Bdd pc) {
+    public PrimVS<Integer> getNextInteger(PrimVS<Integer> bound, Bdd pc) {
         return getNextInteger(getNextIntegerChoices(bound, pc));
     }
 
@@ -138,16 +136,47 @@ public class Scheduler implements SymbolicSearch {
 
     public PrimVS<Boolean> getNextBoolean(List<PrimVS> candidateBooleans) {
         PrimVS<Boolean> choices = (PrimVS<Boolean>) NondetUtil.getNondetChoice(candidateBooleans);
-        List<PrimVS<Boolean>> choiceList = new ArrayList<>();
-        choices.getGuardedValues().forEach(x -> choiceList.add(new PrimVS<>(x.value).guard(x.guard)));
         schedule.addRepeatBool(choices, choiceDepth);
-        schedule.addBoolChoice(choiceList, choiceDepth);
+        schedule.addBoolChoice(choices, choiceDepth);
         return choices;
     }
 
     @Override
     public PrimVS<Boolean> getNextBoolean(Bdd pc) {
         return getNextBoolean(getNextBooleanChoices(pc));
+    }
+
+    public List<ValueSummary> getNextElementChoices(Set<ValueSummary> candidates, Bdd pc) {
+        return candidates.stream().map(x -> x.guard(pc)).collect(Collectors.toList());
+    }
+
+    public PrimVS<ValueSummary> getNextElementHelper(List<ValueSummary> candidates) {
+        PrimVS<ValueSummary> choices = NondetUtil.getNondetChoice(candidates.stream().map(x -> new PrimVS(x).guard(x.getUniverse())).collect(Collectors.toList()));
+        schedule.addRepeatElement(choices, choiceDepth);
+        schedule.addElementChoice(choices, choiceDepth);
+        return choices;
+    }
+    public ValueSummary getNextElementFlattener(PrimVS<ValueSummary> choices) {
+        ValueSummary flattened = null;
+        List<ValueSummary> toMerge = new ArrayList<>();
+        for (GuardedValue<ValueSummary> guardedValue : choices.getGuardedValues()) {
+            if (flattened == null) {
+                guardedValue.value.guard(guardedValue.guard);
+            } else {
+                toMerge.add(guardedValue.value.guard(guardedValue.guard));
+            }
+        }
+        if (flattened == null) {
+            flattened = new PrimVS<>();
+        } else {
+            flattened = flattened.merge(toMerge);
+        }
+        return flattened;
+    }
+
+    @Override
+    public ValueSummary getNextElement(Set<ValueSummary> candidates, Bdd pc) {
+        return getNextElementFlattener(getNextElementHelper(getNextElementChoices(candidates, pc)));
     }
 
     @Override
@@ -238,7 +267,7 @@ public class Scheduler implements SymbolicSearch {
         PrimVS<Machine> choices = (PrimVS<Machine>) NondetUtil.getNondetChoice(candidateSenders);
         List<PrimVS<Machine>> choiceList = new ArrayList<>();
         choices.getGuardedValues().forEach(x -> choiceList.add(new PrimVS<>(x.value).guard(x.guard)));
-        schedule.addSenderChoice(choiceList, choiceDepth);
+        schedule.addSenderChoice(choices, choiceDepth);
         schedule.addRepeatSender(choices, choiceDepth);
         choiceDepth++;
         return choices;

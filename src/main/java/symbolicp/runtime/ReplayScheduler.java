@@ -67,9 +67,9 @@ public class ReplayScheduler extends Scheduler {
     }
 
     @Override
-    public PrimVS<Integer> getNextInteger(int bound, Bdd pc) {
+    public PrimVS<Integer> getNextInteger(PrimVS<Integer> bound, Bdd pc) {
         PrimVS<Integer> res = schedule.getRepeatInt(choiceDepth);
-        assert(IntUtils.maxValue(res) < bound);
+        assert(IntUtils.lessThan(res, bound).getGuard(false).isConstFalse());
         choiceDepth++;
         return res;
     }

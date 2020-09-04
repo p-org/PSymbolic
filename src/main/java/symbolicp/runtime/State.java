@@ -51,6 +51,7 @@ public abstract class State extends HasId {
                         //System.out.println("payload: " + event.guard(guardedValue.guard).getPayload());
                         //if (event.guard(guardedValue.guard).getPayload() != null)
                             //System.out.println("payload class: " + event.guard(guardedValue.guard).getPayload().getClass());
+                        machine.getScheduler().getSchedule().addTransition(machine.getScheduler().getDepth());
                         guardedValue.value.eventHandlers.get(name).handleEvent(
                                 eventPc.and(guardedValue.guard),
                                 event.guard(guardedValue.guard).getPayload(),

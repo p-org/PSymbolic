@@ -1,6 +1,7 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.runtime.ScheduleLogger;
 import symbolicp.util.Checks;
 
 import java.util.*;
@@ -107,6 +108,19 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
         return new PrimVS<>(results);
     }
 
+    /** Remove the provided PrimVS values from the set of values
+     *
+     * @param rm The PrimVS to remove
+     * @return The PrimVS after removal
+     */
+    public PrimVS<T> remove(PrimVS<T> rm) {
+        Bdd guardToRemove = Bdd.constFalse();
+        for (GuardedValue<T> guardedValue : rm.getGuardedValues()) {
+            guardToRemove = guardToRemove.or(this.guard(guardedValue.guard).getGuard(guardedValue.value));
+        }
+        return this.guard(guardToRemove.not());
+    }
+
     public <U, V> PrimVS<V>
     apply2(PrimVS<U> summary2, BiFunction<T, U, V> function) {
         final Map<V, Bdd> results = new HashMap<>();
@@ -167,6 +181,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     }
 
     public void check() {
+        /*
         if (!Checks.disjointUnion(guardedValues.values())) {
             System.out.println(getValues());
         }
@@ -174,6 +189,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
         for (Bdd guard : guardedValues.values()) {
             assert(!guard.isConstFalse());
         }
+         */
     }
 
     @Override

@@ -27,6 +27,7 @@ public class Checks {
         for (Bdd bdd : bdds) {
             if (!acc.and(bdd).isConstFalse())
                 return false;
+            //System.out.println(acc + " and " + bdd + " are disjoint");
             acc = acc.or(bdd);
         }
         return true;
@@ -58,7 +59,7 @@ public class Checks {
 
     /** Is the provided Bdd inside another?
      * @param a The Bdd
-     * @param b The envlosing Bdd
+     * @param b The enclosing Bdd
      * @return Whether or not the Bdd is included in the other
      */
     public static boolean includedIn(Bdd a, Bdd b) {

@@ -68,7 +68,10 @@ namespace Plang.Compiler.Backend.Symbolic
             {
                 case Function function:
                     if (function.IsForeign)
-                        throw new NotImplementedException("Foreign functions are not yet supported");
+                    {
+                        WriteForeignFunction(context, output, function);
+                        // throw new NotImplementedException("Foreign functions are not yet supported");
+                    }
 
                     WriteFunction(context, output, function);
                     break;
@@ -349,6 +352,35 @@ namespace Plang.Compiler.Backend.Symbolic
             throw new InvalidOperationException();
         }
 
+        private void WriteForeignFunction(CompilationContext context, StringWriter output, Function function)
+        {
+            var isStatic = function.Owner == null;
+
+            if (function.CanReceive == true)
+                throw new NotImplementedException($"Async functions {context.GetNameForDecl(function)} are not supported");
+
+            var staticKeyword = isStatic ? "static " : "";
+
+            var rootPCScope = context.FreshPathConstraintScope();
+
+            string returnType = null;
+            switch (GetReturnConvention(function))
+            {
+                case FunctionReturnConvention.RETURN_VALUE:
+                    returnType = "Object";
+                    break;
+                case FunctionReturnConvention.RETURN_VOID:
+                    returnType = "void";
+                    break;
+            }
+
+            var functionName = $"wrapper__{context.GetNameForDecl(function)}";
+
+            context.WriteLine(output, $"{staticKeyword}{returnType} ");
+            context.Write(output, functionName);
+            context.WriteLine(output, $"(List<Object> args);");
+        }
+
         private void WriteFunction(CompilationContext context, StringWriter output, Function function)
         {
             var isStatic = function.Owner == null;
@@ -594,7 +626,7 @@ namespace Plang.Compiler.Backend.Symbolic
             {
                 case AssignStmt assignStmt:
                     CheckIsSupportedAssignment(assignStmt.Value.Type, assignStmt.Location.Type);
-                    
+
                     WriteWithLValueMutationContext(
                         context,
                         output,
@@ -701,14 +733,24 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
 
                 case PrintStmt printStmt:
-                    context.Write(output, $"RuntimeLogger.log(\"{printStmt.Message}\"");
-                    foreach (var printArg in printStmt.Args)
-                    {
-                        context.Write(output, ", ");
-                        WriteExpr(context, output, flowContext.pcScope, printArg);
+                    context.Write(output, $"RuntimeLogger.log(");
+                    //TODO: use WriteExpr(context, output, flowContext.pcScope, printStmt.Message);
+                    switch (printStmt.Message) {
+                        case StringExpr stringExpr:
+                            context.Write(output, $"\"{stringExpr.BaseString}\"");
+                            foreach(var arg in stringExpr.Args)
+                            {
+                                context.Write(output, ", ");
+                                WriteExpr(context, output, flowContext.pcScope, arg);
+                            }
+                            context.Write(output, "));");
+                            break;
+                        default:
+                            context.Write(output, "(");
+                            WriteExpr(context, output, flowContext.pcScope, printStmt.Message);
+                            context.Write(output, ").toString());");
+                            break;
                     }
-
-                    context.WriteLine(output, ");");
                     break;
 
                 case BreakStmt breakStmt:
@@ -958,12 +1000,57 @@ namespace Plang.Compiler.Backend.Symbolic
                     $"from value of type {valueType.CanonicalRepresentation}");
         }
 
+        private void WriteForeignFunCallStmt(CompilationContext context, StringWriter output, ControlFlowContext flowContext, Function function, IReadOnlyList<IPExpr> args, IPExpr dest=null)
+        {
+            var returnConvention = GetReturnConvention(function);
+            string returnTemp = null;
+            switch (returnConvention)
+            {
+                case FunctionReturnConvention.RETURN_VALUE:
+                    returnTemp = context.FreshTempVar();
+                    context.Write(output, $"{GetSymbolicType(function.Signature.ReturnType)} {returnTemp} = ({GetSymbolicType(function.Signature.ReturnType)})");
+                    break;
+                case FunctionReturnConvention.RETURN_VOID:
+                    break;
+                default:
+                    throw new NotImplementedException("Cannot handle foreign function calls that can exit or return BDDs");
+            }
+
+            context.Write(output, $"ForeignFunctionInvoker.invoke({flowContext.pcScope.PathConstraintVar}, {GetSymbolicType(function.Signature.ReturnType)}.class, x -> wrapper__{context.GetNameForDecl(function)}(x), ");
+
+            for (int i = 0; i < args.Count(); i++)
+            {
+                var param = args.ElementAt(i);
+                context.Write(output, ", ");
+                WriteExpr(context, output, flowContext.pcScope, param);
+            }
+
+            context.WriteLine(output, ");");
+
+            switch (returnConvention)
+            {
+                case FunctionReturnConvention.RETURN_VALUE:
+                    if (dest != null)
+                        WriteWithLValueMutationContext(context, output, flowContext.pcScope, dest, false, (lhs) => context.WriteLine(output, $"{lhs} = {returnTemp};"));
+                    break;
+                case FunctionReturnConvention.RETURN_VOID:
+                    Debug.Assert(dest == null);
+                    break;
+                default:
+                    throw new NotImplementedException("Cannot handle foreign function calls that can exit or return BDDs");
+            }
+        }
+
         private void WriteFunCallStmt(CompilationContext context, StringWriter output, ControlFlowContext flowContext, Function function, IReadOnlyList<IPExpr> args, IPExpr dest=null)
         {
             var isAsync = function.CanReceive == true;
             if (isAsync)
             {
                 throw new NotImplementedException("Calls to async methods not yet supported");
+            }
+            if (function.IsForeign)
+            {
+                WriteForeignFunCallStmt(context, output, flowContext, function, args, dest);
             }
 
             var returnConvention = GetReturnConvention(function);
@@ -1401,9 +1488,35 @@ namespace Plang.Compiler.Backend.Symbolic
                 case FairNondetExpr _:
                     context.Write(output, $"{CompilationContext.SchedulerVar}.getNextBoolean({pcScope.PathConstraintVar})");
                     break;
+                case ChooseExpr chooseExpr:
+                    switch (chooseExpr.SubExpr.Type)
+                    {
+                        case PrimitiveType primitiveType when primitiveType.IsSameTypeAs(PrimitiveType.Int):
+                            context.Write(output, $"{CompilationContext.SchedulerVar}.getNextInteger(");
+                            WriteExpr(context, output, pcScope, chooseExpr.SubExpr);
+                            context.Write(output, $", {pcScope.PathConstraintVar})");
+                            break;
+                        case SequenceType sequenceType:
+                            context.Write(output, $"({GetSymbolicType(sequenceType.ElementType)}) {CompilationContext.SchedulerVar}.getNextSeq(");
+                            WriteExpr(context, output, pcScope, chooseExpr.SubExpr);
+                            context.Write(output, $", {pcScope.PathConstraintVar})");
+                            break;
+                        default:
+                            throw new NotImplementedException($"Cannot handle choose on expressions of type {chooseExpr.SubExpr.Type}.");
+                    }
+                    break;
                 case SizeofExpr sizeOfExpr:
                     WriteExpr(context, output, pcScope, sizeOfExpr.Expr);
                     context.Write(output, ".size()");
+                    break;
+                case StringExpr stringExpr:
+                    context.Write(output, $"new { GetSymbolicType(PrimitiveType.String) }(String.format(\"{stringExpr.BaseString}\"");
+                    foreach(var arg in stringExpr.Args)
+                    {
+                        throw new NotImplementedException("Cannot yet handle formatted strings.");
+                    }
+                    context.Write(output, "))");
+                    context.Write(output, $".guard({pcScope.PathConstraintVar})");
                     break;
                 default:
                     context.Write(output, $"/* Skipping expr '{expr.GetType().Name}' */");
@@ -1528,9 +1641,15 @@ namespace Plang.Compiler.Backend.Symbolic
                     return "PrimVS<EventName>";
                 case PrimitiveType primitiveType when primitiveType.IsSameTypeAs(PrimitiveType.Any):
                     return "UnionVS";
+                case PrimitiveType primitiveType when primitiveType.IsSameTypeAs(PrimitiveType.String):
+                    return "PrimVS<String>";
                 case PrimitiveType primitiveType when primitiveType.IsSameTypeAs(PrimitiveType.Machine):
                 case PermissionType _:
                     return "PrimVS<Machine>";
+                case TypeDefType typeDefType:
+                    return $"PrimVS<{typeDefType.CanonicalRepresentation}>";
+                case ForeignType foreignType:
+                    return $"PrimVS<{foreignType.CanonicalRepresentation}>";
                 case SequenceType sequenceType:
                     return $"ListVS<{GetSymbolicType(sequenceType.ElementType, true)}>";
                 case MapType mapType:
@@ -1543,7 +1662,6 @@ namespace Plang.Compiler.Backend.Symbolic
                     return "TupleVS";
                 case EnumType enumType:
                     return $"PrimVS<Integer> /* enum {enumType.OriginalRepresentation} */";
-
                 default:
                     throw new NotImplementedException($"Symbolic type '{type.OriginalRepresentation}' not supported");
             }
@@ -1568,6 +1686,9 @@ namespace Plang.Compiler.Backend.Symbolic
                     break;
                 case PrimitiveType primitiveType when primitiveType.IsSameTypeAs(PrimitiveType.Any):
                     unguarded = $"new {GetSymbolicType(type)}()";
+                    break;
+                case PrimitiveType primitiveType when primitiveType.IsSameTypeAs(PrimitiveType.String):
+                    unguarded = $"new {GetSymbolicType(type)}(\"\")";
                     break;
                 case PrimitiveType primitiveType when primitiveType.IsSameTypeAs(PrimitiveType.Machine):
                 case PermissionType _:

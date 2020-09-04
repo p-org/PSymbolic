@@ -1,5 +1,11 @@
 package symbolicp.bdd;
 
+import symbolicp.runtime.ScheduleLogger;
+
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -14,7 +20,16 @@ import java.util.List;
  * Bdd inside an additional object represents a significant performance bottleneck.
  */
 public final class Bdd {
+
+    public static int trueQueries = 0;
+    public static int falseQueries = 0;
+
+
     private static BddLib globalBddLib = new PjbddImpl();
+
+    public static void reset() {
+        trueQueries = 0; falseQueries = 0; globalBddLib = new PjbddImpl();
+    }
 
     private final Object wrappedBdd;
 
@@ -32,25 +47,74 @@ public final class Bdd {
     }
 
     public boolean isConstFalse() {
-        return globalBddLib.isConstFalse(wrappedBdd);
+        falseQueries++; return globalBddLib.isConstFalse(wrappedBdd);
     }
 
     public boolean isConstTrue() {
-        return globalBddLib.isConstTrue(wrappedBdd);
+        trueQueries++; return globalBddLib.isConstTrue(wrappedBdd);
     }
 
     public Bdd and(Bdd other) {
-        return new Bdd(globalBddLib.and(wrappedBdd, other.wrappedBdd));
+        Instant start = Instant.now();
+        Bdd res = new Bdd(globalBddLib.and(wrappedBdd, other.wrappedBdd));
+        Instant end = Instant.now();
+        /*
+        if (Duration.between(start, end).toMillis() > 1000) {
+            ScheduleLogger.log("Time taken for and: " + Duration.between(start, end).toMillis());
+            String bddString = res.toString();
+            int counter = 0;
+            int index = bddString.indexOf("label");
+            while(index >= 0) {
+                index = bddString.indexOf("label", index+1);
+                counter++;
+            }
+            ScheduleLogger.log(counter + " # BDD nodes");
+        }
+
+         */
+        return res;
     }
 
     public Bdd or(Bdd other) {
-        return new Bdd(globalBddLib.or(wrappedBdd, other.wrappedBdd));
+        Instant start = Instant.now();
+        Bdd res = new Bdd(globalBddLib.or(wrappedBdd, other.wrappedBdd));
+        Instant end = Instant.now();
+        /*
+        if (Duration.between(start, end).toMillis() > 1000) {
+            ScheduleLogger.log("Time taken for or: " + Duration.between(start, end).toMillis());
+            String bddString = res.toString();
+            int counter = 0;
+            int index = bddString.indexOf("label");
+            while (index >= 0) {
+                index = bddString.indexOf("label", index + 1);
+                counter++;
+            }
+            ScheduleLogger.log(counter + " # BDD nodes");
+        }
+         */
+        return res;
     }
 
-    public Bdd implies(Bdd other) { return not().or(other); }
+    public Bdd implies(Bdd other) { return new Bdd(globalBddLib.implies(wrappedBdd, other.wrappedBdd)); }
 
     public Bdd not() {
-        return new Bdd(globalBddLib.not(wrappedBdd));
+        Instant start = Instant.now();
+        Bdd res = new Bdd(globalBddLib.not(wrappedBdd));
+        Instant end = Instant.now();
+        /*
+        if (Duration.between(start, end).toMillis() > 1000) {
+            ScheduleLogger.log("Time taken for not: " + Duration.between(start, end).toMillis());
+            String bddString = res.toString();
+            int counter = 0;
+            int index = bddString.indexOf("label");
+            while (index >= 0) {
+                index = bddString.indexOf("label", index + 1);
+                counter++;
+            }
+            ScheduleLogger.log(counter + " # BDD nodes");
+        }
+         */
+        return res;
     }
 
     public static Bdd orMany(List<Bdd> wrappedBdd) {
