@@ -50,7 +50,7 @@ public class BoundedScheduler extends Scheduler {
             e.printStackTrace();
         }// if (iter == 10000) isDoneIterating = true;
         for (int d = schedule.size() - 1; d >= 0; d--) {
-            Schedule.Choice backtrack = schedule.backtrackChoice.get(d);
+            Schedule.Choice backtrack = schedule.getBacktrackChoice(d);
             schedule.clearRepeat(d);
             if (!backtrack.isEmpty()) {
                 for (Machine machine : schedule.getMachines()) {
@@ -76,13 +76,13 @@ public class BoundedScheduler extends Scheduler {
     @Override
     public void startWith(Machine machine) {
         super.startWith(machine);
-/*
+        /*
         if (iter == 0) {
             super.startWith(machine);
         } else {
             super.replayStartWith(machine);
         }
- */
+         */
     }
 
     private PrimVS getNext(int depth, int bound, Function<Integer, PrimVS> getRepeat, Function<Integer, PrimVS> getBacktrack,

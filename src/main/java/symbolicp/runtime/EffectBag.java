@@ -7,14 +7,19 @@ import java.util.function.Function;
 
 public class EffectBag extends SymbolicBag<Event> implements EffectCollection {
 
-    public EffectBag() {
+    private Machine src;
+
+    public EffectBag(Machine src) {
         super();
+        this.src = src;
     }
 
     @Override
     public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, UnionVS payload) {
         ScheduleLogger.send(new Event(eventName, dest, payload).guard(pc));
         this.add(new Event(eventName, dest, payload).guard(pc));
+        if (src != null)
+            src.incrementClock(pc);
     }
 
     @Override

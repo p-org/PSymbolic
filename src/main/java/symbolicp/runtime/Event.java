@@ -12,6 +12,7 @@ public class Event implements ValueSummary<Event> {
     private final PrimVS<EventName> name;
     private final Map<EventName, UnionVS> map;
     private final PrimVS<Machine> machine;
+    private final VectorClockVS clock;
 
     public PrimVS<Boolean> canRun() {
         Bdd cond = Bdd.constFalse();
@@ -56,6 +57,7 @@ public class Event implements ValueSummary<Event> {
         this.name = names;
         this.machine = machine;
         this.map = new HashMap<>(map);
+        this.clock = VectorClockManager.fromMachineVS(machine);
     }
 
     public Event(EventName name, PrimVS<Machine> machine) {
@@ -78,6 +80,7 @@ public class Event implements ValueSummary<Event> {
         this.name = names;
         this.machine = machine;
         this.map = new HashMap<>();
+        this.clock = VectorClockManager.fromMachineVS(machine);
         for (GuardedValue<EventName> name : names.getGuardedValues()) {
             assert(!this.map.containsKey(name));
             if (payload != null) {
@@ -102,6 +105,10 @@ public class Event implements ValueSummary<Event> {
         } else {
             return map.getOrDefault(names.get(0).value, null);
         }
+    }
+
+    public VectorClockVS getVectorClock() {
+        return this.clock;
     }
 
     @Override
@@ -204,6 +211,7 @@ public class Event implements ValueSummary<Event> {
                 str += System.lineSeparator();
         }
         str += "}";
+        str += ": CLOCK " + this.clock.toString();
         return str;
     }
 

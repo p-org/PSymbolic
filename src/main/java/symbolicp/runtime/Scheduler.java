@@ -69,6 +69,12 @@ public class Scheduler implements SymbolicSearch {
      */
     public int getDepth() { return depth; }
 
+    /** Make new schedule
+     * @return A new Schedule instance */
+    public Schedule getNewSchedule() {
+        return new Schedule();
+    }
+
     /** Get the schedule
      * @return The schedule
      */
@@ -79,7 +85,7 @@ public class Scheduler implements SymbolicSearch {
      */
     public Scheduler(Machine... machines) {
         //ScheduleLogger.disable();
-        schedule = new Schedule();
+        schedule = getNewSchedule();
         this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
 

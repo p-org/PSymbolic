@@ -9,8 +9,11 @@ import java.util.function.Function;
 
 public class EffectQueue extends SymbolicQueue<Event> implements EffectCollection {
 
-    public EffectQueue() {
+    private Machine src;
+
+    public EffectQueue(Machine src) {
         super();
+        this.src = src;
     }
 
     public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, UnionVS payload) {
@@ -19,6 +22,8 @@ public class EffectQueue extends SymbolicQueue<Event> implements EffectCollectio
         }
         ScheduleLogger.send(new Event(eventName, dest, payload).guard(pc));
         enqueueEntry(new Event(eventName, dest, payload).guard(pc));
+        if (src != null)
+            src.incrementClock(pc);
     }
 
     public PrimVS<Machine> create(

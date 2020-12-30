@@ -20,6 +20,14 @@ public abstract class Machine extends HasId {
     public final EffectCollection sendEffects;
     public final DeferQueue deferredQueue;
 
+    private VectorClockVS clock;
+
+    public VectorClockVS getClock() { return this.clock; }
+
+    public void incrementClock(Bdd pc) {
+        clock = clock.increment(scheduler.schedule.vcManager.getIdx(new PrimVS<>(this).guard(pc)));
+    }
+
     public void setScheduler(Scheduler scheduler) { this.scheduler = scheduler; }
 
     public Scheduler getScheduler() { return scheduler; }
@@ -38,6 +46,7 @@ public abstract class Machine extends HasId {
         started = new PrimVS<>(false);
         state = new PrimVS<>(startState);
         stack = new ListVS(Bdd.constTrue());
+        clock = new VectorClockVS(Bdd.constTrue());
         while (!sendEffects.isEmpty()) {
             Bdd cond = sendEffects.enabledCond(x -> new PrimVS<>(true)).getGuard(true);
             sendEffects.remove(sendEffects.enabledCond(x -> new PrimVS<>(true)).getGuard(true));
@@ -53,16 +62,18 @@ public abstract class Machine extends HasId {
         EffectCollection buffer;
         switch (semantics) {
             case bag:
-                buffer = new EffectBag();
+                buffer = new EffectBag(this);
                 break;
             default:
-                buffer = new EffectQueue();
+                buffer = new EffectQueue(this);
                 break;
         }
 
         this.startState = startState;
         this.sendEffects = buffer;
         this.deferredQueue = new DeferQueue();
+
+        this.clock = new VectorClockVS(Bdd.constTrue());
 
         this.state = new PrimVS<>(startState);
         stack = new ListVS(Bdd.constTrue());
@@ -221,6 +232,7 @@ public abstract class Machine extends HasId {
     void processEventToCompletion(Bdd pc, Event event) {
         final Outcome eventRaiseOutcome = new Outcome();
         eventRaiseOutcome.addGuardedRaiseEvent(event);
+        clock = clock.add(event.getVectorClock());
         runOutcomesToCompletion(pc, eventRaiseOutcome);
     }
 
