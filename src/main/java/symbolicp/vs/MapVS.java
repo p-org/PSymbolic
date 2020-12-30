@@ -192,7 +192,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
      * @return The option containing value corresponding to the key or an empty option if no such value
      */
     public V get(PrimVS<K> keySummary) {
-        if (!containsKey(keySummary).getGuard(false).isConstFalse()) {
+        if (!containsKey(keySummary).guard(keySummary.getUniverse()).getGuard(false).isConstFalse()) {
             // there is a possibility that the key is not present
             throw new NoSuchElementException();
         }

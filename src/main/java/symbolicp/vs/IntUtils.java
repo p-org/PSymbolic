@@ -74,6 +74,17 @@ public class IntUtils {
         return a.apply(x -> x < b);
     }
 
+    /** Compare two Integer value summaries
+     *
+     * @param a Value summary of first Integer
+     * @param b Value summary of second Integer
+     * @return The value summary representing the comparison result, with negative indicating a < b,
+     *         positive indicating b < a, and 0 indicating a = b.
+     */
+    public static PrimVS<Integer> compare(PrimVS<Integer> a, PrimVS<Integer> b) {
+        return a.apply2(b, (x, y) -> x.compareTo(y));
+    }
+
     /** Get the maximum value that an Integer value summary may take on
      *
      * @return The maximum possible value
