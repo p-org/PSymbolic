@@ -1,20 +1,22 @@
 package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
+import symbolicp.runtime.RuntimeLogger;
 import symbolicp.runtime.ScheduleLogger;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class VectorClockVS implements ValueSummary<VectorClockVS> {
+
     private final ListVS<PrimVS<Integer>> clock;
 
     public VectorClockVS(Bdd universe) {
-        this.clock = new ListVS<PrimVS<Integer>>(universe);
+        this.clock = new ListVS<>(universe);
     }
 
     public VectorClockVS(VectorClockVS vc) {
-        this.clock = new ListVS<PrimVS<Integer>>(vc.clock);
+        this.clock = new ListVS<>(vc.clock);
     }
 
     private VectorClockVS(ListVS<PrimVS<Integer>> clock) {
@@ -51,6 +53,16 @@ public class VectorClockVS implements ValueSummary<VectorClockVS> {
         return increment(idx, new PrimVS<>(1));
     }
 
+    public VectorClockVS takeMax(PrimVS<Integer> idx, PrimVS<Integer> amt) {
+        ListVS<PrimVS<Integer>> updatedClock = extend(IntUtils.add(idx, 1)).clock;
+        PrimVS<Boolean> inRange = updatedClock.inRange(idx);
+        Bdd inRangeCond = inRange.getGuard(true);
+        PrimVS<Integer> cmpResult = IntUtils.compare(updatedClock.get(idx.guard(inRangeCond)), amt.guard(inRangeCond));
+        Bdd updateCond = IntUtils.lessThan(cmpResult, 0).getGuard(true);
+        updatedClock = updatedClock.set(idx.guard(inRangeCond).guard(updateCond), amt);
+        return new VectorClockVS(updatedClock);
+    }
+
     public VectorClockVS add(VectorClockVS vc) {
         int idx = 0;
         VectorClockVS sum = new VectorClockVS(this);
@@ -59,6 +71,20 @@ public class VectorClockVS implements ValueSummary<VectorClockVS> {
         while (lessThan.hasValue(true)) {
             PrimVS<Integer> idxVS = new PrimVS<>(idx).guard(lessThan.getGuard(true));
             sum = sum.increment(idxVS, vc.clock.get(idxVS));
+            idx++;
+            lessThan = IntUtils.lessThan(idx, size);
+        }
+        return sum;
+    }
+
+    public VectorClockVS update(VectorClockVS vc) {
+        int idx = 0;
+        VectorClockVS sum = new VectorClockVS(this);
+        PrimVS<Integer> size = vc.size();
+        PrimVS<Boolean> lessThan = IntUtils.lessThan(idx, size);
+        while (lessThan.hasValue(true)) {
+            PrimVS<Integer> idxVS = new PrimVS<>(idx).guard(lessThan.getGuard(true));
+            sum = sum.takeMax(idxVS, vc.clock.get(idxVS));
             idx++;
             lessThan = IntUtils.lessThan(idx, size);
         }

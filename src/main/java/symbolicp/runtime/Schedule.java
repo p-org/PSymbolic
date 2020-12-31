@@ -11,8 +11,12 @@ public class Schedule {
 
     private Bdd filter = Bdd.constTrue();
 
+    public VectorClockManager getNewVectorClockManager() {
+        return new VectorClockManager(false);
+    }
+
     /** The vector clock manager */
-    public final VectorClockManager vcManager = new VectorClockManager();
+    public final VectorClockManager vcManager = getNewVectorClockManager();
 
     public Bdd getFilter() {
         return filter;
@@ -262,16 +266,16 @@ public class Schedule {
     public PrimVS<ValueSummary> getBacktrackElement(int depth) { return getBacktrackChoice(depth).elementChoice; }
 
     public void clearChoice(int depth) {
-        fullChoice.get(depth).clear();
+        getFullChoice(depth).clear();
     }
 
     public void clearRepeat(int depth) {
         Choice choice = repeatChoice.get(depth);
-        repeatChoice.get(depth).clear();
+        getRepeatChoice(depth).clear();
     }
 
     public void clearBacktrack(int depth) {
-        backtrackChoice.get(depth).clear();
+        getBacktrackChoice(depth).clear();
     }
 
     public int size() {

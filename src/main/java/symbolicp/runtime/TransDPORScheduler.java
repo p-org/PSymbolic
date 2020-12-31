@@ -20,9 +20,10 @@ public class TransDPORScheduler extends BoundedScheduler {
 
     @Override
     public void step() {
-        PrimVS<Machine> choices = getNextSender();
-        PrimVS<Machine> enabled = schedule.getSenderChoice(schedule.size() - 1);
-        ((DporSchedule) schedule).compare(enabled);
+        if (schedule.size() > 0) {
+            PrimVS<Machine> enabled = schedule.getSenderChoice(schedule.size() - 1);
+            ((DporSchedule) schedule).compare(enabled);
+        }
         super.step();
     }
 

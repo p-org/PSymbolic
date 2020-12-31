@@ -25,7 +25,8 @@ public abstract class Machine extends HasId {
     public VectorClockVS getClock() { return this.clock; }
 
     public void incrementClock(Bdd pc) {
-        clock = clock.increment(scheduler.schedule.vcManager.getIdx(new PrimVS<>(this).guard(pc)));
+        if (scheduler.schedule.vcManager.isEnabled())
+            clock = clock.increment(scheduler.schedule.vcManager.getIdx(new PrimVS<>(this).guard(pc)));
     }
 
     public void setScheduler(Scheduler scheduler) { this.scheduler = scheduler; }
@@ -232,7 +233,8 @@ public abstract class Machine extends HasId {
     void processEventToCompletion(Bdd pc, Event event) {
         final Outcome eventRaiseOutcome = new Outcome();
         eventRaiseOutcome.addGuardedRaiseEvent(event);
-        clock = clock.add(event.getVectorClock());
+        if (scheduler.schedule.vcManager.isEnabled())
+            clock = clock.update(event.getVectorClock());
         runOutcomesToCompletion(pc, eventRaiseOutcome);
     }
 
