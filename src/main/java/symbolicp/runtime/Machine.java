@@ -233,8 +233,10 @@ public abstract class Machine extends HasId {
     void processEventToCompletion(Bdd pc, Event event) {
         final Outcome eventRaiseOutcome = new Outcome();
         eventRaiseOutcome.addGuardedRaiseEvent(event);
-        if (scheduler.schedule.vcManager.isEnabled())
+        if (scheduler.schedule.vcManager.isEnabled()) {
+            this.incrementClock(pc);
             clock = clock.update(event.getVectorClock());
+        }
         runOutcomesToCompletion(pc, eventRaiseOutcome);
     }
 

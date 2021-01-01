@@ -96,10 +96,12 @@ public class VectorClockVS implements ValueSummary<VectorClockVS> {
         int idx = 0;
         VectorClockVS extended = this.extend(vc.size());
         VectorClockVS extendedVc = vc.extend(this.size());
+        /*
         ScheduleLogger.log("vc size: " + vc.size());
         ScheduleLogger.log("this size: " + vc.size());
         ScheduleLogger.log("extended this: " + extended);
         ScheduleLogger.log("extended vc: " + extendedVc);
+         */
         PrimVS<Boolean> lessThan = IntUtils.lessThan(idx, extended.size());
         PrimVS<Integer> result = new PrimVS<>(0);
         // compare clocks of the same size

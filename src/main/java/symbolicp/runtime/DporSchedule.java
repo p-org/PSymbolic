@@ -25,6 +25,13 @@ public class DporSchedule extends Schedule {
         public void freeze() { frozen = true; }
 
         public boolean isFrozen() { return frozen; }
+
+        @Override
+        public void addSenderChoice(PrimVS<Machine> choice) {
+            senderChoice = choice;
+            // don't try to add the event since it may not be "current"
+            // can look the event up in the full backtrack set
+        }
     }
 
     List<DporChoice> dporBacktrackChoice = new ArrayList<>();
@@ -83,17 +90,39 @@ public class DporSchedule extends Schedule {
                 toMerge.add(effects.peek(guardedValue.guard.and(effects.enabledCond(Event::canRun).getGuard(true))));
         }
         pending = pending.merge(toMerge);
-        int size = size();
-        for (int i = size - 1; i >= 0; i--) {
-            Event event = getRepeatChoice(i).eventChosen;
-            PrimVS<Machine> target = event.getMachine();
-            for (GuardedValue<Machine> tgt : target.getGuardedValues()) {
-                for (GuardedValue<Machine> pendingTgt : pending.guard(tgt.guard).getMachine().getGuardedValues()) {
+        for (GuardedValue<Machine> pendingTgt : pending.getMachine().getGuardedValues()) {
+            int size = size();
+            boolean found = false;
+            for (int i = size - 1; i >= 0 && !found; i--) {
+                Event event = getRepeatChoice(i).eventChosen;
+                event = event.guard(event.isInit().getGuard(false));
+                PrimVS<Machine> target = event.getMachine();
+                for (GuardedValue<Machine> tgt : target.guard(pendingTgt.guard).getGuardedValues()) {
                     if (tgt.value.equals(pendingTgt.value)) {
                         if (!this.dporBacktrackChoice.get(i).isFrozen()) {
-                            PrimVS<Machine> backtrack = getPrePending(pending.guard(pendingTgt.guard), super.getBacktrackChoice(i).guard(pendingTgt.guard));
-                            dporBacktrackChoice.get(i).addSenderChoice(backtrack);
-                            dporBacktrackChoice.get(i).freeze();
+                            ScheduleLogger.log("adding backtrack to " + i);
+                            Choice choices = super.getBacktrackChoice(i).guard(pendingTgt.guard);
+                            PrimVS<Machine> backtrack = getPrePending(pending.guard(pendingTgt.guard), choices);
+                            if (!backtrack.isEmptyVS()) {
+                                dporBacktrackChoice.get(i).addSenderChoice(backtrack);
+                                dporBacktrackChoice.get(i).freeze();
+                                found = true;
+                            } else {
+                                ScheduleLogger.log("backtrack empty at " + i);
+                                ScheduleLogger.log("other event is " + event.guard(pendingTgt.guard).toString());
+                                ScheduleLogger.log("other target is " + tgt.value.toString());
+                                ScheduleLogger.log("pending events are " + pending.guard(pendingTgt.guard).toString());
+                                ScheduleLogger.log("pending target is " + pendingTgt.value.toString());
+                                ScheduleLogger.log("sender choices are " + choices.senderChoice.toString());
+                                ScheduleLogger.log("full sender choices are " + getSenderChoice(i).toString());
+                                ScheduleLogger.log("full sender choice events are " + getFullChoice(i).eventChosen.toString());
+                                ScheduleLogger.log("backtrack is " + backtrack.toString());
+                            }
+                        } else {
+                            ScheduleLogger.log("frozen at " + i);
+                            if (this.dporBacktrackChoice.get(i).isEmpty()) {
+                                throw new RuntimeException();
+                            }
                         }
                     }
                 }
@@ -102,9 +131,6 @@ public class DporSchedule extends Schedule {
     }
 
     PrimVS<Machine> getPrePending(Event pending, Choice choices) {
-        if (choices.senderChoice.isEmptyVS()) {
-            return new PrimVS();
-        }
         VectorClockVS pendingClock = pending.getVectorClock();
         VectorClockVS other = choices.eventChosen.getVectorClock();
         PrimVS<Integer> cmp = other.cmp(pendingClock);
@@ -126,7 +152,7 @@ public class DporSchedule extends Schedule {
 
     @Override
     public void clearBacktrack(int depth) {
-        getBacktrackChoice(depth).clear();
-        super.clearBacktrack(depth);
+        super.getBacktrackChoice(depth).guard(getBacktrackChoice(depth).getUniverse().not());
+        dporBacktrackChoice.get(depth).clear();
     }
 }
