@@ -68,6 +68,7 @@ public class Schedule {
             for (GuardedValue<Machine> guardedValue : choice.getGuardedValues()) {
                 toMerge.add(guardedValue.value.sendEffects.peek(guardedValue.guard));
             }
+            eventChosen = new Event();
             eventChosen = eventChosen.merge(toMerge);
         }
 
