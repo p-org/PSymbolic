@@ -2,6 +2,7 @@ package symbolicp.vs;
 
 import symbolicp.bdd.Bdd;
 import symbolicp.runtime.RuntimeLogger;
+import symbolicp.runtime.Schedule;
 import symbolicp.runtime.ScheduleLogger;
 
 import java.util.ArrayList;
@@ -102,14 +103,14 @@ public class VectorClockVS implements ValueSummary<VectorClockVS> {
         ScheduleLogger.log("extended this: " + extended);
         ScheduleLogger.log("extended vc: " + extendedVc);
          */
-        PrimVS<Boolean> lessThan = IntUtils.lessThan(idx, extended.size());
         PrimVS<Integer> result = new PrimVS<>(0);
+        PrimVS<Boolean> inRange = extended.clock.inRange(idx);
         // compare clocks of the same size
-        while (lessThan.hasValue(true)) {
-            Bdd cond = lessThan.getGuard(true);
+        while (inRange.hasValue(true)) {
+            Bdd cond = inRange.getGuard(true);
             PrimVS<Integer> current = new PrimVS<>(idx).guard(cond);
-            PrimVS<Integer> thisVal = extended.clock.get(current);
-            PrimVS<Integer> otherVal = extendedVc.clock.get(current);
+            PrimVS<Integer> thisVal = extended.clock.guard(cond).get(current);
+            PrimVS<Integer> otherVal = extendedVc.clock.guard(cond).get(current);
             PrimVS<Integer> cmp = IntUtils.compare(thisVal, otherVal);
             result = cmp.apply2(result, (a, b) -> {
                         if (a <= 0 && b <= 0) {
@@ -119,7 +120,7 @@ public class VectorClockVS implements ValueSummary<VectorClockVS> {
                         } else return 2;
                     });
             idx++;
-            lessThan = IntUtils.lessThan(idx, extended.size());
+            inRange = extended.clock.inRange(idx);
         }
         return result;
     }

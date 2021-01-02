@@ -3,6 +3,7 @@ package symbolicp.runtime;
 import symbolicp.bdd.Bdd;
 import symbolicp.vs.IntUtils;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.VectorClockVS;
 
 import java.util.function.Function;
 
@@ -11,11 +12,12 @@ public class ReplayScheduler extends Scheduler {
     /** Schedule to replay */
     private final Schedule schedule;
 
-    public ReplayScheduler (Schedule schedule) {
-        this(schedule, Bdd.constTrue());
+    public ReplayScheduler (String name, Schedule schedule) {
+        this(name, schedule, Bdd.constTrue());
     }
 
-    public ReplayScheduler (Schedule schedule, Bdd pc) {
+    public ReplayScheduler (String name, Schedule schedule, Bdd pc) {
+        super(name);
         ScheduleLogger.enable();
         this.schedule = schedule.guard(pc).getSingleSchedule();
         for (Machine machine : schedule.getMachines()) {
@@ -46,6 +48,7 @@ public class ReplayScheduler extends Scheduler {
         performEffect(
                 new Event(
                         EventName.Init.instance,
+                        new VectorClockVS(Bdd.constTrue()),
                         machineVS,
                         null
                 )

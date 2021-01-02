@@ -12,12 +12,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 /**
  * Runner for Symbolic P Regressions.
@@ -51,7 +53,7 @@ public class SymbolicRegression {
 
     void runDynamicTest(int expected, List<String> testCasePaths, String testCasePath, Collection<DynamicTest> dynamicTests) {
         Executable exec = () -> assertEquals(expected, TestCaseExecutor.runTestCase(testCasePaths));
-        DynamicTest dynamicTest = DynamicTest.dynamicTest(testCasePath, exec);
+        DynamicTest dynamicTest = DynamicTest.dynamicTest(testCasePath, () -> assertTimeoutPreemptively(Duration.ofMinutes(60), exec));
         dynamicTests.add(dynamicTest);
     }
 
@@ -95,9 +97,9 @@ public class SymbolicRegression {
     */
 
     @TestFactory
-    @Timeout(value = 3, unit = TimeUnit.HOURS)
+    //@Timeout(value = 1, unit = TimeUnit.MILLISECONDS)
     Collection<DynamicTest> loadSymbolicRegressions() {
-        return loadTests("./SymbolicRegressionTests/TwoPhaseCommitMultipleTransactions", null);
+        return loadTests("./SymbolicRegressionTests/error", null);
     }
 
 }

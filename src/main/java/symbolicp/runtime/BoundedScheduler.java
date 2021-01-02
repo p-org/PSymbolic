@@ -25,8 +25,8 @@ public class BoundedScheduler extends Scheduler {
 
     private boolean isDoneIterating = false;
 
-    public BoundedScheduler(int senderBound, int boolBound, int intBound) {
-        super();
+    public BoundedScheduler(String name, int senderBound, int boolBound, int intBound) {
+        super("bounded_" + name);
         this.senderBound = senderBound;
         this.boolBound = boolBound;
         this.intBound = intBound;
@@ -44,7 +44,7 @@ public class BoundedScheduler extends Scheduler {
 
     public void postIterationCleanup() {
         ScheduleLogger.log("Cleanup!");
-        try (FileWriter schedules = new FileWriter("/Users/lpick/schedules/prog" + EntryPoint.prog + "_iter" + iter + ".txt")) {
+        try (FileWriter schedules = new FileWriter("/Users/pick/schedules/prog_" + name + ".txt")) {
             schedule.printSchedule(schedules, iter);
         } catch (IOException e) {
             e.printStackTrace();
@@ -61,10 +61,12 @@ public class BoundedScheduler extends Scheduler {
                 schedule.setFilter(Bdd.constTrue()); //backtrack.getUniverse();
                 schedule.resetTransitionCount();
                 reset();
+                /*
                 if ((iter - 1) % 100 != 0) {
-                    File file = new File("/Users/lpick/schedules/prog" + EntryPoint.prog + "_iter" + (iter - 1) + ".txt");
+                    File file = new File("/Users/lpick/schedules/prog" + EntryPoint.prog + ".txt");
                     file.delete();
                 }
+                 */
                 return;
             } else {
                 schedule.clearChoice(d);
@@ -130,6 +132,7 @@ public class BoundedScheduler extends Scheduler {
                 schedule::clearBacktrack, schedule::addRepeatSender, schedule::addBacktrackSender, super::getNextSenderChoices,
                 super::getNextSender);
         schedule.setFilter(schedule.getFilter().and(res.getUniverse()));
+
         /*
         ScheduleLogger.log("choice: " + schedule.getRepeatSender(depth));
         ScheduleLogger.log("backtrack: " + schedule.getBacktrackSender(depth));

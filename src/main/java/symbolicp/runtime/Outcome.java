@@ -5,6 +5,7 @@ import symbolicp.util.Checks;
 import symbolicp.vs.PrimVS;
 import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
+import symbolicp.vs.VectorClockVS;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +41,7 @@ public class Outcome {
         EventName nextEventName = eventName.getValues().iterator().next();
 
         if (payload != null) payload = payload.guard(pc);
-        addGuardedRaiseEvent(new Event(nextEventName, new PrimVS<>(), payload).guard(pc));
+        addGuardedRaiseEvent(new Event(nextEventName, new VectorClockVS(Bdd.constFalse()), new PrimVS<>(), payload).guard(pc));
     }
 
     public void addGuardedRaise(Bdd pc, PrimVS<EventName> eventName) {

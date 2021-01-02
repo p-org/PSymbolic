@@ -19,9 +19,9 @@ public class EntryPoint {
     public static int prog = 0;
     public static Instant start = Instant.now();
 
-    public static void run(Program p, int depth, int maxInternalSteps) {
+    public static void run(Program p, String name, int depth, int maxInternalSteps) {
         Bdd.reset();
-        BoundedScheduler scheduler = new BoundedScheduler(1000, 1, 1000);
+        BoundedScheduler scheduler = new TransDPORScheduler(name, 1, 1000, 1000);
         p.setScheduler(scheduler);
         scheduler.setErrorDepth(depth);
         scheduler.setMaxInternalSteps(maxInternalSteps);
@@ -32,7 +32,7 @@ public class EntryPoint {
             ScheduleLogger.finished(scheduler.getDepth());
         } catch (BugFoundException e) {
             Bdd pc = e.pathConstraint;
-            ReplayScheduler replay = new ReplayScheduler(scheduler.getSchedule(), pc);
+            ReplayScheduler replay = new ReplayScheduler(name, scheduler.getSchedule(), pc);
             p.setScheduler(replay);
             replay.setMaxInternalSteps(maxInternalSteps);
             replay.doSearch(scheduler.getStartMachine());

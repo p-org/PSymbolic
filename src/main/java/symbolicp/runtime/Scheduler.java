@@ -3,10 +3,7 @@ package symbolicp.runtime;
 import org.checkerframework.checker.units.qual.A;
 import symbolicp.bdd.Bdd;
 import symbolicp.run.Assert;
-import symbolicp.vs.GuardedValue;
-import symbolicp.vs.IntUtils;
-import symbolicp.vs.PrimVS;
-import symbolicp.vs.ValueSummary;
+import symbolicp.vs.*;
 
 import java.util.*;
 import java.util.function.Function;
@@ -16,6 +13,9 @@ public class Scheduler implements SymbolicSearch {
 
     /** The scheduling choices made */
     public final Schedule schedule;
+
+    /** Program name */
+    public final String name;
 
     /** List of all machines along any path constraints */
     final List<Machine> machines;
@@ -83,11 +83,12 @@ public class Scheduler implements SymbolicSearch {
     /** Make a new Scheduler
      * @param machines The machines initially in the Scheduler
      */
-    public Scheduler(Machine... machines) {
+    public Scheduler(String name, Machine... machines) {
         //ScheduleLogger.disable();
         schedule = getNewSchedule();
         this.machines = new ArrayList<>();
         this.machineCounters = new HashMap<>();
+        this.name = name;
 
         for (Machine machine : machines) {
             this.machines.add(machine);
@@ -209,6 +210,7 @@ public class Scheduler implements SymbolicSearch {
         performEffect(
                 new Event(
                         EventName.Init.instance,
+                        new VectorClockVS(Bdd.constTrue()),
                         new PrimVS<>(machine),
                         null
                 )
@@ -232,6 +234,7 @@ public class Scheduler implements SymbolicSearch {
         performEffect(
                 new Event(
                         EventName.Init.instance,
+                        new VectorClockVS(machineVS.getUniverse()),
                         machineVS,
                         null
                 )
@@ -287,6 +290,7 @@ public class Scheduler implements SymbolicSearch {
         PrimVS<Machine> choices = getNextSender();
 
         if (choices.isEmptyVS()) {
+            ScheduleLogger.log("empty next");
             ScheduleLogger.finished(depth);
             done = true;
             return;

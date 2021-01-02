@@ -20,8 +20,8 @@ public class EffectQueue extends SymbolicQueue<Event> implements EffectCollectio
         if (eventName.getGuardedValues().size() > 1) {
             throw new NotImplementedException();
         }
-        ScheduleLogger.send(new Event(eventName, dest, payload).guard(pc));
-        enqueueEntry(new Event(eventName, dest, payload).guard(pc));
+        ScheduleLogger.send(new Event(eventName, src.getClock(), dest, payload).guard(pc));
+        enqueueEntry(new Event(eventName, src.getClock(), dest, payload).guard(pc));
         if (src != null)
             src.incrementClock(pc);
     }
@@ -35,7 +35,7 @@ public class EffectQueue extends SymbolicQueue<Event> implements EffectCollectio
     ) {
         PrimVS<Machine> machine = scheduler.allocateMachine(pc, machineType, constructor);
         if (payload != null) payload = payload.guard(pc);
-        enqueueEntry(new Event(EventName.Init.instance, machine, payload).guard(pc));
+        enqueueEntry(new Event(EventName.Init.instance, src.getClock(), machine, payload).guard(pc));
         return machine;
     }
 

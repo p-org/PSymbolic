@@ -14,8 +14,8 @@ public class TransDPORScheduler extends BoundedScheduler {
         return new DporSchedule();
     }
 
-    public TransDPORScheduler(int senderBound, int boolBound, int intBound) {
-        super(senderBound, boolBound, intBound);
+    public TransDPORScheduler(String name, int senderBound, int boolBound, int intBound) {
+        super("trans_" + name, senderBound, boolBound, intBound);
     }
 
     @Override

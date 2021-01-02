@@ -137,6 +137,7 @@ public class Schedule {
             fullChoice.add(new Choice());
         }
         fullChoice.get(depth).addSenderChoice(choice);
+        ScheduleLogger.log("added full event: " + fullChoice.get(depth).eventChosen);
     }
 
     public void addBoolChoice(PrimVS<Boolean> choice, int depth) {
@@ -166,6 +167,7 @@ public class Schedule {
             repeatChoice.add(new Choice());
         }
         repeatChoice.get(depth).addSenderChoice(choice.guard(filter));
+        ScheduleLogger.log("added repeat event: " + repeatChoice.get(depth).eventChosen);
     }
 
     public void addRepeatBool(PrimVS<Boolean> choice, int depth) {
@@ -195,6 +197,7 @@ public class Schedule {
             backtrackChoice.add(new Choice());
         }
         backtrackChoice.get(depth).addSenderChoice(choice);
+        ScheduleLogger.log("added backtrack event: " + backtrackChoice.get(depth).eventChosen);
     }
 
     public void addBacktrackBool(PrimVS<Boolean> choice, int depth) {
@@ -325,6 +328,20 @@ public class Schedule {
         return new Schedule(newFullChoice, newRepeatChoice, newBacktrackChoice, createdMachines, machines, pc);
     }
 
+    public Schedule removeEmptyRepeat() {
+        List<Choice> newFullChoice = new ArrayList<>();
+        List<Choice> newRepeatChoice = new ArrayList<>();
+        List<Choice> newBacktrackChoice = new ArrayList<>();
+        for (int i = 0; i < size(); i++) {
+            if (!getRepeatChoice(i).isEmpty()) {
+                newFullChoice.add(getFullChoice(i));
+                newRepeatChoice.add(getRepeatChoice(i));
+                newBacktrackChoice.add(getBacktrackChoice(i));
+            }
+        }
+        return new Schedule(newFullChoice, newRepeatChoice, newBacktrackChoice, createdMachines, machines, pc);
+    }
+
     public void guardRepeat(Bdd pc) {
         for (int i = 0; i < repeatChoice.size(); i++) {
             repeatChoice.set(i, repeatChoice.get(i).guard(pc));
@@ -376,7 +393,7 @@ public class Schedule {
                 }
             }
         }
-        return this.guard(pc);
+        return this.guard(pc).removeEmptyRepeat();
     }
 
     public Bdd getLengthCond(int size) {
@@ -399,6 +416,7 @@ public class Schedule {
             writer.append("Total Transitions:" + transitionCountTotal);
             writer.append(System.lineSeparator());
             writer.append("Total New Transitions: " + (transitionCountTotal - previousTransitionOverlap));
+            /*
             int choice = 0;
             for (Choice rc : repeatChoice) {
                 writer.append(System.lineSeparator());
@@ -413,6 +431,7 @@ public class Schedule {
                     writer.append(rc.senderChoice.toString());
                 }
             }
+            */
             /*
             choice = 0;
             writer.append(System.lineSeparator());

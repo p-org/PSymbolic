@@ -16,8 +16,8 @@ public class EffectBag extends SymbolicBag<Event> implements EffectCollection {
 
     @Override
     public void send(Bdd pc, PrimVS<Machine> dest, PrimVS<EventName> eventName, UnionVS payload) {
-        ScheduleLogger.send(new Event(eventName, dest, payload).guard(pc));
-        this.add(new Event(eventName, dest, payload).guard(pc));
+        ScheduleLogger.send(new Event(eventName, src.getClock(), dest, payload).guard(pc));
+        this.add(new Event(eventName, src.getClock(), dest, payload).guard(pc));
         if (src != null)
             src.incrementClock(pc);
     }
@@ -26,7 +26,7 @@ public class EffectBag extends SymbolicBag<Event> implements EffectCollection {
     public PrimVS<Machine> create(Bdd pc, Scheduler scheduler, Class<? extends Machine> machineType, UnionVS payload, Function<Integer, ? extends Machine> constructor) {
         PrimVS<Machine> machine = scheduler.allocateMachine(pc, machineType, constructor);
         if (payload != null) payload = payload.guard(pc);
-        add(new Event(EventName.Init.instance, machine, payload).guard(pc));
+        add(new Event(EventName.Init.instance, src.getClock(), machine, payload).guard(pc));
         return machine;
     }
 

@@ -4,6 +4,7 @@ import symbolicp.bdd.Bdd;
 import symbolicp.vs.PrimVS;
 import symbolicp.vs.UnionVS;
 import symbolicp.vs.ValueSummary;
+import symbolicp.vs.VectorClockVS;
 
 public abstract class EventHandler {
     public final EventName eventName;
@@ -12,8 +13,8 @@ public abstract class EventHandler {
         this.eventName = eventName;
     }
 
-    public Event makeEvent(UnionVS payload) {
-        return new Event(eventName, new PrimVS<>(), payload);
+    public Event makeEvent(UnionVS payload, VectorClockVS clock) {
+        return new Event(eventName, clock, new PrimVS<>(), payload);
     }
 
     public abstract void handleEvent(

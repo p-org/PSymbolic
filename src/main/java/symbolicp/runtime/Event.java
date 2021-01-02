@@ -53,34 +53,34 @@ public class Event implements ValueSummary<Event> {
         return this.guard(cond);
     }
 
-    private Event(PrimVS<EventName> names, PrimVS<Machine> machine, Map<EventName, UnionVS> map) {
+    private Event(PrimVS<EventName> names, VectorClockVS clock, PrimVS<Machine> machine, Map<EventName, UnionVS> map) {
         this.name = names;
         this.machine = machine;
         this.map = new HashMap<>(map);
-        this.clock = VectorClockManager.fromMachineVS(machine);
+        this.clock = clock;
     }
 
-    public Event(EventName name, PrimVS<Machine> machine) {
-        this(new PrimVS<>(name), machine, new HashMap<>());
+    public Event(EventName name, VectorClockVS clock, PrimVS<Machine> machine) {
+        this(new PrimVS<>(name), clock, machine, new HashMap<>());
     }
 
-    public Event(PrimVS<EventName> name, PrimVS<Machine> machine) {
-        this(name, machine, new HashMap<>());
+    public Event(PrimVS<EventName> name, VectorClockVS clock, PrimVS<Machine> machine) {
+        this(name, clock, machine, new HashMap<>());
     }
 
     public Event() {
-        this(new PrimVS<>(), new PrimVS<>());
+        this(new PrimVS<>(), new VectorClockVS(Bdd.constFalse()), new PrimVS<>());
     }
 
-    public Event(EventName name, PrimVS<Machine> machine, UnionVS payload) {
-        this(new PrimVS<>(name), machine, payload);
+    public Event(EventName name, VectorClockVS clock, PrimVS<Machine> machine, UnionVS payload) {
+        this(new PrimVS<>(name),clock, machine, payload);
     }
 
-    public Event(PrimVS<EventName> names, PrimVS<Machine> machine, UnionVS payload) {
+    public Event(PrimVS<EventName> names, VectorClockVS clock, PrimVS<Machine> machine, UnionVS payload) {
         this.name = names;
         this.machine = machine;
         this.map = new HashMap<>();
-        this.clock = VectorClockManager.fromMachineVS(machine);
+        this.clock = clock;
         for (GuardedValue<EventName> name : names.getGuardedValues()) {
             assert(!this.map.containsKey(name));
             if (payload != null) {
@@ -125,12 +125,13 @@ public class Event implements ValueSummary<Event> {
                 newMap.put(entry.getKey(), entry.getValue().guard(guard));
             }
         }
-        return new Event(name.guard(guard), machine.guard(guard), newMap);
+        return new Event(name.guard(guard), clock.guard(guard), machine.guard(guard), newMap);
     }
 
     @Override
     public Event merge(Iterable<Event> summaries) {
         List<PrimVS<EventName>> namesToMerge = new ArrayList<>();
+        List<VectorClockVS> clocksToMerge = new ArrayList<>();
         List<PrimVS<Machine>> machinesToMerge = new ArrayList<>();
         Map<EventName, UnionVS> newMap = new HashMap<>();
 
@@ -142,6 +143,7 @@ public class Event implements ValueSummary<Event> {
 
         for (Event summary : summaries) {
             namesToMerge.add(summary.name);
+            clocksToMerge.add(summary.clock);
             machinesToMerge.add(summary.machine);
             for (Map.Entry<EventName, UnionVS> entry : summary.map.entrySet()) {
                 newMap.computeIfPresent(entry.getKey(), (key, value) -> value.merge(summary.map.get(key)));
@@ -153,7 +155,7 @@ public class Event implements ValueSummary<Event> {
             }
         }
 
-        return new Event(name.merge(namesToMerge), machine.merge(machinesToMerge), newMap);
+        return new Event(name.merge(namesToMerge), clock.merge(clocksToMerge), machine.merge(machinesToMerge), newMap);
     }
 
     @Override

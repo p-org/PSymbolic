@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import symbolicp.bdd.Bdd;
 import symbolicp.runtime.*;
 import symbolicp.vs.PrimVS;
+import symbolicp.vs.VectorClockVS;
 
 import java.util.Random;
 
@@ -28,7 +29,7 @@ public class TestBuffers {
     public void testBuffer(EffectCollection buffer) {
         int iters = 10;
         for (int i = 0; i < iters; i++) {
-            buffer.add(new Event(randomEvent(), new PrimVS<>()));
+            buffer.add(new Event(randomEvent(), new VectorClockVS(Bdd.constFalse()), new PrimVS<>()));
         }
         for (int i = 0; i < 10; i++) {
             buffer.remove(Bdd.constTrue());
@@ -38,11 +39,11 @@ public class TestBuffers {
 
     @Test
     public void testQueue() {
-        testBuffer(new EffectQueue());
+        testBuffer(new EffectQueue(null));
     }
 
     @Test
     public void testBag() {
-        testBuffer(new EffectBag());
+        testBuffer(new EffectBag(null));
     }
 }

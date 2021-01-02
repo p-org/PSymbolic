@@ -155,7 +155,7 @@ public class TestCaseExecutor {
             return 1;
         }
         try {
-            EntryPoint.run(p, 200, 50);
+            EntryPoint.run(p, class_name,200, 50);
         } catch (Exception | AssertionError e) {
             e.printStackTrace();
             return 2;
