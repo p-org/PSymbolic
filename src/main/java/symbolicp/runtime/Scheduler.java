@@ -290,7 +290,6 @@ public class Scheduler implements SymbolicSearch {
         PrimVS<Machine> choices = getNextSender();
 
         if (choices.isEmptyVS()) {
-            ScheduleLogger.log("empty next");
             ScheduleLogger.finished(depth);
             done = true;
             return;

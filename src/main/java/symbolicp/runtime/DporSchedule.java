@@ -108,29 +108,11 @@ public class DporSchedule extends Schedule {
                         PrimVS<Machine> preSenders = senders.guard(notAfter.and(pendingTgt.guard));
                         if (prePending.isEmptyVS()) { continue; }
                         if (!this.dporBacktrackChoice.get(i).isFrozen()) {
-                            ScheduleLogger.log("try backtrack for " + prePending.guard(pendingTgt.guard));
-                            ScheduleLogger.log("try run instead of " + event.guard(tgt.guard));
                             PrimVS<Machine> backtrack = getPrePending(prePending, preSenders, i);
                             if (!backtrack.isEmptyVS()) {
-                                ScheduleLogger.log("need to backtrack for " + prePending);
-                                ScheduleLogger.log("run instead of " + event.guard(tgt.guard));
                                 dporBacktrackChoice.get(i).addSenderChoice(backtrack);
                                 dporBacktrackChoice.get(i).freeze();
                                 found = true;
-                            } else {
-                                ScheduleLogger.log("backtrack empty at " + i);
-                                ScheduleLogger.log("wanted to backtrack for " + prePending);
-                                ScheduleLogger.log("wanted to run instead of " + event.guard(tgt.guard));
-                                /*
-                                ScheduleLogger.log("other event is " + event.guard(pendingTgt.guard).toString());
-                                ScheduleLogger.log("other target is " + tgt.value.toString());
-                                ScheduleLogger.log("pending events are " + pending.guard(pendingTgt.guard).toString());
-                                ScheduleLogger.log("pending target is " + pendingTgt.value.toString());
-                                ScheduleLogger.log("sender choices are " + choices.senderChoice.toString());
-                                ScheduleLogger.log("full sender choices are " + getSenderChoice(i).toString());
-                                ScheduleLogger.log("full sender choice events are " + getFullChoice(i).eventChosen.toString());
-                                ScheduleLogger.log("backtrack is " + backtrack.toString());
-                                */
                             }
                         }
                     }
@@ -169,17 +151,12 @@ public class DporSchedule extends Schedule {
             if (!happensBeforeCond.isConstFalse()) {
                 PrimVS<Machine> queue = previous.senderChoice.guard(happensBeforeCond);
                 Choice choices = super.getBacktrackChoice(i);
-                ScheduleLogger.log("previous: " + previous.eventChosen);
-                ScheduleLogger.log("queue: " + queue);
-                ScheduleLogger.log("choices: " + choices.eventChosen);
-                ScheduleLogger.log("queue choices: " + choices.senderChoice);
                 // need to make sure this happens-before event is schedulable at i instead
                 cond = canSchedule(queue, i);
                 if (!cond.isConstFalse()) // if it is enabled at i
                     return choices.senderChoice.guard(cond); // run the happens-before event
             }
         }
-        ScheduleLogger.log("couldn't get backtrack for");
         return new PrimVS<>();
     }
 

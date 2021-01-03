@@ -137,7 +137,6 @@ public class Schedule {
             fullChoice.add(new Choice());
         }
         fullChoice.get(depth).addSenderChoice(choice);
-        ScheduleLogger.log("added full event: " + fullChoice.get(depth).eventChosen);
     }
 
     public void addBoolChoice(PrimVS<Boolean> choice, int depth) {
@@ -167,7 +166,6 @@ public class Schedule {
             repeatChoice.add(new Choice());
         }
         repeatChoice.get(depth).addSenderChoice(choice.guard(filter));
-        ScheduleLogger.log("added repeat event: " + repeatChoice.get(depth).eventChosen);
     }
 
     public void addRepeatBool(PrimVS<Boolean> choice, int depth) {
@@ -197,7 +195,6 @@ public class Schedule {
             backtrackChoice.add(new Choice());
         }
         backtrackChoice.get(depth).addSenderChoice(choice);
-        ScheduleLogger.log("added backtrack event: " + backtrackChoice.get(depth).eventChosen);
     }
 
     public void addBacktrackBool(PrimVS<Boolean> choice, int depth) {
