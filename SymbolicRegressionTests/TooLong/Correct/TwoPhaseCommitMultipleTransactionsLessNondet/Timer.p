@@ -13,8 +13,8 @@ machine Timer
 	}
 
 	state WaitForStartTimer {
+                ignore eCancelTimer;
 		on eStartTimer goto TimerStarted;
-		on eCancelTimer do { send target, eCancelTimerFailed; }
 	}
 
 	state TimerStarted {
@@ -24,14 +24,7 @@ machine Timer
 				goto WaitForStartTimer;
 			}
 		}
-		on eCancelTimer goto WaitForStartTimer with {
-			if ($) {
-				send target, eCancelTimerFailed;
-				//send target, eTimeOut;
-			} else {
-				send target, eCancelTimerSuccess;
-			}		
-		}
+		on eCancelTimer goto WaitForStartTimer;
 	}
 }
 

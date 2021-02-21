@@ -35,7 +35,6 @@ machine Coordinator
 
 
         var idx : int;
-        var picked : int;
 	state WaitForTransactions {
 		// when in this state it is fine to drop these messages
 		ignore ePrepareSuccess, ePrepareFailed, eTimeOut, eCancelTimerSuccess, eCancelTimerFailed;
@@ -56,16 +55,9 @@ machine Coordinator
                         if (sizeof(participants) == 0) {
                             send pendingRTrans.client, eReadTransUnavailable;
                         } else {
-		             //randomly choose a participant and read the value
-                             idx = 0;
-                             picked = 0;
-                             while (idx < sizeof(participants)) {
-                                if ($) {
-                                    picked = idx;
-                                }
-                                idx = idx + 1;
-                             }
-                            send participants[picked], eRead, pendingRTrans.key;
+		            //randomly choose a participant and read the value
+                            //idx = choose(sizeof(participants));
+                            send participants[idx], eRead, pendingRTrans.key;
                             raise local_read_event;
                         }
 		}

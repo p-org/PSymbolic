@@ -33,9 +33,10 @@ machine Timer {
   }
 
   state WaitForReq {
-    on CANCEL goto WaitForReq with { 
-      send client, CANCEL_FAILURE, this;
-    } 
+    on CANCEL goto WaitForReq;
+    // with { 
+    //  send client, CANCEL_FAILURE, this;
+    // } 
     on START goto WaitForCancel;
   }
 

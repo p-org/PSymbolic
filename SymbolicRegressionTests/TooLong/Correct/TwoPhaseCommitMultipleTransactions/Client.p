@@ -4,6 +4,7 @@ A client machine pumping in one random transaction
 
 machine Client {
     var coordinator: machine;
+    var count: int;
     start state Init {
 	    entry (payload : machine) {
 	        coordinator = payload;
@@ -28,7 +29,12 @@ machine Client {
 		on eReadTransFailed do { assert false, "Read Failed after Write!!"; }
 		on eReadTransSuccess do (res:int) {
                     assert res == randomTransaction.val, "Read wrong value out!!";
-                    goto End;
+                    if (count == 1) {
+                        goto End;
+                    } else {
+                        count = count + 1;
+                        goto StartPumpingTransactions;
+                    }
                 }
 	}
 
