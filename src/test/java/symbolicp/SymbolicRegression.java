@@ -53,7 +53,7 @@ public class SymbolicRegression {
 
     void runDynamicTest(int expected, List<String> testCasePaths, String testCasePath, Collection<DynamicTest> dynamicTests) {
         Executable exec = () -> assertEquals(expected, TestCaseExecutor.runTestCase(testCasePaths));
-        DynamicTest dynamicTest = DynamicTest.dynamicTest(testCasePath, () -> assertTimeoutPreemptively(Duration.ofMinutes(60), exec));
+        DynamicTest dynamicTest = DynamicTest.dynamicTest(testCasePath, () -> assertTimeoutPreemptively(Duration.ofMinutes(120), exec));
         dynamicTests.add(dynamicTest);
     }
 
@@ -99,7 +99,7 @@ public class SymbolicRegression {
     @TestFactory
     //@Timeout(value = 1, unit = TimeUnit.MILLISECONDS)
     Collection<DynamicTest> loadSymbolicRegressions() {
-        return loadTests("./SymbolicRegressionTests/error", null);
+        return loadTests("./SymbolicRegressionTests/Integration", null);
     }
 
 }
