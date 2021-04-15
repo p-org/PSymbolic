@@ -14,6 +14,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
     public final Map<K, V> entries;
 
     /** Make a new MapVS with the specified set of keys and the specified mapping
+     *
      * @param keys The set of keys
      * @param entries The mapping from all possible keys to value summaries
      */
@@ -23,6 +24,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
     }
 
     /** Make a new MapVS with the specified universe
+     *
      * @param universe The universe for the new MapVS
      */
     public MapVS(Bdd universe) {
@@ -31,7 +33,9 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
     }
 
     /** Get the number of entries in the MapVS
-     * @return The size of the MapVS */
+     *
+     * @return The size of the MapVS
+     * */
     public PrimVS<Integer> getSize() {
         return keys.size();
     }
@@ -131,6 +135,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
     }
 
     /** Put a key-value pair into the MapVS
+     *
      * @param keySummary The key value summary
      * @param valSummary The value value summary
      * @return The updated MapVS
@@ -151,6 +156,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
     }
 
     /** Add a key-value pair into the MapVS
+     *
      * @param keySummary The key value summary
      * @param valSummary The value value summary
      * @return The updated MapVS
@@ -163,6 +169,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
     }
 
     /** Remove a key-value pair from the MapVS
+     *
      * @param keySummary The key value summary
      * @return The updated MapVS
      */
@@ -188,6 +195,7 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
     }
 
     /** Get a value from from the MapVS
+     *
      * @param keySummary The key value summary.
      * @return The option containing value corresponding to the key or an empty option if no such value
      */
@@ -208,7 +216,8 @@ public class MapVS<K, V extends ValueSummary<V>> implements ValueSummary<MapVS<K
         return merger.merge(toMerge);
     }
 
-    /** Get whether or not the MapVS contains a key
+    /** Get whether or not the MapVS contains a
+     *
      * @param keySummary The key ValueSummary
      * @return Whether or not the MapVS contains a key
      */

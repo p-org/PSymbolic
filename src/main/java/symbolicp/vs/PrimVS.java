@@ -28,6 +28,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     private final Map<T, Bdd> guardedValues;
 
     /** Make a new PrimVS with the largest possible universe containing only the specified value
+     *
      * @param value The value that the PrimVS contains
      */
     public PrimVS(T value) {
@@ -48,6 +49,7 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
     }
 
     /** Copy constructor for PrimVS
+     *
      * @param old The PrimVS to copy
      */
     public PrimVS(PrimVS old) {
@@ -180,31 +182,18 @@ public class PrimVS<T> implements ValueSummary<PrimVS<T>> {
         return this.guard(guard.not()).merge(Collections.singletonList(update.guard(guard)));
     }
 
-    public void check() {
-        /*
-        if (!Checks.disjointUnion(guardedValues.values())) {
-            System.out.println(getValues());
-        }
-        assert (Checks.disjointUnion(guardedValues.values()));
-        for (Bdd guard : guardedValues.values()) {
-            assert(!guard.isConstFalse());
-        }
-         */
-    }
 
     @Override
     public PrimVS<T> merge(Iterable<PrimVS<T>> summaries) {
         final Map<T, Bdd> result = new HashMap<>(guardedValues);
 
         for (PrimVS<T> summary : summaries) {
-            summary.check();
             for (Map.Entry<T, Bdd> entry : summary.guardedValues.entrySet()) {
                 result.merge(entry.getKey(), entry.getValue(), Bdd::or);
             }
         }
 
         PrimVS<T> res = new PrimVS<>(result);
-        res.check();
         return res;
     }
 

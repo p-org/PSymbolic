@@ -78,7 +78,6 @@ public class TestCaseExecutor {
         testCasePaths.stream().map(p -> p.substring(p.indexOf(prefix) + prefix.length())).forEach(System.out::println);
         String testCaseRelDir = sanitizeRelDir(Paths.get(testCaseRelPaths.get(0)).getParent().toString());
         String outputDirectory = "src/test/java/symbolicp/testCase/" + testCaseRelDir;
-        // String outputPackage = packageNameFromRelDir(testCaseRelDir);
 
         String testCasePathsString = String.join(" ", testCasePaths);
         Process process;
@@ -138,12 +137,8 @@ public class TestCaseExecutor {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         compiler.run(null, null, null, outputPath);
 
-
         // Load and instantiate compiled class and external classes
         try {
-            for (String path : toLoad) {
-                URLClassLoader.newInstance(new URL[]{new File(path).toURI().toURL()});
-            }
             URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{new File(outputDirectory).toURI().toURL()});
             Class<?> cls = Class.forName(class_name, true, classLoader);
             Object instance = cls.getDeclaredConstructor().newInstance();

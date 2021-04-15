@@ -93,7 +93,6 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
         }
 
         final PrimVS<Integer> mergedSize = size.merge(sizesToMerge);
-        mergedSize.check();
 
         final List<T> mergedItems = new ArrayList<>();
 
@@ -140,7 +139,9 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
     }
 
     /** Add an item to the ListVS
+     *
      * @param item The Item to add to the ListVS. Should be possible under a subset of the ListVS's conditions.
+     * @return The updated ListVS
      */
     public ListVS<T> add(T item) {
         //assert(Checks.includedIn(item.getUniverse(), getUniverse()));
@@ -402,7 +403,6 @@ public class ListVS<T extends ValueSummary<T>> implements ValueSummary<ListVS<T>
     /** Get the universe under which the data structure is nonempty
      * @return The universe under which the data structure is nonempty */
     public Bdd getNonEmptyUniverse() {
-        size.check();
         if (size.getGuardedValues().size() > 1) {
             /*
             ScheduleLogger.log("universe: " + getUniverse());

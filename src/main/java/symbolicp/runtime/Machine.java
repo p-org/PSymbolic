@@ -147,7 +147,6 @@ public abstract class Machine extends HasId {
                 if (!outcome.getPopCond().isConstFalse()) {
                     popFromStack(outcome.getPopCond());
                 }
-                this.state.check();
 
                 outcome = nextOutcome;
             }
@@ -204,8 +203,6 @@ public abstract class Machine extends HasId {
 
             this.state = newState.merge(this.state.guard(pc.not()));
         }
-
-        this.state.check();
 
         for (GuardedValue<State> entry : newState.getGuardedValues()) {
             State state = entry.value;

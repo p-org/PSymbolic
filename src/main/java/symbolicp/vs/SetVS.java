@@ -75,6 +75,7 @@ public class SetVS<T extends ValueSummary<T>> implements ValueSummary<SetVS<T>> 
     }
 
     /** Check whether the SetVS contains an element
+     *
      * @param itemSummary The element to check for. Should be possible under a subset of the SetVS's conditions.
      * @return Whether or not the SetVS contains an element
      */
@@ -83,10 +84,12 @@ public class SetVS<T extends ValueSummary<T>> implements ValueSummary<SetVS<T>> 
     }
 
     /** Get the universe under which the data structure is nonempty
+     *
      * @return The universe under which the data structure is nonempty */
     public Bdd getNonEmptyUniverse() { return elements.getNonEmptyUniverse(); }
 
     /** Add an item to the SetVS.
+     *
      * @param itemSummary The element to add.
      * @return The SetVS with the element added
      */
@@ -100,6 +103,7 @@ public class SetVS<T extends ValueSummary<T>> implements ValueSummary<SetVS<T>> 
     }
 
     /** Remove an item from the SetVS.
+     *
      * @param itemSummary The element to remove. Should be possible under a subset of the SetVS's conditions.
      * @return The SetVS with the element removed.
      */

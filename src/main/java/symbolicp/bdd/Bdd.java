@@ -11,120 +11,115 @@ import java.util.List;
 /**
  * This class determines the global BDD implementation used by the symbolic engine.
  *
- * It is a thin wrapper over a BddLib, which can be swapped out at will by reassigning the `globalBddLib` variable.
- *
- * The implementation of this class itself is relatively loosely typed, but both its clients and the BddLib it wraps can
- * enjoy a strongly-typed interface.
- *
- * This class may be a candidate for performance optimization in the future, if it turns out that wrapping every
- * Bdd inside an additional object represents a significant performance bottleneck.
+ * It is a thin wrapper over a BddLib, which can be swapped out at will by reassigning the `globalBddLib` variable
+ * and adjusting the implementation of reset();
  */
-public final class Bdd {
-
-    public static int trueQueries = 0;
-    public static int falseQueries = 0;
-
+public class Bdd {
 
     private static BddLib globalBddLib = new PjbddImpl();
 
+    /** Reset the BDD library by making a new one */
     public static void reset() {
-        trueQueries = 0; falseQueries = 0; globalBddLib = new PjbddImpl();
+        globalBddLib = new PjbddImpl();
     }
 
     private final Object wrappedBdd;
 
-    /* Directly constructing Bdd wrappers is not advisable and should generally only be used for testing purposes */
     public Bdd(Object wrappedBdd) {
         this.wrappedBdd = wrappedBdd;
     }
 
+    /** Return new constant false BDD
+     *
+     * @return BDD for the constant false
+     */
     public static Bdd constFalse() {
         return new Bdd(globalBddLib.constFalse());
     }
 
+    /** Return new constant true BDD
+     *
+     * @return BDD for the constant true
+     */
     public static Bdd constTrue() {
         return new Bdd(globalBddLib.constTrue());
     }
 
+    /** Return whether the BDD is constant false
+     *
+     * @return True iff BDD is the constant false
+     */
     public boolean isConstFalse() {
-        falseQueries++; return globalBddLib.isConstFalse(wrappedBdd);
+        return globalBddLib.isConstFalse(wrappedBdd);
     }
 
+    /** Return whether the BDD is constant true
+     *
+     * @return True iff BDD is the constant true
+     */
     public boolean isConstTrue() {
-        trueQueries++; return globalBddLib.isConstTrue(wrappedBdd);
+        return globalBddLib.isConstTrue(wrappedBdd);
     }
 
+    /** Conjoin BDD with another BDD
+     *
+     * @param other The other BDD conjunct
+     * @return The resulting BDD from the conjunction
+     */
     public Bdd and(Bdd other) {
-        Instant start = Instant.now();
         Bdd res = new Bdd(globalBddLib.and(wrappedBdd, other.wrappedBdd));
-        Instant end = Instant.now();
-        /*
-        if (Duration.between(start, end).toMillis() > 1000) {
-            ScheduleLogger.log("Time taken for and: " + Duration.between(start, end).toMillis());
-            String bddString = res.toString();
-            int counter = 0;
-            int index = bddString.indexOf("label");
-            while(index >= 0) {
-                index = bddString.indexOf("label", index+1);
-                counter++;
-            }
-            ScheduleLogger.log(counter + " # BDD nodes");
-        }
-
-         */
         return res;
     }
 
+    /** Disjoin BDD with another BDD
+     *
+     * @param other The other BDD disjunct
+     * @return The resulting BDD from the disjunction
+     */
     public Bdd or(Bdd other) {
-        Instant start = Instant.now();
         Bdd res = new Bdd(globalBddLib.or(wrappedBdd, other.wrappedBdd));
-        Instant end = Instant.now();
-        /*
-        if (Duration.between(start, end).toMillis() > 1000) {
-            ScheduleLogger.log("Time taken for or: " + Duration.between(start, end).toMillis());
-            String bddString = res.toString();
-            int counter = 0;
-            int index = bddString.indexOf("label");
-            while (index >= 0) {
-                index = bddString.indexOf("label", index + 1);
-                counter++;
-            }
-            ScheduleLogger.log(counter + " # BDD nodes");
-        }
-         */
         return res;
     }
 
+    /** Make BDD this BDD imply another BDD
+     *
+     * @param other The consequent of the implication
+     * @return The resulting BDD from the implication
+     */
     public Bdd implies(Bdd other) { return new Bdd(globalBddLib.implies(wrappedBdd, other.wrappedBdd)); }
 
+    /** Negate this BDD
+     *
+     * @return The result of the negation
+     */
     public Bdd not() {
-        Instant start = Instant.now();
         Bdd res = new Bdd(globalBddLib.not(wrappedBdd));
-        Instant end = Instant.now();
-        /*
-        if (Duration.between(start, end).toMillis() > 1000) {
-            ScheduleLogger.log("Time taken for not: " + Duration.between(start, end).toMillis());
-            String bddString = res.toString();
-            int counter = 0;
-            int index = bddString.indexOf("label");
-            while (index >= 0) {
-                index = bddString.indexOf("label", index + 1);
-                counter++;
-            }
-            ScheduleLogger.log(counter + " # BDD nodes");
-        }
-         */
         return res;
     }
 
-    public static Bdd orMany(List<Bdd> wrappedBdd) {
-        return wrappedBdd.stream().reduce(Bdd.constFalse(), Bdd::or);
+    /** Disjoing BDD with several other BDDs
+     *
+     * @param wrappedBdds List of other BDDs
+     * @return The resulting BDD from the disjunction
+     */
+    public static Bdd orMany(List<Bdd> wrappedBdds) {
+        return wrappedBdds.stream().reduce(Bdd.constFalse(), Bdd::or);
     }
 
+    /** Create an if-then-else using this BDD as the condition
+     *
+     * @param thenCase The "then" case BDD
+     * @param elseCase The "else" case BDD
+     * @return The result of constructing the if-then-else
+     */
     public Bdd ifThenElse(Bdd thenCase, Bdd elseCase) {
         return new Bdd(globalBddLib.ifThenElse(wrappedBdd, thenCase.wrappedBdd, elseCase.wrappedBdd));
     }
 
+    /** Create a new BDD variable
+     *
+     * @return The new BDD variable as a BDD
+     */
     public static Bdd newVar() {
         return new Bdd(globalBddLib.newVar());
     }

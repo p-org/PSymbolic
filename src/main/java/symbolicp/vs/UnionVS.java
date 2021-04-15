@@ -112,7 +112,6 @@ public class UnionVS implements ValueSummary<UnionVS> {
         }
 
         UnionVS res = new UnionVS(newTag, newPayloads);
-        res.check();
         return res;
     }
 

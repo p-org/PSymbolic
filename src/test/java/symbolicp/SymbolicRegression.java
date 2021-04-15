@@ -62,10 +62,13 @@ public class SymbolicRegression {
         Collection<DynamicTest> dynamicTests = new ArrayList<>();
 
         List<String> testDirs = new ArrayList<>();
+
+        System.out.println("walk!");
         try (Stream<Path> walk = Files.walk(Paths.get(testDirPath))) {
             testDirs = walk.map(Path::toString)
                     .filter(f -> f.endsWith("Correct") || f.endsWith("DynamicError") || f.endsWith("StaticError")).collect(Collectors.toList());
         } catch (IOException e) {
+            System.out.println("exception!");
             e.printStackTrace();
         }
 
@@ -89,17 +92,10 @@ public class SymbolicRegression {
         return dynamicTests;
     }
 
-    /*
-    @TestFactory
-    Collection<DynamicTest> loadStandardRegressions() {
-        return loadTests("../Tst/RegressionTests/", new String[] {"Feature5ModuleSystem/"});
-    }
-    */
-
     @TestFactory
     //@Timeout(value = 1, unit = TimeUnit.MILLISECONDS)
     Collection<DynamicTest> loadSymbolicRegressions() {
-        return loadTests("./SymbolicRegressionTests/error", null);
+        return loadTests("./SymbolicRegressionTests/Integration", null);
     }
 
 }
